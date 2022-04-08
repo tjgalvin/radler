@@ -1,0 +1,7 @@
+# Copyright (C) 2022 ASTRON (Netherlands Institute for Radio Astronomy)
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# This file contains the pipelines that run on the Astron repository of Radler,
+# which is at https://git.astron.nl/RD/radler
+
+include: .gitlab-ci.common.yml

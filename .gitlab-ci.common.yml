@@ -1,0 +1,126 @@
+# Copyright (C) 2022 ASTRON (Netherlands Institute for Radio Astronomy)
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+workflow:
+  rules:
+    # don't create a pipeline if its a commit pipeline, on a branch and that branch has open merge requests (we will get a MR build instead)
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - when: always
+
+stages:
+  - versioning
+  - prepare
+  - linting
+  - build
+  - test
+
+# The 'IMAGE' variables allow reusing docker images between different pipelines.
+# See https://confluence.skatelescope.org/display/SE/Caching+Docker+images+using+GitLab+CI+registry
+versioning:
+  stage: versioning
+  image: bitnami/git
+  script:
+    # Unshallowing ensures that 'git log' works
+    # - git fetch --unshallow
+    - git fetch --depth=1000
+    - echo BASE_IMAGE_2004=${CI_REGISTRY_IMAGE}/base_2004:$(git log -n 1 --pretty=format:%H -- docker/ubuntu_20_04_base) > versions.env
+    - echo BASE_IMAGE_2204=${CI_REGISTRY_IMAGE}/base_2204:$(git log -n 1 --pretty=format:%H -- docker/ubuntu_22_04_base) >> versions.env
+    - cat versions.env
+  artifacts:
+    reports:
+      dotenv: versions.env
+
+.prepare:
+  stage: prepare
+  needs: ["versioning"]
+  image: docker:20.10
+  services:
+    - docker:20.10-dind
+  before_script:
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+  script:
+    - |
+      if ! docker manifest inspect $DOCKER_IMAGE > /dev/null; then
+        docker build $DOCKER_BUILD_ARG --tag $DOCKER_IMAGE -f $DOCKER_FILE .
+        docker push $DOCKER_IMAGE
+      fi
+  # Skip the job if there are no changes to the Docker file. This shortcut only
+  # works for push and merge request jobs.
+  # A manual pipeline run will thus create missing docker images.
+  rules:
+    - changes:
+      - $DOCKER_FILE
+
+prepare-base-2004:
+  extends: .prepare
+  variables:
+    DOCKER_IMAGE: $BASE_IMAGE_2004
+    DOCKER_FILE: docker/ubuntu_20_04_base
+
+prepare-base-2204:
+  extends: .prepare
+  variables:
+    DOCKER_IMAGE: $BASE_IMAGE_2204
+    DOCKER_FILE: docker/ubuntu_22_04_base
+
+.needs-2004:
+  needs:
+    - job: versioning
+    - job: prepare-base-2004
+      optional: true
+  image: $BASE_IMAGE_2004
+
+.needs-2204:
+  needs:
+    - job: versioning
+    - job: prepare-base-2204
+      optional: true
+  image: $BASE_IMAGE_2204
+
+clang-format:
+  extends: .needs-2004
+  stage: linting
+  script:
+    # Explicitly checking out submodules might become redundant
+    # once git fetch --unshallow works.
+    - git submodule update --init --recursive --checkout --depth 1
+    - ./scripts/run-format.sh
+
+.build:
+  stage: build
+  script:
+    - cmake --version
+    - mkdir build && cd build
+    - cmake -DBUILD_TESTING=ON -DCMAKE_INSTALL_PREFIX=.. -DCMAKE_CXX_FLAGS="-coverage" -DCMAKE_EXE_LINKER_FLAGS="-coverage" ..
+    - make -j`nproc`
+    - make install
+  artifacts:
+    paths:
+      - build
+
+build-2004:
+  extends: [".needs-2004",".build"]
+
+build-2204:
+  extends: [".needs-2204",".build"]
+
+.test:
+  stage: test
+  script:
+     - cd build/
+     - ctest -j`nproc` --output-on-failure -T test
+
+test-2004:
+  extends: .test
+  needs: ["versioning","build-2004"]
+  image: $BASE_IMAGE_2004
+  after_script:
+    - gcovr -j`nproc` -r .. -e '.*/external/.*' -e '.*/CompilerIdCXX/.*' -e '.*/test/.*'
+
+test-2204:
+  extends: .test
+  needs: ["versioning","build-2204"]
+  image: $BASE_IMAGE_2204
+  after_script:
+    - gcovr -j`nproc` -r .. -e '.*/external/.*' -e '.*/CompilerIdCXX/.*' -e '.*/test/.*'
