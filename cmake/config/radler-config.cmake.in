@@ -1,0 +1,45 @@
+# Copyright (C) 2022 ASTRON (Netherlands Institute for Radio Astronomy)
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+#  Config file for the radler library, it sets the following variables
+#
+# - RADLER_FOUND
+# - RADLER_ROOT_DIR
+# - RADLER_INCLUDE_DIR
+# - RADLER_INCLUDE_DIRS (equals RADLER_INCLUDE_DIR)
+# - RADLER_LIB_PATH
+# - RADLER_LIB
+# - RADLER_VERSION[_MAJOR/_MINOR/_PATCH]
+
+# Compute paths
+get_filename_component(_RADLER_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+get_filename_component(_RADLER_CMAKE_DIR_ABS "${_RADLER_CMAKE_DIR}" ABSOLUTE)
+get_filename_component(_RADLER_ROOT_DIR "${_RADLER_CMAKE_DIR_ABS}/../.." ABSOLUTE)
+
+# Use FORCE to override cached variables
+set(RADLER_ROOT_DIR "${_RADLER_ROOT_DIR}"
+    CACHE PATH "Radler root (prefix) directory" FORCE)
+
+set(RADLER_INCLUDE_DIR "${RADLER_ROOT_DIR}/include"
+    CACHE PATH "Radler include directory" FORCE)
+
+set(RADLER_INCLUDE_DIRS ${RADLER_INCLUDE_DIR})
+
+set(RADLER_LIB_PATH "${RADLER_ROOT_DIR}/lib"
+    CACHE PATH "Radler library directory" FORCE)
+
+find_library(RADLER_LIB radler PATH ${RADLER_LIB_PATH} NO_DEFAULT_PATH
+             DOC "Radler library directory")
+message(STATUS "Found Radler @RADLER_VERSION@.")
+message(STATUS "  Radler include dir: ${RADLER_INCLUDE_DIR}")
+message(STATUS "  Radler lib: ${RADLER_LIB}")
+
+set(RADLER_VERSION "@RADLER_VERSION@")
+set(RADLER_VERSION_MAJOR @RADLER_VERSION_MAJOR@)
+set(RADLER_VERSION_MINOR @RADLER_VERSION_MINOR@)
+set(RADLER_VERSION_PATCH @RADLER_VERSION_PATCH@)
+set(RADLER_FOUND 1)
+
+unset(_RADLER_ROOT_DIR)
+unset(_RADLER_CMAKE_DIR)
+unset(_RADLER_CMAKE_DIR_ABS)
