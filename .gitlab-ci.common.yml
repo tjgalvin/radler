@@ -54,9 +54,13 @@ versioning:
   # Skip the job if there are no changes to the Docker file. This shortcut only
   # works for push and merge request jobs.
   # A manual pipeline run will thus create missing docker images.
-  rules:
-    - changes:
-      - $DOCKER_FILE
+  #
+  # This is disabled since the detections of the changes by GitLab seems flaky.
+  # TODO(AST-887) Reenable this to test whether it's no longer flaky.
+  #
+  #rules:
+  #  - changes:
+  #    - $DOCKER_FILE
 
 prepare-base-2004:
   extends: .prepare
