@@ -8,6 +8,9 @@ workflow:
       when: never
     - when: always
 
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
 stages:
   - versioning
   - prepare
@@ -20,10 +23,11 @@ stages:
 versioning:
   stage: versioning
   image: bitnami/git
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
   script:
     # Unshallowing ensures that 'git log' works
-    # - git fetch --unshallow
-    - git fetch --depth=1000
+    - git fetch --unshallow
     - echo BASE_IMAGE_2004=${CI_REGISTRY_IMAGE}/base_2004:$(git log -n 1 --pretty=format:%H -- docker/ubuntu_20_04_base) > versions.env
     - echo BASE_IMAGE_2204=${CI_REGISTRY_IMAGE}/base_2204:$(git log -n 1 --pretty=format:%H -- docker/ubuntu_22_04_base) >> versions.env
     - cat versions.env
@@ -37,6 +41,8 @@ versioning:
   image: docker:20.10
   services:
     - docker:20.10-dind
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
   before_script:
     - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
@@ -78,13 +84,10 @@ prepare-base-2204:
       optional: true
   image: $BASE_IMAGE_2204
 
-clang-format:
+format:
   extends: .needs-2004
   stage: linting
   script:
-    # Explicitly checking out submodules might become redundant
-    # once git fetch --unshallow works.
-    - git submodule update --init --recursive --checkout --depth 1
     - ./scripts/run-format.sh
 
 .build:
