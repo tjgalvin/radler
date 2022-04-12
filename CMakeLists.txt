@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.8)
 # When Radler is compiled as an ExternalProject inside another project, set this
 # option to On. See, e.g., the wsclean CMake file for an example.
 option(COMPILE_AS_EXTERNAL_PROJECT OFF)
+option(PORTABLE "Generate portable code" OFF)
 
 set(RADLER_VERSION 0.0.0)
 project(radler VERSION ${RADLER_VERSION})
