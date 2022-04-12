@@ -1,5 +1,4 @@
-# Copyright (C) 2022 ASTRON (Netherlands Institute for Radio Astronomy)
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: LGPL-3.0-only
 
 # Generic function for adding a radler unittest. It creates a 'test' that builds
 # the unittest and a test that runs it. Arguments:
