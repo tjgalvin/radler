@@ -6,8 +6,7 @@
 #   CFITSIO_LIBRARIES    - the CFITSIO libraries (identical to CFITSIO_LIBRARY)
 #   CFITSIO_VERSION_STRING the found version of CFITSIO, padded to 3 digits
 
-# Copyright (C) 2022 ASTRON (Netherlands Institute for Radio Astronomy)
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: LGPL-3.0-only
 
 if(NOT CFITSIO_FOUND)
 

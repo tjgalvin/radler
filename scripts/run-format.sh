@@ -1,6 +1,5 @@
 #!/bin/bash
-# Copyright (C) 2022 ASTRON (Netherlands Institute for Radio Astronomy)
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: LGPL-3.0-only
 
 #The directory that contains the source files.
 SOURCE_DIR=$(dirname "$0")/..

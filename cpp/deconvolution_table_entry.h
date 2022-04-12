@@ -1,5 +1,4 @@
-// Copyright (C) 2022 ASTRON (Netherlands Institute for Radio Astronomy)
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-only
 
 #ifndef RADLER_DECONVOLUTION_TABLE_ENTRY_H_
 #define RADLER_DECONVOLUTION_TABLE_ENTRY_H_
