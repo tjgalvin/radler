@@ -114,19 +114,26 @@ build-2204:
 .test:
   stage: test
   script:
-     - cd build/
-     - ctest -j`nproc` --output-on-failure -T test
+    - cd build/
+    - ctest -j`nproc` --output-on-failure -T test
 
 test-2004:
   extends: .test
   needs: ["versioning","build-2004"]
   image: $BASE_IMAGE_2004
   after_script:
-    - gcovr -j`nproc` -r .. -e '.*/external/.*' -e '.*/CompilerIdCXX/.*' -e '.*/test/.*'
+    - gcovr -j`nproc` -e 'external/.*' -e '.*/CompilerIdCXX/.*' -e '.*/test/.*' build/
 
 test-2204:
   extends: .test
   needs: ["versioning","build-2204"]
   image: $BASE_IMAGE_2204
   after_script:
-    - gcovr -j`nproc` -r .. -e '.*/external/.*' -e '.*/CompilerIdCXX/.*' -e '.*/test/.*'
+    - mkdir coverage
+    - gcovr -j`nproc` -e 'external/.*' -e '.*/CompilerIdCXX/.*' -e '.*/test/.*' --xml coverage.xml --html-details coverage/coverage.html build/
+    - tar cfz coverage.tar.gz coverage/
+  artifacts:
+    paths:
+      - coverage.tar.gz
+    reports:
+      cobertura: coverage.xml
