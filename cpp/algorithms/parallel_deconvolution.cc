@@ -8,7 +8,7 @@
 #include <schaapcommon/fft/convolution.h>
 
 #include "algorithms/multiscale_algorithm.h"
-#include "math/dijkstrasplitter.h"
+#include "math/dijkstra_splitter.h"
 
 using aocommon::Image;
 using aocommon::Logger;

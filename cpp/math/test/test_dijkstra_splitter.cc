@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-#include "math/dijkstrasplitter.h"
+#include "math/dijkstra_splitter.h"
 
 #include <random>
 
