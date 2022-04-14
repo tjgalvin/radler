@@ -23,7 +23,7 @@ versioning:
   stage: versioning
   image: bitnami/git
   variables:
-    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_STRATEGY: none
   script:
     # Unshallowing ensures that 'git log' works
     - git fetch --unshallow
@@ -41,7 +41,7 @@ versioning:
   services:
     - docker:20.10-dind
   variables:
-    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_STRATEGY: none
   before_script:
     - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
