@@ -31,6 +31,7 @@ set(RADLER_FILES
     algorithms/iuwt/iuwt_decomposition.cc
     algorithms/iuwt/iuwt_mask.cc
     algorithms/multiscale/multiscale_transforms.cc
+    math/dijkstra_splitter.cc
     math/peak_finder.cc
     math/rms_image.cc
     utils/casa_mask_reader.cc)
