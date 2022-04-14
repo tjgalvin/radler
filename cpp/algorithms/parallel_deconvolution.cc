@@ -76,19 +76,19 @@ const DeconvolutionAlgorithm& ParallelDeconvolution::MaxScaleCountAlgorithm()
 
 void ParallelDeconvolution::SetAlgorithm(
     std::unique_ptr<DeconvolutionAlgorithm> algorithm) {
-  if (_settings.parallelDeconvolutionMaxSize == 0) {
+  if (_settings.parallel.max_size == 0) {
     _algorithms.resize(1);
     _algorithms.front() = std::move(algorithm);
   } else {
     const size_t width = _settings.trimmedImageWidth;
     const size_t height = _settings.trimmedImageHeight;
-    size_t maxSubImageSize = _settings.parallelDeconvolutionMaxSize;
+    size_t maxSubImageSize = _settings.parallel.max_size;
     _horImages = (width + maxSubImageSize - 1) / maxSubImageSize,
     _verImages = (height + maxSubImageSize - 1) / maxSubImageSize;
     _algorithms.resize(_horImages * _verImages);
     _algorithms.front() = std::move(algorithm);
     size_t threadsPerAlg =
-        (_settings.parallelDeconvolutionMaxThreads + _algorithms.size() - 1) /
+        (_settings.parallel.max_threads + _algorithms.size() - 1) /
         _algorithms.size();
     _algorithms.front()->SetThreadCount(threadsPerAlg);
     Logger::Debug << "Parallel deconvolution will use " << _algorithms.size()
@@ -99,7 +99,7 @@ void ParallelDeconvolution::SetAlgorithm(
 }
 
 void ParallelDeconvolution::SetRMSFactorImage(Image&& image) {
-  if (_settings.parallelDeconvolutionMaxSize == 0)
+  if (_settings.parallel.max_size == 0)
     _algorithms.front()->SetRMSFactorImage(std::move(image));
   else
     _rmsImage = std::move(image);
@@ -370,7 +370,7 @@ void ParallelDeconvolution::executeParallelRun(
     _algorithms[i]->SetLogReceiver(_logs[i]);
 
   // Find the starting peak over all subimages
-  aocommon::ParallelFor<size_t> loop(_settings.parallelDeconvolutionMaxThreads);
+  aocommon::ParallelFor<size_t> loop(_settings.parallel.max_threads);
   ImageSet resultModel(modelImage, modelImage.Width(), modelImage.Height());
   resultModel = 0.0;
   loop.Run(0, _algorithms.size(), [&](size_t index, size_t) {

@@ -11,6 +11,7 @@
 
 #include "component_list.h"
 #include "deconvolution_algorithm.h"
+#include "deconvolution_settings.h"
 #include "image_set.h"
 #include "algorithms/threaded_deconvolution_tools.h"
 #include "algorithms/multiscale/multiscale_transforms.h"
@@ -50,7 +51,7 @@ class MultiScaleAlgorithm : public DeconvolutionAlgorithm {
     assert(padding >= 1.0);
     _convolutionPadding = padding;
   }
-  void SetShape(multiscale::Shape shape) { _scaleShape = shape; }
+  void SetShape(MultiscaleShape shape) { _scaleShape = shape; }
   size_t ScaleCount() const { return _scaleInfos.size(); }
   void ClearComponentList() { _componentList.reset(); }
   ComponentList& GetComponentList() { return *_componentList; }
@@ -70,7 +71,7 @@ class MultiScaleAlgorithm : public DeconvolutionAlgorithm {
   double _beamSizeInPixels;
   float _multiscaleScaleBias;
   float _multiscaleGain;
-  multiscale::Shape _scaleShape;
+  MultiscaleShape _scaleShape;
   size_t _maxScales;
   // ThreadedDeconvolutionTools* _tools;
 

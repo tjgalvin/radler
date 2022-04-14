@@ -5,18 +5,19 @@
 
 #include <cmath>
 #include <initializer_list>
+#include <vector>
 
 #include <aocommon/image.h>
 #include <aocommon/uvector.h>
 
-#include <vector>
+#include "deconvolution_settings.h"
 
 namespace radler::algorithms::multiscale {
 
-enum class Shape { TaperedQuadraticShape, GaussianShape };
-
 class MultiScaleTransforms {
  public:
+  using Shape = radler::MultiscaleShape;
+
   MultiScaleTransforms(size_t width, size_t height, Shape shape)
       : _width(width), _height(height), _shape(shape), _threadCount(1) {}
 
@@ -106,7 +107,7 @@ class MultiScaleTransforms {
 
  private:
   size_t _width, _height;
-  enum Shape _shape;
+  Shape _shape;
   size_t _threadCount;
 
   static size_t taperedQuadraticKernelSize(double scaleInPixels) {

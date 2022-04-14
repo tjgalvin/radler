@@ -39,8 +39,8 @@ Radler::Radler(const DeconvolutionSettings& deconvolutionSettings)
       _autoMaskIsFinished(false),
       _imgWidth(_settings.trimmedImageWidth),
       _imgHeight(_settings.trimmedImageHeight),
-      _pixelScaleX(_settings.pixelScaleX),
-      _pixelScaleY(_settings.pixelScaleY),
+      _pixelScaleX(_settings.pixel_scale.x),
+      _pixelScaleY(_settings.pixel_scale.y),
       _autoMask(),
       _beamSize(0.0) {
   // Ensure that all FFTWF plan calls inside Radler are
@@ -86,9 +86,9 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
     // the RMS background anymore
     _parallelDeconvolution->SetRMSFactorImage(Image());
   } else {
-    if (!_settings.localRMSImage.empty()) {
+    if (!_settings.local_rms.image.empty()) {
       Image rmsImage(_imgWidth, _imgHeight);
-      FitsReader reader(_settings.localRMSImage);
+      FitsReader reader(_settings.local_rms.image);
       reader.Read(rmsImage.Data());
       // Normalize the RMS image
       stddev = rmsImage.Min();
@@ -102,22 +102,22 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
         if (value != 0.0) value = stddev / value;
       }
       _parallelDeconvolution->SetRMSFactorImage(std::move(rmsImage));
-    } else if (_settings.localRMSMethod != LocalRmsMethod::kNone) {
+    } else if (_settings.local_rms.method != LocalRmsMethod::kNone) {
       Logger::Debug << "Constructing local RMS image...\n";
       Image rmsImage;
       // TODO this should use full beam parameters
-      switch (_settings.localRMSMethod) {
+      switch (_settings.local_rms.method) {
         case LocalRmsMethod::kNone:
           assert(false);
           break;
         case LocalRmsMethod::kRmsWindow:
-          math::RMSImage::Make(rmsImage, integrated, _settings.localRMSWindow,
+          math::RMSImage::Make(rmsImage, integrated, _settings.local_rms.window,
                                _beamSize, _beamSize, 0.0, _pixelScaleX,
                                _pixelScaleY, _settings.threadCount);
           break;
         case LocalRmsMethod::kRmsAndMinimumWindow:
           math::RMSImage::MakeWithNegativityLimit(
-              rmsImage, integrated, _settings.localRMSWindow, _beamSize,
+              rmsImage, integrated, _settings.local_rms.window, _beamSize,
               _beamSize, 0.0, _pixelScaleX, _pixelScaleY,
               _settings.threadCount);
           break;
@@ -217,34 +217,35 @@ void Radler::InitializeDeconvolutionAlgorithm(
 
   std::unique_ptr<class algorithms::DeconvolutionAlgorithm> algorithm;
 
-  if (!_settings.pythonDeconvolutionFilename.empty()) {
-    algorithm.reset(new algorithms::PythonDeconvolution(
-        _settings.pythonDeconvolutionFilename));
+  if (!_settings.python.filename.empty()) {
+    algorithm.reset(
+        new algorithms::PythonDeconvolution(_settings.python.filename));
   } else if (_settings.useMoreSaneDeconvolution) {
     algorithm.reset(new algorithms::MoreSane(
-        _settings.moreSaneLocation, _settings.moreSaneArgs,
-        _settings.moreSaneSigmaLevels, _settings.prefixName));
+        _settings.more_sane.location, _settings.more_sane.args,
+        _settings.more_sane.sigma_levels, _settings.prefixName));
   } else if (_settings.useIUWTDeconvolution) {
     algorithms::IUWTDeconvolution* method = new algorithms::IUWTDeconvolution;
-    method->SetUseSNRTest(_settings.iuwtSNRTest);
+    method->SetUseSNRTest(_settings.iuwt.snr_test);
     algorithm.reset(method);
   } else if (_settings.useMultiscale) {
     algorithms::MultiScaleAlgorithm* msAlgorithm =
         new algorithms::MultiScaleAlgorithm(beamSize, _pixelScaleX,
                                             _pixelScaleY);
-    msAlgorithm->SetManualScaleList(_settings.multiscaleScaleList);
-    msAlgorithm->SetMultiscaleScaleBias(
-        _settings.multiscaleDeconvolutionScaleBias);
-    msAlgorithm->SetMaxScales(_settings.multiscaleMaxScales);
-    msAlgorithm->SetMultiscaleGain(_settings.multiscaleGain);
-    msAlgorithm->SetShape(_settings.multiscaleShapeFunction);
+    msAlgorithm->SetManualScaleList(_settings.multiscale.scale_list);
+    msAlgorithm->SetMultiscaleScaleBias(_settings.multiscale.scale_bias);
+    msAlgorithm->SetMaxScales(_settings.multiscale.max_scales);
+    msAlgorithm->SetMultiscaleGain(_settings.multiscale.sub_minor_loop_gain);
+    msAlgorithm->SetShape(_settings.multiscale.shape);
     msAlgorithm->SetTrackComponents(_settings.saveSourceList);
-    msAlgorithm->SetConvolutionPadding(_settings.multiscaleConvolutionPadding);
-    msAlgorithm->SetUseFastSubMinorLoop(_settings.multiscaleFastSubMinorLoop);
+    msAlgorithm->SetConvolutionPadding(
+        _settings.multiscale.convolution_padding);
+    msAlgorithm->SetUseFastSubMinorLoop(
+        _settings.multiscale.fast_sub_minor_loop);
     algorithm.reset(msAlgorithm);
   } else {
-    algorithm.reset(
-        new algorithms::GenericClean(_settings.useSubMinorOptimization));
+    algorithm.reset(new algorithms::GenericClean(
+        _settings.generic.use_sub_minor_optimization));
   }
 
   algorithm->SetMaxNIter(_settings.deconvolutionIterationCount);
@@ -255,17 +256,18 @@ void Radler::InitializeDeconvolutionAlgorithm(
   algorithm->SetAllowNegativeComponents(_settings.allowNegativeComponents);
   algorithm->SetStopOnNegativeComponents(_settings.stopOnNegativeComponents);
   algorithm->SetThreadCount(threadCount);
-  algorithm->SetSpectralFittingMode(_settings.spectralFittingMode,
-                                    _settings.spectralFittingTerms);
+  algorithm->SetSpectralFittingMode(_settings.spectral_fitting.mode,
+                                    _settings.spectral_fitting.terms);
 
   ImageSet::CalculateDeconvolutionFrequencies(*_table, _channelFrequencies,
                                               _channelWeights);
   algorithm->InitializeFrequencies(_channelFrequencies, _channelWeights);
   _parallelDeconvolution->SetAlgorithm(std::move(algorithm));
 
-  if (!_settings.forcedSpectrumFilename.empty()) {
-    Logger::Debug << "Reading " << _settings.forcedSpectrumFilename << ".\n";
-    FitsReader reader(_settings.forcedSpectrumFilename);
+  if (!_settings.spectral_fitting.forced_filename.empty()) {
+    Logger::Debug << "Reading " << _settings.spectral_fitting.forced_filename
+                  << ".\n";
+    FitsReader reader(_settings.spectral_fitting.forced_filename);
     if (reader.ImageWidth() != _imgWidth || reader.ImageHeight() != _imgHeight)
       throw std::runtime_error(
           "The image width of the forced spectrum fits file does not match the "
@@ -380,8 +382,8 @@ void Radler::readMask(const DeconvolutionTable& groupTable) {
       image[i] = _cleanMask[i] ? 1.0 : 0.0;
 
     FitsWriter writer;
-    writer.SetImageDimensions(_imgWidth, _imgHeight, _settings.pixelScaleX,
-                              _settings.pixelScaleY);
+    writer.SetImageDimensions(_imgWidth, _imgHeight, _settings.pixel_scale.x,
+                              _settings.pixel_scale.y);
     writer.Write(_settings.prefixName + "-horizon-mask.fits", image.Data());
   }
 

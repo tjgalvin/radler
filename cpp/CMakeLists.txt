@@ -92,13 +92,8 @@ else()
 endif()
 
 set(PUBLIC_HEADERS
-    component_list.h
-    radler.h
-    deconvolution_settings.h
-    deconvolution_table.h
-    deconvolution_table_entry.h
-    image_set.h
-    algorithms/multiscale/multiscale_transforms.h)
+    component_list.h radler.h deconvolution_settings.h deconvolution_table.h
+    deconvolution_table_entry.h image_set.h)
 
 install_headers_with_directory("${PUBLIC_HEADERS}")
 
