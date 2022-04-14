@@ -30,11 +30,13 @@ function(add_unittest MODULE_NAME)
   target_include_directories(
     ${TEST_NAME} PRIVATE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/cpp>)
 
-  # Add test for automatically (re)building the test if needed.
+  # Add test for automatically (re)building the test if needed. The
+  # RESOURCE_LOCK prevents concurrent build executions.
   add_test(build_${TEST_NAME} ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}
            --target ${TEST_NAME})
-  set_tests_properties(build_${TEST_NAME} PROPERTIES FIXTURES_SETUP
-                                                     ${TEST_NAME})
+  set_tests_properties(
+    build_${TEST_NAME} PROPERTIES FIXTURES_SETUP ${TEST_NAME} RESOURCE_LOCK
+                                  build)
 
   add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME} -f JUNIT -k ${TEST_NAME}.xml
                                      --catch_system_error=yes)

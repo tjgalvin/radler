@@ -115,6 +115,10 @@ build-2204:
   stage: test
   script:
     - cd build/
+    # In a test job, newly checked out sources can be more recent than the
+    # build job artifacts, which causes rebuilds in ctest.
+    # Re-running 'make' is more verbose and prevents rebuilds in ctest.
+    - make -j`nproc`
     - ctest -j`nproc` --output-on-failure -T test
 
 test-2004:
