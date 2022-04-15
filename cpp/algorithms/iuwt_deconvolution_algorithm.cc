@@ -63,7 +63,7 @@ void IUWTDeconvolutionAlgorithm::measureRMSPerScale(
 
   psfResponse.resize(endScale);
   for (size_t scale = 0; scale != endScale; ++scale) {
-    psfResponse[scale].rms = rms(imageIUWT[scale].Coefficients());
+    psfResponse[scale].rms = imageIUWT[scale].Coefficients().RMS();
     psfResponse[scale].peakResponse =
         centralPeak(imageIUWT[scale].Coefficients());
     bMaj = 2.0;
@@ -181,17 +181,6 @@ float IUWTDeconvolutionAlgorithm::dotProduct(const Image& lhs,
   float sum = 0.0;
   for (size_t i = 0; i != lhs.Size(); ++i) sum += lhs[i] * rhs[i];
   return sum;
-}
-
-void IUWTDeconvolutionAlgorithm::factorAdd(float* dest, const float* rhs,
-                                           float factor, size_t width,
-                                           size_t height) {
-  for (size_t i = 0; i != width * height; ++i) dest[i] += rhs[i] * factor;
-}
-
-void IUWTDeconvolutionAlgorithm::factorAdd(Image& dest, const Image& rhs,
-                                           float factor) {
-  for (size_t i = 0; i != dest.Size(); ++i) dest[i] += rhs[i] * factor;
 }
 
 void IUWTDeconvolutionAlgorithm::Subtract(float* dest, const Image& rhs) {
@@ -323,12 +312,6 @@ void IUWTDeconvolutionAlgorithm::untrim(Image& image, size_t width,
   }
 }
 
-float IUWTDeconvolutionAlgorithm::sum(const Image& img) const {
-  float s = 0.0;
-  for (size_t i = 0; i != img.Size(); ++i) s += img[i];
-  return s;
-}
-
 float IUWTDeconvolutionAlgorithm::snr(const IUWTDecomposition& noisyImg,
                                       const IUWTDecomposition& model) const {
   float mSum = 0.0, nSum = 0.0;
@@ -342,24 +325,6 @@ float IUWTDeconvolutionAlgorithm::snr(const IUWTDecomposition& noisyImg,
     }
   }
   return mSum / nSum;
-}
-
-float IUWTDeconvolutionAlgorithm::rmsDiff(const Image& a, const Image& b) {
-  float sum = 0.0;
-  for (size_t i = 0; i != a.Size(); ++i) {
-    float d = a[i] - b[i];
-    sum += d * d;
-  }
-  return std::sqrt(sum / a.Size());
-}
-
-float IUWTDeconvolutionAlgorithm::rms(const Image& image) {
-  float sum = 0.0;
-  for (size_t i = 0; i != image.Size(); ++i) {
-    float v = image[i];
-    sum += v * v;
-  }
-  return std::sqrt(sum / image.Size());
 }
 
 bool IUWTDeconvolutionAlgorithm::runConjugateGradient(
@@ -392,7 +357,7 @@ bool IUWTDeconvolutionAlgorithm::runConjugateGradient(
     float stepSize = dotProduct(maskedDirty, maskedDirty) / gradientDotScratch;
 
     // model_i+1 = model_i + stepsize * gradient
-    factorAdd(structureModel.Data(), gradient.Data(), stepSize, width, height);
+    structureModel.AddWithFactor(gradient, stepSize);
 
     // For Dabbech's approach (see below) :
     //  Image scratch2 = maskedDirty;
@@ -400,7 +365,7 @@ bool IUWTDeconvolutionAlgorithm::runConjugateGradient(
     float gradStepDen = dotProduct(maskedDirty, maskedDirty);
     if (gradStepDen == 0.0) return false;
     // residual_i+1 = residual_i - stepsize * scratch
-    factorAdd(maskedDirty.Data(), scratch.Data(), -stepSize, width, height);
+    maskedDirty.AddWithFactor(scratch, -stepSize);
 
     // PyMORESANE uses this:
     // gradstep = <residual_i+1, residual_i+1> / <residual_i, residual_i>
@@ -414,7 +379,7 @@ bool IUWTDeconvolutionAlgorithm::runConjugateGradient(
     // gradient_i+1 = residual_i+1 + gradstep * gradient_i
     scratch = gradient;
     gradient = maskedDirty;
-    factorAdd(gradient.Data(), scratch.Data(), gradStep, width, height);
+    gradient.AddWithFactor(scratch, gradStep);
 
     // scratch = mask IUWT PSF (x) model
     scratch = structureModel;
@@ -642,14 +607,13 @@ bool IUWTDeconvolutionAlgorithm::fillAndDeconvolveStructure(
                                         scratch, psfKernel, width, height);
     if (!success) return false;
 
-    float rmsBefore = rms(dirty);
+    float rmsBefore = dirty.RMS();
     scratch = structureModel;
     schaapcommon::fft::Convolve(scratch.Data(), psfKernel.Data(), width, height,
                                 _staticFor->NThreads());
     maskedDirty = dirty;  // we use maskedDirty as temporary
-    factorAdd(maskedDirty.Data(), scratch.Data(), -_minorLoopGain, width,
-              height);
-    float rmsAfter = rms(maskedDirty);
+    maskedDirty.AddWithFactor(scratch, -_minorLoopGain);
+    float rmsAfter = maskedDirty.RMS();
     if (rmsAfter > rmsBefore) {
       std::cout << "RMS got worse: " << rmsBefore << " -> " << rmsAfter << '\n';
       return false;

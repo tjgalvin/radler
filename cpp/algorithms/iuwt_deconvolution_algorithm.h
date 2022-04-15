@@ -78,12 +78,6 @@ class IUWTDeconvolutionAlgorithm {
 
   float dotProduct(const aocommon::Image& lhs, const aocommon::Image& rhs);
 
-  void factorAdd(float* dest, const float* rhs, float factor, size_t width,
-                 size_t height);
-
-  void factorAdd(aocommon::Image& dest, const aocommon::Image& rhs,
-                 float factor);
-
   void boundingBox(size_t& x1, size_t& y1, size_t& x2, size_t& y2,
                    const aocommon::Image& image, size_t width, size_t height);
 
@@ -109,14 +103,8 @@ class IUWTDeconvolutionAlgorithm {
   void untrim(aocommon::Image& image, size_t width, size_t height, size_t x1,
               size_t y1, size_t x2, size_t y2);
 
-  float sum(const aocommon::Image& img) const;
-
   float snr(const iuwt::IUWTDecomposition& noisyImg,
             const iuwt::IUWTDecomposition& model) const;
-
-  float rmsDiff(const aocommon::Image& a, const aocommon::Image& b);
-
-  float rms(const aocommon::Image& image);
 
   bool runConjugateGradient(iuwt::IUWTDecomposition& iuwt,
                             const iuwt::IUWTMask& mask,
