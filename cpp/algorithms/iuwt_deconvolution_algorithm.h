@@ -18,8 +18,8 @@ namespace radler::algorithms {
 
 class IUWTDeconvolutionAlgorithm {
  public:
-  IUWTDeconvolutionAlgorithm(size_t width, size_t height, float gain,
-                             float mGain, float cleanBorder,
+  IUWTDeconvolutionAlgorithm(size_t width, size_t height, float minorLoopGain,
+                             float majorLoopGain, float cleanBorder,
                              bool allowNegativeComponents, const bool* mask,
                              float absoluteThreshold,
                              float thresholdSigmaLevel = 4.0,
@@ -177,7 +177,7 @@ class IUWTDeconvolutionAlgorithm {
   size_t _width, _height;
   size_t _curBoxXStart, _curBoxXEnd;
   size_t _curBoxYStart, _curBoxYEnd;
-  float _gain, _mGain, _cleanBorder;
+  float _minorLoopGain, _majorLoopGain, _cleanBorder;
   const bool* _mask;
   float _absoluteThreshold, _thresholdSigmaLevel, _tolerance;
   double _psfMaj, _psfMin, _psfPA, _psfVolume;

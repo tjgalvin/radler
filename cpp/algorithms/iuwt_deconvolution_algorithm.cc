@@ -25,13 +25,14 @@ using iuwt::IUWTDecomposition;
 using iuwt::IUWTMask;
 
 IUWTDeconvolutionAlgorithm::IUWTDeconvolutionAlgorithm(
-    size_t width, size_t height, float gain, float mGain, float cleanBorder,
-    bool allowNegativeComponents, const bool* mask, float absoluteThreshold,
-    float thresholdSigmaLevel, float tolerance, bool useSNRTest)
+    size_t width, size_t height, float minorLoopGain, float majorLoopGain,
+    float cleanBorder, bool allowNegativeComponents, const bool* mask,
+    float absoluteThreshold, float thresholdSigmaLevel, float tolerance,
+    bool useSNRTest)
     : _width(width),
       _height(height),
-      _gain(gain),
-      _mGain(mGain),
+      _minorLoopGain(minorLoopGain),
+      _majorLoopGain(majorLoopGain),
       _cleanBorder(cleanBorder),
       _mask(mask),
       _absoluteThreshold(absoluteThreshold),
@@ -646,7 +647,8 @@ bool IUWTDeconvolutionAlgorithm::fillAndDeconvolveStructure(
     schaapcommon::fft::Convolve(scratch.Data(), psfKernel.Data(), width, height,
                                 _staticFor->NThreads());
     maskedDirty = dirty;  // we use maskedDirty as temporary
-    factorAdd(maskedDirty.Data(), scratch.Data(), -_gain, width, height);
+    factorAdd(maskedDirty.Data(), scratch.Data(), -_minorLoopGain, width,
+              height);
     float rmsAfter = rms(maskedDirty);
     if (rmsAfter > rmsBefore) {
       std::cout << "RMS got worse: " << rmsBefore << " -> " << rmsAfter << '\n';
@@ -903,7 +905,7 @@ float IUWTDeconvolutionAlgorithm::PerformMajorIteration(
         curEndScale, curMinScale, maxComponents);
 
     if (succeeded) {
-      structureModel *= _gain;
+      structureModel *= _minorLoopGain;
       modelSet += structureModel;
 
       // Calculate: dirty = dirty - structureModel (x) psf
@@ -928,7 +930,7 @@ float IUWTDeconvolutionAlgorithm::PerformMajorIteration(
                   << '\n';
         maxValue = std::max(maxValue, maxComponents[c].val);
         if (std::fabs(maxComponents[c].val) <
-            std::fabs(initialComponents[c].val) * (1.0 - _mGain)) {
+            std::fabs(initialComponents[c].val) * (1.0 - _majorLoopGain)) {
           std::cout << "Scale " << c << " reached mGain (starting level: "
                     << initialComponents[c].val
                     << ", now: " << maxComponents[c].val << ").\n";

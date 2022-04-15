@@ -24,8 +24,8 @@ namespace radler::algorithms {
  * Loop {
  * - Measure the largest component per frequency (from S)
  * - Store the model component in S
- * - Subtract this component multiplied with the twice convolved PSF and gain
- * from all components in S (per individual image)
+ * - Subtract this component multiplied with the twice convolved PSF and minor
+ * loop gain from all components in S (per individual image)
  * - Find the new largest component in S
  * }
  *
@@ -134,7 +134,7 @@ class SubMinorLoop {
     _maxIterations = maxIterations;
   }
 
-  void SetGain(float gain) { _gain = gain; }
+  void SetGain(float minor_loop_gain) { _gain = minor_loop_gain; }
 
   void SetAllowNegativeComponents(bool allowNegativeComponents) {
     _allowNegativeComponents = allowNegativeComponents;

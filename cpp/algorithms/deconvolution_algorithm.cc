@@ -9,8 +9,8 @@ namespace radler::algorithms {
 DeconvolutionAlgorithm::DeconvolutionAlgorithm()
     : _threshold(0.0),
       _majorIterThreshold(0.0),
-      _gain(0.1),
-      _mGain(1.0),
+      _minorLoopGain(0.1),
+      _majorLoopGain(1.0),
       _cleanBorderRatio(0.05),
       _maxIter(500),
       _iterationNumber(0),

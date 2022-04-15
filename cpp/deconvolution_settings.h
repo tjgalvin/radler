@@ -47,9 +47,30 @@ struct DeconvolutionSettings {
     size_t max_size = 0;
     size_t max_threads = 0;
   } parallel;
-  double deconvolutionThreshold = 0.0;
-  double deconvolutionGain = 0.1;
-  double deconvolutionMGain = 1.0;
+
+  /**
+   * The threshold (in Jy) defines when to stop cleaning. Radler will continue
+   * cleaning until the peak residual flux is below the given threshold.
+   * The default value is 0.0, which means the threshold is not used.
+   */
+  double threshold = 0.0;
+
+  /**
+   * Gain value for minor loop iterations.
+   */
+  double minor_loop_gain = 0.1;
+
+  /**
+   * @brief Gain value for major loop iterations.
+   *
+   * This setting specifies when Radler pauses performing minor iterations, so
+   * that a major prediction-imaging round can be performed by the client.
+   * Before returning, the peak flux is decreased by the given factor. A value
+   * of 1.0 implies that minor iterations will continue until the final stopping
+   * criteria have been reached. The value should be larger than 0.0.
+   */
+  double major_loop_gain = 1.0;
+
   bool autoDeconvolutionThreshold = false;
   bool autoMask = false;
   double autoDeconvolutionThresholdSigma = 0.0;

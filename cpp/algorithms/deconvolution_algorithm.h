@@ -36,9 +36,9 @@ class DeconvolutionAlgorithm {
     _majorIterThreshold = mThreshold;
   }
 
-  void SetGain(float gain) { _gain = gain; }
+  void SetMinorLoopGain(float gain) { _minorLoopGain = gain; }
 
-  void SetMGain(float mGain) { _mGain = mGain; }
+  void SetMajorLoopGain(float gain) { _majorLoopGain = gain; }
 
   void SetAllowNegativeComponents(bool allowNegativeComponents) {
     _allowNegativeComponents = allowNegativeComponents;
@@ -61,8 +61,8 @@ class DeconvolutionAlgorithm {
   size_t MaxNIter() const { return _maxIter; }
   float Threshold() const { return _threshold; }
   float MajorIterThreshold() const { return _majorIterThreshold; }
-  float Gain() const { return _gain; }
-  float MGain() const { return _mGain; }
+  float MinorLoopGain() const { return _minorLoopGain; }
+  float MajorLoopGain() const { return _majorLoopGain; }
   float CleanBorderRatio() const { return _cleanBorderRatio; }
   bool AllowNegativeComponents() const { return _allowNegativeComponents; }
   bool StopOnNegativeComponents() const { return _stopOnNegativeComponent; }
@@ -82,8 +82,8 @@ class DeconvolutionAlgorithm {
 
   void CopyConfigFrom(const DeconvolutionAlgorithm& source) {
     _threshold = source._threshold;
-    _gain = source._gain;
-    _mGain = source._mGain;
+    _minorLoopGain = source._minorLoopGain;
+    _majorLoopGain = source._majorLoopGain;
     _cleanBorderRatio = source._cleanBorderRatio;
     _maxIter = source._maxIter;
     // skip _iterationNumber
@@ -125,7 +125,8 @@ class DeconvolutionAlgorithm {
 
   void PerformSpectralFit(float* values, size_t x, size_t y) const;
 
-  float _threshold, _majorIterThreshold, _gain, _mGain, _cleanBorderRatio;
+  float _threshold, _majorIterThreshold, _minorLoopGain, _majorLoopGain,
+      _cleanBorderRatio;
   size_t _maxIter, _iterationNumber, _threadCount;
   bool _allowNegativeComponents, _stopOnNegativeComponent;
   const bool* _cleanMask;

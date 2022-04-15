@@ -151,7 +151,7 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
   float mGainThreshold =
       std::fabs(_scaleInfos[scaleWithPeak].maxUnnormalizedImageValue *
                 _scaleInfos[scaleWithPeak].biasFactor) *
-      (1.0 - _mGain);
+      (1.0 - _majorLoopGain);
   mGainThreshold = std::max(mGainThreshold, MajorIterThreshold());
   float firstThreshold = mGainThreshold;
   if (_threshold > firstThreshold) {
@@ -473,8 +473,8 @@ void MultiScaleAlgorithm::convolvePSFs(std::unique_ptr<Image[]>& convolvedPSFs,
           std::pow(_multiscaleScaleBias, -double(expTerm)) * 1.0;
 
       // I tried this, but wasn't perfect:
-      // _gain * _scaleInfos[0].kernelPeak / scaleEntry.kernelPeak;
-      scaleEntry.gain = _gain / scaleEntry.psfPeak;
+      // _minorLoopGain * _scaleInfos[0].kernelPeak / scaleEntry.kernelPeak;
+      scaleEntry.gain = _minorLoopGain / scaleEntry.psfPeak;
 
       scaleEntry.isActive = true;
 
@@ -584,7 +584,8 @@ void MultiScaleAlgorithm::activateScales(size_t scaleWithLastPeak) {
                 _scaleInfos[i].biasFactor >
             std::fabs(
                 _scaleInfos[scaleWithLastPeak].maxUnnormalizedImageValue) *
-                (1.0 - _gain) * _scaleInfos[scaleWithLastPeak].biasFactor;
+                (1.0 - _minorLoopGain) *
+                _scaleInfos[scaleWithLastPeak].biasFactor;
     if (!_scaleInfos[i].isActive && doActivate) {
       _logReceiver->Debug << "Scale " << _scaleInfos[i].scale
                           << " is now significant and is activated.\n";
