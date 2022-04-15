@@ -5,15 +5,14 @@
 
 #include <string>
 
-#include "deconvolution_settings.h"
 #include "image_set.h"
+#include "settings.h"
 #include "algorithms/deconvolution_algorithm.h"
 
 namespace radler::algorithms {
 class MoreSane : public DeconvolutionAlgorithm {
  public:
-  MoreSane(const DeconvolutionSettings::MoreSane& settings,
-           const std::string& prefix_name)
+  MoreSane(const Settings::MoreSane& settings, const std::string& prefix_name)
       : settings_(settings), prefix_name_(prefix_name) {}
 
   float ExecuteMajorIteration(ImageSet& dataImage, ImageSet& modelImage,
@@ -28,7 +27,7 @@ class MoreSane : public DeconvolutionAlgorithm {
                              const aocommon::Image& psfImage);
 
  private:
-  const DeconvolutionSettings::MoreSane& settings_;
+  const Settings::MoreSane& settings_;
   const std::string& prefix_name_;
 };
 }  // namespace radler::algorithms

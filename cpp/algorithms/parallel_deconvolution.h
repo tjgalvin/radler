@@ -11,8 +11,8 @@
 #include <aocommon/uvector.h>
 
 #include "component_list.h"
-#include "deconvolution_settings.h"
 #include "image_set.h"
+#include "settings.h"
 #include "algorithms/deconvolution_algorithm.h"
 #include "logging/subimage_logset.h"
 
@@ -20,7 +20,7 @@ namespace radler::algorithms {
 
 class ParallelDeconvolution {
  public:
-  ParallelDeconvolution(const DeconvolutionSettings& deconvolutionSettings);
+  ParallelDeconvolution(const Settings& settings);
 
   ~ParallelDeconvolution();
 
@@ -91,7 +91,7 @@ class ParallelDeconvolution {
   size_t _horImages;
   size_t _verImages;
   // Radler::_settings outlives ParallelDeconvolution::_settings
-  const DeconvolutionSettings& _settings;
+  const Settings& _settings;
   ImageBufferAllocator* _allocator;
   const bool* _mask;
   std::vector<aocommon::Image> _spectrallyForcedImages;

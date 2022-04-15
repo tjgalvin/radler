@@ -31,8 +31,8 @@ using aocommon::units::FluxDensity;
 
 namespace radler {
 
-Radler::Radler(const DeconvolutionSettings& deconvolutionSettings)
-    : _settings(deconvolutionSettings),
+Radler::Radler(const Settings& settings)
+    : _settings(settings),
       _table(),
       _parallelDeconvolution(
           std::make_unique<algorithms::ParallelDeconvolution>(_settings)),

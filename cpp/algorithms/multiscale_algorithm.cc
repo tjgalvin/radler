@@ -20,9 +20,10 @@ using aocommon::units::FluxDensity;
 
 namespace radler::algorithms {
 
-MultiScaleAlgorithm::MultiScaleAlgorithm(
-    const DeconvolutionSettings::Multiscale& settings, double beamSize,
-    double pixelScaleX, double pixelScaleY, bool trackComponents)
+MultiScaleAlgorithm::MultiScaleAlgorithm(const Settings::Multiscale& settings,
+                                         double beamSize, double pixelScaleX,
+                                         double pixelScaleY,
+                                         bool trackComponents)
     : _settings(settings),
       _beamSizeInPixels(beamSize / std::max(pixelScaleX, pixelScaleY)),
       _trackPerScaleMasks(false),

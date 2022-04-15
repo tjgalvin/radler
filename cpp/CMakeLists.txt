@@ -91,9 +91,8 @@ else()
           LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
 endif()
 
-set(PUBLIC_HEADERS
-    component_list.h radler.h deconvolution_settings.h deconvolution_table.h
-    deconvolution_table_entry.h image_set.h)
+set(PUBLIC_HEADERS component_list.h deconvolution_table.h
+                   deconvolution_table_entry.h image_set.h radler.h settings.h)
 
 install_headers_with_directory("${PUBLIC_HEADERS}")
 
