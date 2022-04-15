@@ -11,8 +11,8 @@
 
 #include "component_list.h"
 #include "deconvolution_algorithm.h"
-#include "deconvolution_settings.h"
 #include "image_set.h"
+#include "settings.h"
 #include "algorithms/threaded_deconvolution_tools.h"
 #include "algorithms/multiscale/multiscale_transforms.h"
 
@@ -20,8 +20,8 @@ namespace radler::algorithms {
 
 class MultiScaleAlgorithm : public DeconvolutionAlgorithm {
  public:
-  MultiScaleAlgorithm(const DeconvolutionSettings::Multiscale& settings,
-                      double beamSize, double pixelScaleX, double pixelScaleY,
+  MultiScaleAlgorithm(const Settings::Multiscale& settings, double beamSize,
+                      double pixelScaleX, double pixelScaleY,
                       bool trackComponents);
   ~MultiScaleAlgorithm();
 
@@ -51,7 +51,7 @@ class MultiScaleAlgorithm : public DeconvolutionAlgorithm {
   }
 
  private:
-  const DeconvolutionSettings::Multiscale& _settings;
+  const Settings::Multiscale& _settings;
   double _beamSizeInPixels;
 
   struct ScaleInfo {

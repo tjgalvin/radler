@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
     radler::ImageSet residualSet(*table, false, {}, width, height);
     radler::ImageSet modelSet(*table, false, {}, width, height);
 
-    radler::DeconvolutionSettings::Multiscale settings;
+    radler::Settings::Multiscale settings;
     settings.sub_minor_loop_gain = 0.1;
     const bool trackComponents = false;
     const bool allowNegativeComponents = true;

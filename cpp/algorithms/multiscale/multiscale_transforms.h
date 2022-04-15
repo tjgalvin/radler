@@ -10,7 +10,7 @@
 #include <aocommon/image.h>
 #include <aocommon/uvector.h>
 
-#include "deconvolution_settings.h"
+#include "settings.h"
 
 namespace radler::algorithms::multiscale {
 

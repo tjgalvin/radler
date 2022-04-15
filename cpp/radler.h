@@ -9,7 +9,7 @@
 #include <aocommon/uvector.h>
 
 #include "component_list.h"
-#include "deconvolution_settings.h"
+#include "settings.h"
 
 namespace radler {
 
@@ -26,7 +26,7 @@ class ParallelDeconvolution;
  */
 class Radler {
  public:
-  explicit Radler(const DeconvolutionSettings& deconvolutionSettings);
+  explicit Radler(const Settings& settings);
   ~Radler();
 
   ComponentList GetComponentList() const;
@@ -57,7 +57,7 @@ class Radler {
  private:
   void readMask(const DeconvolutionTable& groupTable);
 
-  const DeconvolutionSettings _settings;
+  const Settings _settings;
 
   std::unique_ptr<DeconvolutionTable> _table;
 

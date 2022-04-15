@@ -15,11 +15,10 @@ using aocommon::Logger;
 
 namespace radler::algorithms {
 
-ParallelDeconvolution::ParallelDeconvolution(
-    const DeconvolutionSettings& deconvolutionSettings)
+ParallelDeconvolution::ParallelDeconvolution(const Settings& settings)
     : _horImages(0),
       _verImages(0),
-      _settings(deconvolutionSettings),
+      _settings(settings),
       _allocator(nullptr),
       _mask(nullptr),
       _trackPerScaleMasks(false),

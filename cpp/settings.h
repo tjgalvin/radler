@@ -32,7 +32,7 @@ enum class AlgorithmType {
 
 enum class MultiscaleShape { TaperedQuadraticShape, GaussianShape };
 
-struct DeconvolutionSettings {
+struct Settings {
   /**
    * @{
    * Settings that are duplicates from top level settings, and also used outside
