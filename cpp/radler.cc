@@ -228,20 +228,9 @@ void Radler::InitializeDeconvolutionAlgorithm(
     method->SetUseSNRTest(_settings.iuwt.snr_test);
     algorithm.reset(method);
   } else if (_settings.useMultiscale) {
-    algorithms::MultiScaleAlgorithm* msAlgorithm =
-        new algorithms::MultiScaleAlgorithm(beamSize, _pixelScaleX,
-                                            _pixelScaleY);
-    msAlgorithm->SetManualScaleList(_settings.multiscale.scale_list);
-    msAlgorithm->SetMultiscaleScaleBias(_settings.multiscale.scale_bias);
-    msAlgorithm->SetMaxScales(_settings.multiscale.max_scales);
-    msAlgorithm->SetMultiscaleGain(_settings.multiscale.sub_minor_loop_gain);
-    msAlgorithm->SetShape(_settings.multiscale.shape);
-    msAlgorithm->SetTrackComponents(_settings.saveSourceList);
-    msAlgorithm->SetConvolutionPadding(
-        _settings.multiscale.convolution_padding);
-    msAlgorithm->SetUseFastSubMinorLoop(
-        _settings.multiscale.fast_sub_minor_loop);
-    algorithm.reset(msAlgorithm);
+    algorithm = std::make_unique<algorithms::MultiScaleAlgorithm>(
+        _settings.multiscale, beamSize, _pixelScaleX, _pixelScaleY,
+        _settings.saveSourceList);
   } else {
     algorithm.reset(new algorithms::GenericClean(
         _settings.generic.use_sub_minor_optimization));

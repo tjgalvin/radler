@@ -81,14 +81,16 @@ int main(int argc, char* argv[]) {
     radler::ImageSet residualSet(*table, false, {}, width, height);
     radler::ImageSet modelSet(*table, false, {}, width, height);
 
-    const double minor_loop_gain = 0.1;
+    radler::DeconvolutionSettings::Multiscale settings;
+    settings.sub_minor_loop_gain = 0.1;
+    const bool trackComponents = false;
     const bool allowNegativeComponents = true;
     const double borderRatio = 0.05;
     bool reachedThreshold = false;
 
     radler::algorithms::MultiScaleAlgorithm algorithm(
-        beamScale, imgReader.PixelSizeX(), imgReader.PixelSizeY());
-    algorithm.SetMinorLoopGain(minor_loop_gain);
+        settings, beamScale, imgReader.PixelSizeX(), imgReader.PixelSizeY(),
+        trackComponents);
     algorithm.SetAllowNegativeComponents(allowNegativeComponents);
     algorithm.SetCleanBorderRatio(borderRatio);
     algorithm.ExecuteMajorIteration(residualSet, modelSet, {psf},
