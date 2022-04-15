@@ -221,9 +221,8 @@ void Radler::InitializeDeconvolutionAlgorithm(
     algorithm.reset(
         new algorithms::PythonDeconvolution(_settings.python.filename));
   } else if (_settings.useMoreSaneDeconvolution) {
-    algorithm.reset(new algorithms::MoreSane(
-        _settings.more_sane.location, _settings.more_sane.args,
-        _settings.more_sane.sigma_levels, _settings.prefixName));
+    algorithm = std::make_unique<algorithms::MoreSane>(_settings.more_sane,
+                                                       _settings.prefixName);
   } else if (_settings.useIUWTDeconvolution) {
     algorithms::IUWTDeconvolution* method = new algorithms::IUWTDeconvolution;
     method->SetUseSNRTest(_settings.iuwt.snr_test);

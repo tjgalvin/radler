@@ -105,7 +105,7 @@ struct DeconvolutionSettings {
 
   struct MoreSane {
     std::string location;
-    std::string args;
+    std::string arguments;
     std::vector<double> sigma_levels;
   } more_sane;
 

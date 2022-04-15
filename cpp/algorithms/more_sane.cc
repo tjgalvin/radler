@@ -28,10 +28,10 @@ void MoreSane::ExecuteMajorIteration(float* residualData, float* modelData,
       residualData[i] += modelData[i];
   }
   std::ostringstream outputStr;
-  outputStr << _prefixName << "-tmp-moresaneoutput" << _iterationNumber;
-  const std::string dirtyName(_prefixName + "-tmp-moresaneinput-dirty.fits"),
-      psfName(_prefixName + "-tmp-moresaneinput-psf.fits"),
-      maskName(_prefixName + "-tmp-moresaneinput-mask.fits"),
+  outputStr << prefix_name_ << "-tmp-moresaneoutput" << _iterationNumber;
+  const std::string dirtyName(prefix_name_ + "-tmp-moresaneinput-dirty.fits"),
+      psfName(prefix_name_ + "-tmp-moresaneinput-psf.fits"),
+      maskName(prefix_name_ + "-tmp-moresaneinput-mask.fits"),
       outputName(outputStr.str());
   aocommon::FitsWriter writer;
   writer.SetImageDimensions(width, height);
@@ -40,16 +40,16 @@ void MoreSane::ExecuteMajorIteration(float* residualData, float* modelData,
   writer.Write(psfName, psfImage.Data());
 
   std::ostringstream commandLine;
-  commandLine << "time python \"" << _moresaneLocation << "\" ";
+  commandLine << "time python \"" << settings_.location << "\" ";
   if (!_allowNegativeComponents) commandLine << "-ep ";
   if (_cleanMask != nullptr) commandLine << "-m \"" << maskName + "\" ";
-  if (!_moresaneArguments.empty()) commandLine << _moresaneArguments << ' ';
+  if (!settings_.arguments.empty()) commandLine << settings_.arguments << ' ';
   commandLine << "\"" << dirtyName << "\" \"" << psfName << "\" \""
               << outputName << '\"';
-  if (!_moresaneSigmaLevels.empty()) {
+  if (!settings_.sigma_levels.empty()) {
     commandLine << " -sl "
-                << _moresaneSigmaLevels[std::min(
-                       _iterationNumber, _moresaneSigmaLevels.size() - 1)]
+                << settings_.sigma_levels[std::min(
+                       _iterationNumber, settings_.sigma_levels.size() - 1)]
                 << " ";
   }
 
