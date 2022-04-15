@@ -19,6 +19,17 @@ namespace radler {
  */
 enum class LocalRmsMethod { kNone, kRmsWindow, kRmsAndMinimumWindow };
 
+/**
+ * @brief The deconvolution algorithm type.
+ */
+enum class AlgorithmType {
+  kPython,
+  kMoreSane,
+  kIuwt,
+  kMultiscale,
+  kGenericClean
+};
+
 enum class MultiscaleShape { TaperedQuadraticShape, GaussianShape };
 
 struct DeconvolutionSettings {
@@ -116,9 +127,8 @@ struct DeconvolutionSettings {
    * These deconvolution settings are algorithm-specific. For each algorithm
    * type, a single struct holds all algorithm-specific settings for that type.
    */
-  bool useMultiscale = false;
-  bool useMoreSaneDeconvolution = false;
-  bool useIUWTDeconvolution = false;
+
+  AlgorithmType algorithm_type = AlgorithmType::kGenericClean;
 
   struct Python {
     std::string filename;

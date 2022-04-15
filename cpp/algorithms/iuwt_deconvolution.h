@@ -18,7 +18,7 @@ namespace radler::algorithms {
 
 class IUWTDeconvolution : public DeconvolutionAlgorithm {
  public:
-  IUWTDeconvolution() : _useSNRTest(false) {}
+  explicit IUWTDeconvolution(bool useSNRTest) : _useSNRTest(useSNRTest) {}
 
   float ExecuteMajorIteration(ImageSet& dataImage, ImageSet& modelImage,
                               const std::vector<aocommon::Image>& psfImages,
@@ -38,10 +38,8 @@ class IUWTDeconvolution : public DeconvolutionAlgorithm {
     return std::make_unique<IUWTDeconvolution>(*this);
   }
 
-  void SetUseSNRTest(bool useSNRTest) { _useSNRTest = useSNRTest; }
-
  private:
-  bool _useSNRTest;
+  const bool _useSNRTest;
 };
 }  // namespace radler::algorithms
 #endif  // RADLER_ALGORITHMS_IUWT_DECONVOLUTION_H_

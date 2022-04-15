@@ -146,7 +146,7 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
   const std::vector<aocommon::Image> psfImages =
       residualSet.LoadAndAveragePSFs();
 
-  if (_settings.useMultiscale) {
+  if (_settings.algorithm_type == AlgorithmType::kMultiscale) {
     if (_settings.autoMask) {
       if (_autoMaskIsFinished)
         _parallelDeconvolution->SetAutoMaskMode(false, true);
@@ -217,23 +217,30 @@ void Radler::InitializeDeconvolutionAlgorithm(
 
   std::unique_ptr<class algorithms::DeconvolutionAlgorithm> algorithm;
 
-  if (!_settings.python.filename.empty()) {
-    algorithm.reset(
-        new algorithms::PythonDeconvolution(_settings.python.filename));
-  } else if (_settings.useMoreSaneDeconvolution) {
-    algorithm = std::make_unique<algorithms::MoreSane>(_settings.more_sane,
-                                                       _settings.prefixName);
-  } else if (_settings.useIUWTDeconvolution) {
-    algorithms::IUWTDeconvolution* method = new algorithms::IUWTDeconvolution;
-    method->SetUseSNRTest(_settings.iuwt.snr_test);
-    algorithm.reset(method);
-  } else if (_settings.useMultiscale) {
-    algorithm = std::make_unique<algorithms::MultiScaleAlgorithm>(
-        _settings.multiscale, beamSize, _pixelScaleX, _pixelScaleY,
-        _settings.saveSourceList);
-  } else {
-    algorithm.reset(new algorithms::GenericClean(
-        _settings.generic.use_sub_minor_optimization));
+  switch (_settings.algorithm_type) {
+    case AlgorithmType::kPython:
+      algorithm = std::make_unique<algorithms::PythonDeconvolution>(
+          _settings.python.filename);
+      break;
+    case AlgorithmType::kMoreSane:
+      algorithm = std::make_unique<algorithms::MoreSane>(_settings.more_sane,
+                                                         _settings.prefixName);
+      break;
+    case AlgorithmType::kIuwt: {
+      algorithm = std::make_unique<algorithms::IUWTDeconvolution>(
+          _settings.iuwt.snr_test);
+      break;
+    }
+    case AlgorithmType::kMultiscale: {
+      algorithm = std::make_unique<algorithms::MultiScaleAlgorithm>(
+          _settings.multiscale, beamSize, _pixelScaleX, _pixelScaleY,
+          _settings.saveSourceList);
+      break;
+    }
+    case AlgorithmType::kGenericClean:
+      algorithm = std::make_unique<algorithms::GenericClean>(
+          _settings.generic.use_sub_minor_optimization);
+      break;
   }
 
   algorithm->SetMaxNIter(_settings.deconvolutionIterationCount);
