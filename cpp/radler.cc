@@ -134,12 +134,12 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
     }
   }
   if (_settings.autoMask && !_autoMaskIsFinished)
-    _parallelDeconvolution->SetThreshold(std::max(
-        stddev * _settings.autoMaskSigma, _settings.deconvolutionThreshold));
+    _parallelDeconvolution->SetThreshold(
+        std::max(stddev * _settings.autoMaskSigma, _settings.threshold));
   else if (_settings.autoDeconvolutionThreshold)
     _parallelDeconvolution->SetThreshold(
         std::max(stddev * _settings.autoDeconvolutionThresholdSigma,
-                 _settings.deconvolutionThreshold));
+                 _settings.threshold));
   integrated.Reset();
 
   Logger::Debug << "Loading PSFs...\n";
@@ -248,9 +248,9 @@ void Radler::InitializeDeconvolutionAlgorithm(
   }
 
   algorithm->SetMaxNIter(_settings.deconvolutionIterationCount);
-  algorithm->SetThreshold(_settings.deconvolutionThreshold);
-  algorithm->SetGain(_settings.deconvolutionGain);
-  algorithm->SetMGain(_settings.deconvolutionMGain);
+  algorithm->SetThreshold(_settings.threshold);
+  algorithm->SetMinorLoopGain(_settings.minor_loop_gain);
+  algorithm->SetMajorLoopGain(_settings.major_loop_gain);
   algorithm->SetCleanBorderRatio(_settings.deconvolutionBorderRatio);
   algorithm->SetAllowNegativeComponents(_settings.allowNegativeComponents);
   algorithm->SetStopOnNegativeComponents(_settings.stopOnNegativeComponents);

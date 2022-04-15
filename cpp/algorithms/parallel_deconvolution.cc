@@ -393,7 +393,7 @@ void ParallelDeconvolution::executeParallelRun(
   }
   Logger::Info << "Subimage " << (indexOfMax + 1) << " has maximum peak of "
                << aocommon::units::FluxDensity::ToNiceString(maxValue) << ".\n";
-  double mIterThreshold = maxValue * (1.0 - _settings.deconvolutionMGain);
+  double mIterThreshold = maxValue * (1.0 - _settings.major_loop_gain);
 
   // Run the deconvolution
   loop.Run(0, _algorithms.size(), [&](size_t index, size_t) {

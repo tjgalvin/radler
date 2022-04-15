@@ -56,13 +56,14 @@ float GenericClean::ExecuteMajorIteration(
                      << peakDescription(integrated, componentX, componentY)
                      << '\n';
   float firstThreshold = this->_threshold;
-  float majorIterThreshold = std::max<float>(
-      MajorIterThreshold(), std::fabs(*maxValue) * (1.0 - this->_mGain));
+  float majorIterThreshold =
+      std::max<float>(MajorIterThreshold(),
+                      std::fabs(*maxValue) * (1.0 - this->_majorLoopGain));
   if (majorIterThreshold > firstThreshold) {
     firstThreshold = majorIterThreshold;
     _logReceiver->Info << "Next major iteration at: "
                        << FluxDensity::ToNiceString(majorIterThreshold) << '\n';
-  } else if (this->_mGain != 1.0) {
+  } else if (this->_majorLoopGain != 1.0) {
     _logReceiver->Info
         << "Major iteration threshold reached global threshold of "
         << FluxDensity::ToNiceString(this->_threshold)
@@ -75,7 +76,7 @@ float GenericClean::ExecuteMajorIteration(
                               _convolutionHeight, *_logReceiver);
     subMinorLoop.SetIterationInfo(_iterationNumber, MaxNIter());
     subMinorLoop.SetThreshold(firstThreshold, firstThreshold * 0.99);
-    subMinorLoop.SetGain(Gain());
+    subMinorLoop.SetGain(MinorLoopGain());
     subMinorLoop.SetAllowNegativeComponents(AllowNegativeComponents());
     subMinorLoop.SetStopOnNegativeComponent(StopOnNegativeComponents());
     subMinorLoop.SetSpectralFitter(&Fitter());
@@ -133,7 +134,7 @@ float GenericClean::ExecuteMajorIteration(
       PerformSpectralFit(peakValues.data(), componentX, componentY);
 
       for (size_t i = 0; i != dirtySet.size(); ++i) {
-        peakValues[i] *= this->_gain;
+        peakValues[i] *= this->_minorLoopGain;
         modelSet.Data(i)[peakIndex] += peakValues[i];
 
         size_t psfIndex = dirtySet.PSFIndex(i);

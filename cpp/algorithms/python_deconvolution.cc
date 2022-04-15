@@ -231,11 +231,11 @@ float PythonDeconvolution::ExecuteMajorIteration(
       meta.channels[i].frequency = _spectralFitter.Frequency(i);
       meta.channels[i].weight = _spectralFitter.Weight(i);
     }
-    meta.gain = _gain;
+    meta.gain = _minorLoopGain;
     meta.iteration_number = _iterationNumber;
     meta.major_iter_threshold = _majorIterThreshold;
     meta.max_iterations = _maxIter;
-    meta.mgain = _mGain;
+    meta.mgain = _majorLoopGain;
     meta.final_threshold = _threshold;
 
     // Run the python code
