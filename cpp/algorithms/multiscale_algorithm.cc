@@ -3,6 +3,7 @@
 #include "algorithms/multiscale_algorithm.h"
 
 #include <optional>
+#include <set>
 
 #include <aocommon/image.h>
 #include <aocommon/logger.h>
@@ -19,18 +20,14 @@ using aocommon::units::FluxDensity;
 
 namespace radler::algorithms {
 
-MultiScaleAlgorithm::MultiScaleAlgorithm(double beamSize, double pixelScaleX,
-                                         double pixelScaleY)
-    : _convolutionPadding(1.1),
+MultiScaleAlgorithm::MultiScaleAlgorithm(
+    const DeconvolutionSettings::Multiscale& settings, double beamSize,
+    double pixelScaleX, double pixelScaleY, bool trackComponents)
+    : _settings(settings),
       _beamSizeInPixels(beamSize / std::max(pixelScaleX, pixelScaleY)),
-      _multiscaleScaleBias(0.6),
-      _multiscaleGain(0.2),
-      _scaleShape(MultiscaleShape::TaperedQuadraticShape),
-      _maxScales(0),
       _trackPerScaleMasks(false),
       _usePerScaleMasks(false),
-      _fastSubMinorLoop(true),
-      _trackComponents(false) {
+      _trackComponents(trackComponents) {
   if (_beamSizeInPixels <= 0.0) _beamSizeInPixels = 1;
 }
 
@@ -134,7 +131,7 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
     }
   }
 
-  multiscale::MultiScaleTransforms msTransforms(width, height, _scaleShape);
+  multiscale::MultiScaleTransforms msTransforms(width, height, _settings.shape);
   msTransforms.SetThreadCount(_threadCount);
 
   size_t scaleWithPeak;
@@ -213,7 +210,7 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
     float subIterationGainThreshold =
         std::fabs(_scaleInfos[scaleWithPeak].maxUnnormalizedImageValue *
                   _scaleInfos[scaleWithPeak].biasFactor) *
-        (1.0 - _multiscaleGain);
+        (1.0 - _settings.sub_minor_loop_gain);
     float firstSubIterationThreshold = subIterationGainThreshold;
     if (firstThreshold > firstSubIterationThreshold) {
       firstSubIterationThreshold = firstThreshold;
@@ -228,7 +225,7 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
     // TODO we could chose to run the non-fast loop until we hit e.g. 10
     // iterations in a scale, because the fast loop takes more constant time and
     // is only efficient when doing many iterations.
-    if (_fastSubMinorLoop) {
+    if (_settings.fast_sub_minor_loop) {
       size_t subMinorStartIteration = _iterationNumber;
       size_t convolutionWidth, convolutionHeight;
       getConvolutionDimensions(scaleWithPeak, width, height, convolutionWidth,
@@ -395,7 +392,7 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
 }
 
 void MultiScaleAlgorithm::initializeScaleInfo(size_t minWidthHeight) {
-  if (_manualScaleList.empty()) {
+  if (_settings.scale_list.empty()) {
     if (_scaleInfos.empty()) {
       size_t scaleIndex = 0;
       double scale = _beamSizeInPixels * 2.0;
@@ -407,12 +404,13 @@ void MultiScaleAlgorithm::initializeScaleInfo(size_t minWidthHeight) {
         else
           newEntry.scale = scale;
         newEntry.kernelPeak = multiscale::MultiScaleTransforms::KernelPeakValue(
-            scale, minWidthHeight, _scaleShape);
+            scale, minWidthHeight, _settings.shape);
 
         scale *= 2.0;
         ++scaleIndex;
-      } while (scale < minWidthHeight * 0.5 &&
-               (_maxScales == 0 || scaleIndex < _maxScales));
+      } while (
+          scale < minWidthHeight * 0.5 &&
+          (_settings.max_scales == 0 || scaleIndex < _settings.max_scales));
     } else {
       while (!_scaleInfos.empty() &&
              _scaleInfos.back().scale >= minWidthHeight * 0.5) {
@@ -422,16 +420,15 @@ void MultiScaleAlgorithm::initializeScaleInfo(size_t minWidthHeight) {
         _scaleInfos.erase(_scaleInfos.begin() + _scaleInfos.size() - 1);
       }
     }
-  }
-  if (!_manualScaleList.empty() && _scaleInfos.empty()) {
-    std::sort(_manualScaleList.begin(), _manualScaleList.end());
-    for (size_t scaleIndex = 0; scaleIndex != _manualScaleList.size();
-         ++scaleIndex) {
+  } else if (_scaleInfos.empty()) {
+    std::multiset<double> sortedScaleList(_settings.scale_list.begin(),
+                                          _settings.scale_list.end());
+    for (double scale : sortedScaleList) {
       _scaleInfos.push_back(ScaleInfo());
       ScaleInfo& newEntry = _scaleInfos.back();
-      newEntry.scale = _manualScaleList[scaleIndex];
+      newEntry.scale = scale;
       newEntry.kernelPeak = multiscale::MultiScaleTransforms::KernelPeakValue(
-          newEntry.scale, minWidthHeight, _scaleShape);
+          newEntry.scale, minWidthHeight, _settings.shape);
     }
   }
 }
@@ -440,7 +437,7 @@ void MultiScaleAlgorithm::convolvePSFs(std::unique_ptr<Image[]>& convolvedPSFs,
                                        const Image& psf, Image& scratch,
                                        bool isIntegrated) {
   multiscale::MultiScaleTransforms msTransforms(psf.Width(), psf.Height(),
-                                                _scaleShape);
+                                                _settings.shape);
   msTransforms.SetThreadCount(_threadCount);
   convolvedPSFs.reset(new Image[_scaleInfos.size()]);
   if (isIntegrated) _logReceiver->Info << "Scale info:\n";
@@ -470,7 +467,7 @@ void MultiScaleAlgorithm::convolvePSFs(std::unique_ptr<Image[]>& convolvedPSFs,
       else
         expTerm = std::log2(scaleEntry.scale / firstAutoScaleSize);
       scaleEntry.biasFactor =
-          std::pow(_multiscaleScaleBias, -double(expTerm)) * 1.0;
+          std::pow(_settings.scale_bias, -double(expTerm)) * 1.0;
 
       // I tried this, but wasn't perfect:
       // _minorLoopGain * _scaleInfos[0].kernelPeak / scaleEntry.kernelPeak;
@@ -499,10 +496,8 @@ void MultiScaleAlgorithm::convolvePSFs(std::unique_ptr<Image[]>& convolvedPSFs,
 void MultiScaleAlgorithm::findActiveScaleConvolvedMaxima(
     const ImageSet& imageSet, Image& integratedScratch, Image& scratch,
     bool reportRMS, ThreadedDeconvolutionTools* tools) {
-  multiscale::MultiScaleTransforms msTransforms(imageSet.Width(),
-                                                imageSet.Height(), _scaleShape);
-  // ImageBufferAllocator::Ptr convolvedImage;
-  //_allocator.Allocate(_width*_height, convolvedImage);
+  multiscale::MultiScaleTransforms msTransforms(
+      imageSet.Width(), imageSet.Height(), _settings.shape);
   imageSet.GetLinearIntegrated(integratedScratch);
   aocommon::UVector<float> transformScales;
   aocommon::UVector<size_t> transformIndices;
@@ -627,7 +622,8 @@ void MultiScaleAlgorithm::addComponentToModel(ImageSet& modelSet,
   } else {
     multiscale::MultiScaleTransforms::AddShapeComponent(
         modelData, modelSet.Width(), modelSet.Height(),
-        _scaleInfos[scaleWithPeak].scale, x, y, componentValue, _scaleShape);
+        _scaleInfos[scaleWithPeak].scale, x, y, componentValue,
+        _settings.shape);
   }
 
   _scaleInfos[scaleWithPeak].nComponentsCleaned++;
@@ -703,8 +699,8 @@ void MultiScaleAlgorithm::getConvolutionDimensions(
   // and conv width=1650. Divergence occurred on scale 363. Was solved with conv
   // width=2250. 2250 = 1.1*(363*factor + 1500)  --> factor = 1.5 And solved
   // with conv width=2000. 2000 = 1.1*(363*factor + 1500)  --> factor = 0.8
-  width_result = ceil(_convolutionPadding * (scale * 1.5 + width));
-  height_result = ceil(_convolutionPadding * (scale * 1.5 + height));
+  width_result = ceil(_settings.convolution_padding * (scale * 1.5 + width));
+  height_result = ceil(_settings.convolution_padding * (scale * 1.5 + height));
   width_result = calculateGoodFFTSize(width_result);
   height_result = calculateGoodFFTSize(height_result);
 }

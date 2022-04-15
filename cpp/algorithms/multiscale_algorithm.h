@@ -20,15 +20,13 @@ namespace radler::algorithms {
 
 class MultiScaleAlgorithm : public DeconvolutionAlgorithm {
  public:
-  MultiScaleAlgorithm(double beamSize, double pixelScaleX, double pixelScaleY);
+  MultiScaleAlgorithm(const DeconvolutionSettings::Multiscale& settings,
+                      double beamSize, double pixelScaleX, double pixelScaleY,
+                      bool trackComponents);
   ~MultiScaleAlgorithm();
 
   std::unique_ptr<DeconvolutionAlgorithm> Clone() const final override {
     return std::make_unique<MultiScaleAlgorithm>(*this);
-  }
-
-  void SetManualScaleList(const std::vector<double>& scaleList) {
-    _manualScaleList = scaleList;
   }
 
   float ExecuteMajorIteration(ImageSet& dataImage, ImageSet& modelImage,
@@ -39,19 +37,6 @@ class MultiScaleAlgorithm : public DeconvolutionAlgorithm {
     _trackPerScaleMasks = trackPerScaleMasks;
     _usePerScaleMasks = usePerScaleMasks;
   }
-  void SetTrackComponents(bool trackComponents) {
-    _trackComponents = trackComponents;
-  }
-  void SetUseFastSubMinorLoop(bool fastSubMinorLoop) {
-    _fastSubMinorLoop = fastSubMinorLoop;
-  }
-  void SetMultiscaleScaleBias(float bias) { _multiscaleScaleBias = bias; }
-  void SetMultiscaleGain(float gain) { _multiscaleGain = gain; }
-  void SetConvolutionPadding(float padding) {
-    assert(padding >= 1.0);
-    _convolutionPadding = padding;
-  }
-  void SetShape(MultiscaleShape shape) { _scaleShape = shape; }
   size_t ScaleCount() const { return _scaleInfos.size(); }
   void ClearComponentList() { _componentList.reset(); }
   ComponentList& GetComponentList() { return *_componentList; }
@@ -64,16 +49,10 @@ class MultiScaleAlgorithm : public DeconvolutionAlgorithm {
   aocommon::UVector<bool>& GetScaleMask(size_t index) {
     return _scaleMasks[index];
   }
-  void SetMaxScales(size_t maxScales) { _maxScales = maxScales; }
 
  private:
-  float _convolutionPadding;
+  const DeconvolutionSettings::Multiscale& _settings;
   double _beamSizeInPixels;
-  float _multiscaleScaleBias;
-  float _multiscaleGain;
-  MultiscaleShape _scaleShape;
-  size_t _maxScales;
-  // ThreadedDeconvolutionTools* _tools;
 
   struct ScaleInfo {
     ScaleInfo()
@@ -106,10 +85,10 @@ class MultiScaleAlgorithm : public DeconvolutionAlgorithm {
     float totalFluxCleaned;
   };
   std::vector<MultiScaleAlgorithm::ScaleInfo> _scaleInfos;
-  std::vector<double> _manualScaleList;
 
-  bool _trackPerScaleMasks, _usePerScaleMasks, _fastSubMinorLoop,
-      _trackComponents;
+  bool _trackPerScaleMasks;
+  bool _usePerScaleMasks;
+  bool _trackComponents;
   std::vector<aocommon::UVector<bool>> _scaleMasks;
   aocommon::cloned_ptr<ComponentList> _componentList;
 
