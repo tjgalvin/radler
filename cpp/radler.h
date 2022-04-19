@@ -26,7 +26,8 @@ class ParallelDeconvolution;
  */
 class Radler {
  public:
-  explicit Radler(const Settings& settings);
+  Radler(const Settings& settings, std::unique_ptr<DeconvolutionTable> table,
+         double beamSize, size_t threadCount);
   ~Radler();
 
   ComponentList GetComponentList() const;
@@ -40,14 +41,9 @@ class Radler {
 
   void Perform(bool& reachedMajorThreshold, size_t majorIterationNr);
 
-  void InitializeDeconvolutionAlgorithm(
-      std::unique_ptr<DeconvolutionTable> table, double beamSize,
-      size_t threadCount);
-
   void FreeDeconvolutionAlgorithms();
 
   bool IsInitialized() const;
-  //  { return _parallelDeconvolution.IsInitialized(); }
 
   /// Return IterationNumber of the underlying \c DeconvolutionAlgorithm
   size_t IterationNumber() const;
@@ -55,6 +51,13 @@ class Radler {
   static void RemoveNaNsInPSF(float* psf, size_t width, size_t height);
 
  private:
+  // Constructor that becomes convenient when implementing AST-890
+  Radler(const Settings& settings, double beamSize);
+
+  // Initializes the deconvolution algorithm
+  void InitializeDeconvolutionAlgorithm(
+      std::unique_ptr<DeconvolutionTable> table, size_t threadCount);
+
   void readMask(const DeconvolutionTable& groupTable);
 
   const Settings _settings;

@@ -31,7 +31,14 @@ using aocommon::units::FluxDensity;
 
 namespace radler {
 
-Radler::Radler(const Settings& settings)
+Radler::Radler(const Settings& settings,
+               std::unique_ptr<DeconvolutionTable> table, double beamSize,
+               size_t threadCount)
+    : Radler(settings, beamSize) {
+  InitializeDeconvolutionAlgorithm(std::move(table), threadCount);
+}
+
+Radler::Radler(const Settings& settings, double beamSize)
     : _settings(settings),
       _table(),
       _parallelDeconvolution(
@@ -42,7 +49,7 @@ Radler::Radler(const Settings& settings)
       _pixelScaleX(_settings.pixel_scale.x),
       _pixelScaleY(_settings.pixel_scale.y),
       _autoMask(),
-      _beamSize(0.0) {
+      _beamSize(beamSize) {
   // Ensure that all FFTWF plan calls inside Radler are
   // thread safe.
   schaapcommon::fft::MakeFftwfPlannerThreadSafe();
@@ -200,9 +207,7 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
 }
 
 void Radler::InitializeDeconvolutionAlgorithm(
-    std::unique_ptr<DeconvolutionTable> table, double beamSize,
-    size_t threadCount) {
-  _beamSize = beamSize;
+    std::unique_ptr<DeconvolutionTable> table, size_t threadCount) {
   _autoMaskIsFinished = false;
   _autoMask.clear();
   FreeDeconvolutionAlgorithms();
@@ -233,7 +238,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
     }
     case AlgorithmType::kMultiscale: {
       algorithm = std::make_unique<algorithms::MultiScaleAlgorithm>(
-          _settings.multiscale, beamSize, _pixelScaleX, _pixelScaleY,
+          _settings.multiscale, _beamSize, _pixelScaleX, _pixelScaleY,
           _settings.saveSourceList);
       break;
     }
