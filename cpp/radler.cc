@@ -2,6 +2,8 @@
 
 #include "radler.h"
 
+#include <cmath>
+
 #include <aocommon/fits/fitsreader.h>
 #include <aocommon/image.h>
 #include <aocommon/imageaccessor.h>
@@ -419,18 +421,18 @@ void Radler::readMask(const DeconvolutionTable& groupTable) {
     hasMask = true;
   }
 
-  if (_settings.horizonMask) {
+  if (_settings.horizon_mask_distance) {
     if (!hasMask) {
       _cleanMask.assign(_imgWidth * _imgHeight, true);
       hasMask = true;
     }
 
-    double fovSq = M_PI_2 - _settings.horizonMaskDistance;
+    double fovSq = M_PI_2 - *_settings.horizon_mask_distance;
     if (fovSq < 0.0) fovSq = 0.0;
     if (fovSq <= M_PI_2)
       fovSq = std::sin(fovSq);
     else  // a negative horizon distance was given
-      fovSq = 1.0 - _settings.horizonMaskDistance;
+      fovSq = 1.0 - *_settings.horizon_mask_distance;
     fovSq = fovSq * fovSq;
     bool* ptr = _cleanMask.data();
 
@@ -452,7 +454,11 @@ void Radler::readMask(const DeconvolutionTable& groupTable) {
     FitsWriter writer;
     writer.SetImageDimensions(_imgWidth, _imgHeight, _settings.pixel_scale.x,
                               _settings.pixel_scale.y);
-    writer.Write(_settings.prefixName + "-horizon-mask.fits", image.Data());
+    std::string filename = _settings.horizon_mask_filename;
+    if (filename.empty()) {
+      filename = _settings.prefixName + "-horizon-mask.fits";
+    }
+    writer.Write(filename, image.Data());
   }
 
   if (hasMask) _parallelDeconvolution->SetCleanMask(_cleanMask.data());

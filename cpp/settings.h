@@ -123,8 +123,24 @@ struct Settings {
   double deconvolutionBorderRatio = 0.0;
   std::string fitsDeconvolutionMask;
   std::string casaDeconvolutionMask;
-  bool horizonMask = false;
-  double horizonMaskDistance = 0.0;
+
+  /**
+   * The horizon mask distance allows masking out emission beyond the horizon.
+   * The value is a floating point value in radians.
+   *
+   * All emission that is within the given distance of the horizon or beyond
+   * will be masked. A value of zero will therefore restrict deconvolution to be
+   * inside the horizon. Larger values will restrict deconvolution further.
+   *
+   * Leaving the optional value unset disables horizon masking.
+   */
+  std::optional<double> horizon_mask_distance;
+
+  /**
+   * The filename for storing the horizon mask FITS image.
+   * If unset/empty, Radler uses: prefix_name + "-horizon-mask.fits"
+   */
+  std::string horizon_mask_filename;
 
   struct LocalRms {
     LocalRmsMethod method = LocalRmsMethod::kNone;
