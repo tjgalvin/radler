@@ -171,10 +171,11 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
       stddev = rmsImage.Min();
       Logger::Info << "Lowest RMS in image: "
                    << FluxDensity::ToNiceString(stddev) << '\n';
-      if (stddev <= 0.0)
+      if (stddev <= 0.0) {
         throw std::runtime_error(
             "RMS image can only contain values > 0, but contains values <= "
             "0.0");
+      }
       for (float& value : rmsImage) {
         if (value != 0.0) value = stddev / value;
       }
@@ -210,12 +211,13 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
       _parallelDeconvolution->SetRMSFactorImage(std::move(rmsImage));
     }
   }
-  if (_settings.auto_mask_sigma && !_autoMaskIsFinished)
+  if (_settings.auto_mask_sigma && !_autoMaskIsFinished) {
     _parallelDeconvolution->SetThreshold(
         std::max(stddev * (*_settings.auto_mask_sigma), _settings.threshold));
-  else if (_settings.auto_threshold_sigma)
+  } else if (_settings.auto_threshold_sigma) {
     _parallelDeconvolution->SetThreshold(std::max(
         stddev * (*_settings.auto_threshold_sigma), _settings.threshold));
+  }
   integrated.Reset();
 
   Logger::Debug << "Loading PSFs...\n";
@@ -224,10 +226,11 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
 
   if (_settings.algorithm_type == AlgorithmType::kMultiscale) {
     if (_settings.auto_mask_sigma) {
-      if (_autoMaskIsFinished)
+      if (_autoMaskIsFinished) {
         _parallelDeconvolution->SetAutoMaskMode(false, true);
-      else
+      } else {
         _parallelDeconvolution->SetAutoMaskMode(true, false);
+      }
     }
   } else {
     if (_settings.auto_mask_sigma && _autoMaskIsFinished) {
@@ -282,8 +285,9 @@ void Radler::InitializeDeconvolutionAlgorithm(
   _autoMask.clear();
   FreeDeconvolutionAlgorithms();
   _table = std::move(table);
-  if (_table->OriginalGroups().empty())
+  if (_table->OriginalGroups().empty()) {
     throw std::runtime_error("Nothing to clean");
+  }
 
   if (!std::isfinite(_beamSize)) {
     Logger::Warn << "No proper beam size available in deconvolution!\n";
@@ -338,10 +342,12 @@ void Radler::InitializeDeconvolutionAlgorithm(
     Logger::Debug << "Reading " << _settings.spectral_fitting.forced_filename
                   << ".\n";
     FitsReader reader(_settings.spectral_fitting.forced_filename);
-    if (reader.ImageWidth() != _imgWidth || reader.ImageHeight() != _imgHeight)
+    if (reader.ImageWidth() != _imgWidth ||
+        reader.ImageHeight() != _imgHeight) {
       throw std::runtime_error(
           "The image width of the forced spectrum fits file does not match the "
           "imaging size");
+    }
     std::vector<Image> terms(1);
     terms[0] = Image(_imgWidth, _imgHeight);
     reader.Read(terms[0].Data());
@@ -377,10 +383,11 @@ void Radler::readMask(const DeconvolutionTable& groupTable) {
   if (!_settings.fitsDeconvolutionMask.empty()) {
     FitsReader maskReader(_settings.fitsDeconvolutionMask, true, true);
     if (maskReader.ImageWidth() != _imgWidth ||
-        maskReader.ImageHeight() != _imgHeight)
+        maskReader.ImageHeight() != _imgHeight) {
       throw std::runtime_error(
           "Specified Fits file mask did not have same dimensions as output "
           "image!");
+    }
     aocommon::UVector<float> maskData(_imgWidth * _imgHeight);
     if (maskReader.NFrequencies() == 1) {
       Logger::Debug << "Reading mask '" << _settings.fitsDeconvolutionMask
@@ -401,8 +408,9 @@ void Radler::readMask(const DeconvolutionTable& groupTable) {
       throw std::runtime_error(msg.str());
     }
     _cleanMask.assign(_imgWidth * _imgHeight, false);
-    for (size_t i = 0; i != _imgWidth * _imgHeight; ++i)
+    for (size_t i = 0; i != _imgWidth * _imgHeight; ++i) {
       _cleanMask[i] = (maskData[i] != 0.0);
+    }
 
     hasMask = true;
   } else if (!_settings.casaDeconvolutionMask.empty()) {
@@ -411,10 +419,12 @@ void Radler::readMask(const DeconvolutionTable& groupTable) {
                    << "'...\n";
       _cleanMask.assign(_imgWidth * _imgHeight, false);
       utils::CasaMaskReader maskReader(_settings.casaDeconvolutionMask);
-      if (maskReader.Width() != _imgWidth || maskReader.Height() != _imgHeight)
+      if (maskReader.Width() != _imgWidth ||
+          maskReader.Height() != _imgHeight) {
         throw std::runtime_error(
             "Specified CASA mask did not have same dimensions as output "
             "image!");
+      }
       maskReader.Read(_cleanMask.data());
     }
 
@@ -429,10 +439,11 @@ void Radler::readMask(const DeconvolutionTable& groupTable) {
 
     double fovSq = M_PI_2 - *_settings.horizon_mask_distance;
     if (fovSq < 0.0) fovSq = 0.0;
-    if (fovSq <= M_PI_2)
+    if (fovSq <= M_PI_2) {
       fovSq = std::sin(fovSq);
-    else  // a negative horizon distance was given
+    } else {  // a negative horizon distance was given
       fovSq = 1.0 - *_settings.horizon_mask_distance;
+    }
     fovSq = fovSq * fovSq;
     bool* ptr = _cleanMask.data();
 
@@ -448,8 +459,9 @@ void Radler::readMask(const DeconvolutionTable& groupTable) {
 
     Logger::Info << "Saving horizon mask...\n";
     Image image(_imgWidth, _imgHeight);
-    for (size_t i = 0; i != _imgWidth * _imgHeight; ++i)
+    for (size_t i = 0; i != _imgWidth * _imgHeight; ++i) {
       image[i] = _cleanMask[i] ? 1.0 : 0.0;
+    }
 
     FitsWriter writer;
     writer.SetImageDimensions(_imgWidth, _imgHeight, _settings.pixel_scale.x,

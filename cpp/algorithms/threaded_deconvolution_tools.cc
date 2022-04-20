@@ -62,7 +62,7 @@ std::unique_ptr<ThreadedDeconvolutionTools::ThreadResult>
 ThreadedDeconvolutionTools::SubtractionTask::operator()() {
   SimpleClean::PartialSubtractImage(image, psf->Data(), psf->Width(),
                                     psf->Height(), x, y, factor, startY, endY);
-  return std::unique_ptr<ThreadedDeconvolutionTools::ThreadResult>();
+  return {};
 }
 
 void ThreadedDeconvolutionTools::FindMultiScalePeak(
@@ -96,10 +96,11 @@ void ThreadedDeconvolutionTools::FindMultiScalePeak(
     task->scratch = &scratchData[nextThread];
     task->scale = scales[imageIndex];
     task->allowNegativeComponents = allowNegativeComponents;
-    if (scaleMasks.empty())
+    if (scaleMasks.empty()) {
       task->mask = mask;
-    else
+    } else {
       task->mask = scaleMasks[imageIndex].data();
+    }
     task->borderRatio = borderRatio;
     task->calculateRMS = calculateRMS;
     task->rmsFactorImage = &rmsFactorImage;
@@ -146,42 +147,46 @@ ThreadedDeconvolutionTools::FindMultiScalePeakTask::operator()() {
   msTransforms->Transform(*image, *scratch, scale);
   const size_t width = msTransforms->Width();
   const size_t height = msTransforms->Height();
-  const size_t scaleBorder = size_t(std::ceil(scale * 0.5));
+  const size_t scaleBorder = std::ceil(scale * 0.5);
   const size_t horBorderSize =
       std::max<size_t>(std::round(width * borderRatio), scaleBorder);
   const size_t vertBorderSize =
       std::max<size_t>(std::round(height * borderRatio), scaleBorder);
   std::unique_ptr<FindMultiScalePeakResult> result(
       new FindMultiScalePeakResult());
-  if (calculateRMS)
+  if (calculateRMS) {
     result->rms = RMS(*image, width * height);
-  else
+  } else {
     result->rms = -1.0;
+  }
   if (rmsFactorImage->Empty()) {
-    if (mask == nullptr)
+    if (mask == nullptr) {
       result->unnormalizedValue = math::PeakFinder::Find(
           image->Data(), width, height, result->x, result->y,
           allowNegativeComponents, 0, height, horBorderSize, vertBorderSize);
-    else
+    } else {
       result->unnormalizedValue = math::PeakFinder::FindWithMask(
           image->Data(), width, height, result->x, result->y,
           allowNegativeComponents, 0, height, mask, horBorderSize,
           vertBorderSize);
+    }
 
     result->normalizedValue = result->unnormalizedValue;
   } else {
-    for (size_t i = 0; i != rmsFactorImage->Size(); ++i)
+    for (size_t i = 0; i != rmsFactorImage->Size(); ++i) {
       (*scratch)[i] = (*image)[i] * (*rmsFactorImage)[i];
+    }
 
-    if (mask == nullptr)
+    if (mask == nullptr) {
       result->unnormalizedValue = math::PeakFinder::Find(
           scratch->Data(), width, height, result->x, result->y,
           allowNegativeComponents, 0, height, horBorderSize, vertBorderSize);
-    else
+    } else {
       result->unnormalizedValue = math::PeakFinder::FindWithMask(
           scratch->Data(), width, height, result->x, result->y,
           allowNegativeComponents, 0, height, mask, horBorderSize,
           vertBorderSize);
+    }
 
     if (result->unnormalizedValue) {
       result->normalizedValue =

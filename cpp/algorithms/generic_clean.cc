@@ -80,8 +80,9 @@ float GenericClean::ExecuteMajorIteration(
     subMinorLoop.SetAllowNegativeComponents(AllowNegativeComponents());
     subMinorLoop.SetStopOnNegativeComponent(StopOnNegativeComponents());
     subMinorLoop.SetSpectralFitter(&Fitter());
-    if (!_rmsFactorImage.Empty())
+    if (!_rmsFactorImage.Empty()) {
       subMinorLoop.SetRMSFactorImage(_rmsFactorImage);
+    }
     if (_cleanMask) subMinorLoop.SetMask(_cleanMask);
     const size_t horBorderSize = std::round(width * CleanBorderRatio());
     const size_t vertBorderSize = std::round(height * CleanBorderRatio());
@@ -106,8 +107,9 @@ float GenericClean::ExecuteMajorIteration(
 
       subMinorLoop.GetFullIndividualModel(imageIndex, scratchA.Data());
       float* model = modelSet.Data(imageIndex);
-      for (size_t i = 0; i != width * height; ++i)
+      for (size_t i = 0; i != width * height; ++i) {
         model[i] += scratchA.Data()[i];
+      }
     }
   } else {
     ThreadedDeconvolutionTools tools(_threadCount);
@@ -122,14 +124,16 @@ float GenericClean::ExecuteMajorIteration(
           (this->_iterationNumber <= 100 && this->_iterationNumber % 10 == 0) ||
           (this->_iterationNumber <= 1000 &&
            this->_iterationNumber % 100 == 0) ||
-          this->_iterationNumber % 1000 == 0)
+          this->_iterationNumber % 1000 == 0) {
         _logReceiver->Info << "Iteration " << this->_iterationNumber << ": "
                            << peakDescription(integrated, componentX,
                                               componentY)
                            << '\n';
+      }
 
-      for (size_t i = 0; i != dirtySet.size(); ++i)
+      for (size_t i = 0; i != dirtySet.size(); ++i) {
         peakValues[i] = dirtySet[i][peakIndex];
+      }
 
       PerformSpectralFit(peakValues.data(), componentX, componentY);
 
@@ -161,17 +165,18 @@ float GenericClean::ExecuteMajorIteration(
          mgainReached = std::fabs(*maxValue) <= majorIterThreshold,
          didWork = (_iterationNumber - iterationCounterAtStart) != 0;
 
-    if (maxIterReached)
+    if (maxIterReached) {
       _logReceiver->Info << "maximum number of iterations was reached.\n";
-    else if (finalThresholdReached)
+    } else if (finalThresholdReached) {
       _logReceiver->Info << "the threshold was reached.\n";
-    else if (negativeReached)
+    } else if (negativeReached) {
       _logReceiver->Info << "a negative component was found.\n";
-    else if (!didWork)
+    } else if (!didWork) {
       _logReceiver->Info << "no iterations could be performed.\n";
-    else
+    } else {
       _logReceiver->Info << "the minor-loop threshold was reached. Continuing "
                             "cleaning after inversion/prediction round.\n";
+    }
     reachedMajorThreshold =
         mgainReached && didWork && !negativeReached && !finalThresholdReached;
     return *maxValue;

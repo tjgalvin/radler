@@ -24,8 +24,9 @@ void MoreSane::ExecuteMajorIteration(float* residualData, float* modelData,
     schaapcommon::fft::Convolve(modelData, preparedPsf.Data(), width, height,
                                 _threadCount);
     aocommon::Logger::Info << "Adding model back to residual...\n";
-    for (size_t i = 0; i != width * height; ++i)
+    for (size_t i = 0; i != width * height; ++i) {
       residualData[i] += modelData[i];
+    }
   }
   std::ostringstream outputStr;
   outputStr << prefix_name_ << "-tmp-moresaneoutput" << _iterationNumber;

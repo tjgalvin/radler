@@ -387,10 +387,11 @@ void ImageSet::getLinearIntegratedWithNormalChannels(Image& dest) const {
         }
       }
     }
-    if (weightSum > 0.0)
+    if (weightSum > 0.0) {
       dest *= _polarizationNormalizationFactor / weightSum;
-    else
+    } else {
       dest = 0.0;
+    }
   }
 }
 
@@ -421,10 +422,11 @@ void ImageSet::CalculateDeconvolutionFrequencies(
     // Even when there is no data for a given frequency and the weight
     // is zero, it is still desirable to have a proper value for the frequency
     // (e.g. for extrapolating flux).
-    if (weights[i] > 0.0)
+    if (weights[i] > 0.0) {
       frequencies[i] /= weights[i];
-    else
+    } else {
       frequencies[i] = unweightedFrequencies[i] / counts[i];
+    }
   }
 }
 
@@ -432,7 +434,7 @@ void ImageSet::GetIntegratedPSF(Image& dest,
                                 const std::vector<aocommon::Image>& psfs) {
   assert(psfs.size() == NDeconvolutionChannels());
 
-  const size_t image_size = Width() * Height();
+  [[maybe_unused]] const size_t image_size = Width() * Height();
 
   if (NDeconvolutionChannels() == 1) {
     dest = psfs.front();

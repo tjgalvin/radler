@@ -27,7 +27,7 @@ void IUWTDecomposition::DecomposeMT(aocommon::StaticFor<size_t>& loop,
   // i0 = i1;
   Image i0(i1);
 
-  for (int scale = 1; scale != int(_scaleCount); ++scale) {
+  for (int scale = 1; scale != static_cast<int>(_scaleCount); ++scale) {
     Image& coefficients = _scales[scale].Coefficients();
     coefficients = Image(_width, _height);
     convolveMT(loop, i1.Data(), i0.Data(), scratch, _width, _height, scale + 1);
@@ -39,7 +39,7 @@ void IUWTDecomposition::DecomposeMT(aocommon::StaticFor<size_t>& loop,
                  _width, _height);
 
     // i0 = i1;
-    if (scale + 1 != int(_scaleCount)) {
+    if (scale + 1 != static_cast<int>(_scaleCount)) {
       std::copy_n(i1.Data(), _width * _height, i0.Data());
     }
   }
@@ -151,8 +151,9 @@ void IUWTDecomposition::convolveVerticalPartialFastFailed(
       for (size_t y = minY; y < maxY; ++y) {
         float* outputPtr = &output[y * width];
         const float* inputPtr = &image[(y + dist) * width];
-        for (size_t x = startX; x != endX; ++x)
+        for (size_t x = startX; x != endX; ++x) {
           outputPtr[x] += inputPtr[x] * h[hIndex];
+        }
       }
     }
   }

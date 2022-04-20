@@ -23,8 +23,8 @@ namespace {
  */
 class DummyImageAccessor final : public aocommon::ImageAccessor {
  public:
-  DummyImageAccessor() {}
-  ~DummyImageAccessor() override {}
+  DummyImageAccessor() = default;
+  ~DummyImageAccessor() override = default;
 
   void Load(Image&) const override {
     throw std::logic_error("Unexpected DummyImageAccessor::Load() call");
@@ -41,8 +41,9 @@ class DummyImageAccessor final : public aocommon::ImageAccessor {
  */
 class LoadOnlyImageAccessor final : public aocommon::ImageAccessor {
  public:
-  LoadOnlyImageAccessor(const aocommon::Image& image) : _image(image) {}
-  ~LoadOnlyImageAccessor() override {}
+  explicit LoadOnlyImageAccessor(const aocommon::Image& image)
+      : _image(image) {}
+  ~LoadOnlyImageAccessor() override = default;
 
   void Load(Image& image) const override { image = _image; }
 
@@ -57,7 +58,7 @@ class LoadOnlyImageAccessor final : public aocommon::ImageAccessor {
 }  // namespace
 
 struct ImageSetFixtureBase {
-  ImageSetFixtureBase() {}
+  ImageSetFixtureBase() = default;
 
   void initTable(size_t n_original_channels, size_t n_deconvolution_channels) {
     table = std::make_unique<DeconvolutionTable>(n_original_channels,

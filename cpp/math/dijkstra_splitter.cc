@@ -16,8 +16,9 @@ void DijkstraSplitter::AddVerticalDivider(const float* image, float* scratch,
                                           std::size_t x2) const {
   DivideVertically(image, scratch, x1, x2);
   for (std::size_t y = 0; y != height_; ++y) {
-    for (std::size_t i = y * width_ + x1; i != y * width_ + x2; ++i)
+    for (std::size_t i = y * width_ + x1; i != y * width_ + x2; ++i) {
       output[i] += scratch[i];
+    }
   }
 }
 
@@ -25,8 +26,9 @@ void DijkstraSplitter::AddHorizontalDivider(const float* image, float* scratch,
                                             float* output, std::size_t y1,
                                             std::size_t y2) const {
   DivideHorizontally(image, scratch, y1, y2);
-  for (std::size_t i = y1 * width_; i != y2 * width_; ++i)
+  for (std::size_t i = y1 * width_; i != y2 * width_; ++i) {
     output[i] += scratch[i];
+  }
 }
 
 void DijkstraSplitter::DivideVertically(const float* image, float* output,
@@ -163,7 +165,8 @@ void DijkstraSplitter::FloodVerticalArea(const float* subdivision,
     x = std::min<std::size_t>(x, x_iter + 1);
     x_iter = subimage_x + 1;
     // Move to the right until a border is hit
-    while (std::size_t(x_iter) < width_ && division_row[x_iter] == 0.0) {
+    while (static_cast<std::size_t>(x_iter) < width_ &&
+           division_row[x_iter] == 0.0) {
       mask_row[x_iter] = true;
       ++x_iter;
     }
@@ -198,7 +201,7 @@ void DijkstraSplitter::FloodHorizontalArea(const float* subdivision,
     y = std::min<std::size_t>(y, y_iter + 1);
     y_iter = subimage_y + 1;
     // Move to the right until a border is hit
-    while (std::size_t(y_iter) < height_ &&
+    while (static_cast<std::size_t>(y_iter) < height_ &&
            subdivision[y_iter * width_ + x] == 0.0) {
       mask[y_iter * width_ + x] = true;
       ++y_iter;

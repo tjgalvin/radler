@@ -38,8 +38,9 @@ void ComponentList::Write(const std::string& filename,
                           long double phaseCentreRA,
                           long double phaseCentreDec) const {
   aocommon::UVector<double> scaleSizes(NScales());
-  for (size_t scaleIndex = 0; scaleIndex != NScales(); ++scaleIndex)
+  for (size_t scaleIndex = 0; scaleIndex != NScales(); ++scaleIndex) {
     scaleSizes[scaleIndex] = multiscale.ScaleSize(scaleIndex);
+  }
   write(filename, multiscale.Fitter(), scaleSizes, pixelScaleX, pixelScaleY,
         phaseCentreRA, phaseCentreDec);
 }
@@ -67,10 +68,11 @@ void ComponentList::write(const std::string& filename,
   }
 
   if (fitter.Mode() == schaapcommon::fitters::SpectralFittingMode::NoFitting &&
-      _nFrequencies > 1)
+      _nFrequencies > 1) {
     throw std::runtime_error(
         "Can't write component list, because you have not specified a spectral "
         "fitting method. You probably want to add '-fit-spectral-pol'.");
+  }
 
   std::ofstream file(filename);
   bool useLogSI = false;
@@ -105,10 +107,11 @@ void ComponentList::write(const std::string& filename,
         spectrum[frequency] = list.values[valueIndex];
         ++valueIndex;
       }
-      if (_nFrequencies == 1)
+      if (_nFrequencies == 1) {
         terms.assign(1, spectrum[0]);
-      else
+      } else {
         fitter.Fit(terms, spectrum.data(), x, y);
+      }
       long double l, m;
       ImageCoordinates::XYToLM<long double>(x, y, pixelScaleX, pixelScaleY,
                                             _width, _height, l, m);
@@ -116,11 +119,11 @@ void ComponentList::write(const std::string& filename,
       ImageCoordinates::LMToRaDec(l, m, phaseCentreRA, phaseCentreDec, ra, dec);
       std::ostringstream name;
       name << 's' << scaleIndex << 'c' << componentIndex;
-      if (scale == 0.0)
+      if (scale == 0.0) {
         radler::utils::WritePolynomialPointComponent(
             file, name.str(), ra, dec, useLogSI, terms,
             fitter.ReferenceFrequency());
-      else {
+      } else {
         radler::utils::WritePolynomialGaussianComponent(
             file, name.str(), ra, dec, useLogSI, terms,
             fitter.ReferenceFrequency(), scaleFWHML, scaleFWHMM, 0.0);
@@ -147,9 +150,11 @@ void ComponentList::loadFromImageSet(ImageSet& imageSet, size_t scaleIndex) {
       }
       if (isNonZero) {
         _listPerScale[scaleIndex].positions.emplace_back(x, y);
-        for (size_t imageIndex = 0; imageIndex != imageSet.size(); ++imageIndex)
+        for (size_t imageIndex = 0; imageIndex != imageSet.size();
+             ++imageIndex) {
           _listPerScale[scaleIndex].values.push_back(
               imageSet[imageIndex][posIndex]);
+        }
       }
     }
   }

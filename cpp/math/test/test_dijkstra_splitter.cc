@@ -23,10 +23,11 @@ Image MakeImage(size_t width, const std::string& str) {
 
   for (size_t y = 0; y != height; ++y) {
     for (size_t x = 0; x != width; ++x) {
-      if (str[x + y * width] == 'X')
+      if (str[x + y * width] == 'X') {
         image[x + y * width] = 0.1f;
-      else
+      } else {
         image[x + y * width] = 10.0f;
+      }
     }
   }
   return image;
@@ -36,10 +37,11 @@ std::string PathStr(const Image& pathImage) {
   std::ostringstream str;
   for (size_t y = 0; y != pathImage.Height(); ++y) {
     for (size_t x = 0; x != pathImage.Width(); ++x) {
-      if (pathImage[y * pathImage.Width() + x] == 0.0f)
+      if (pathImage[y * pathImage.Width() + x] == 0.0f) {
         str << ' ';
-      else
+      } else {
         str << 'X';
+      }
     }
     str << '\n';
   }
@@ -52,10 +54,11 @@ std::string PathStr(const aocommon::UVector<bool>& mask, size_t width) {
   std::ostringstream str;
   for (size_t y = 0; y != height; ++y) {
     for (size_t x = 0; x != width; ++x) {
-      if (mask[y * width + x])
+      if (mask[y * width + x]) {
         str << 'X';
-      else
+      } else {
         str << ' ';
+      }
     }
     str << '\n';
   }
@@ -65,10 +68,11 @@ std::string PathStr(const aocommon::UVector<bool>& mask, size_t width) {
 std::string InputColumnStr(const Image& pathImage, size_t x) {
   std::ostringstream str;
   for (size_t y = 0; y != pathImage.Height(); ++y) {
-    if (pathImage[y * pathImage.Width() + x] == 10.0f)
+    if (pathImage[y * pathImage.Width() + x] == 10.0f) {
       str << ' ';
-    else
+    } else {
       str << 'X';
+    }
   }
   return str.str();
 }
@@ -76,10 +80,11 @@ std::string InputColumnStr(const Image& pathImage, size_t x) {
 std::string InputRowStr(const Image& pathImage, size_t y) {
   std::ostringstream str;
   for (size_t x = 0; x != pathImage.Width(); ++x) {
-    if (pathImage[y * pathImage.Width() + x] == 10.0f)
+    if (pathImage[y * pathImage.Width() + x] == 10.0f) {
       str << ' ';
-    else
+    } else {
       str << 'X';
+    }
   }
   return str.str();
 }

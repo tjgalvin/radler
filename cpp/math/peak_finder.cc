@@ -46,7 +46,7 @@ std::optional<float> PeakFinder::Simple(const float* image, size_t width,
   if (peakIndex == width * height) {
     x = width;
     y = height;
-    return std::optional<float>();
+    return std::nullopt;
   } else {
     x = peakIndex % width;
     y = peakIndex / width;
@@ -122,10 +122,11 @@ std::optional<float> PeakFinder::FindWithMask(
       ++cleanMaskPtr;
     }
   }
-  if (y == height)
-    return std::optional<float>();
-  else
+  if (y == height) {
+    return std::nullopt;
+  } else {
     return image[x + y * width];
+  }
 }
 
 #if defined __AVX__ && defined USE_INTRINSICS && !defined FORCE_NON_AVX

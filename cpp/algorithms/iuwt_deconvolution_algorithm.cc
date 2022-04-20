@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <memory>
 
 #include <boost/numeric/conversion/bounds.hpp>
 
@@ -230,37 +231,43 @@ void IUWTDeconvolutionAlgorithm::adjustBox(size_t& x1, size_t& y1, size_t& x2,
   const int minBoxSize = std::max<int>(
       128, IUWTDecomposition::MinImageDimension(endScale) * 3 / 2);
 
-  int boxWidth = x2 - x1;
-  int boxHeight = y2 - y1;
-  int newX1 = x1 - 0.5 * boxWidth, newX2 = x2 + 0.5 * boxWidth,
-      newY1 = y1 - 0.5 * boxHeight, newY2 = y2 + 0.5 * boxHeight;
+  const int boxWidth = x2 - x1;
+  const int boxHeight = y2 - y1;
+  int newX1 = x1 - 0.5 * boxWidth;
+  int newX2 = x2 + 0.5 * boxWidth;
+  int newY1 = y1 - 0.5 * boxHeight;
+  int newY2 = y2 + 0.5 * boxHeight;
 
   if (newX2 - newX1 < minBoxSize) {
-    int mid = 0.5 * (int(x1) + int(x2));
+    const int mid = 0.5 * (static_cast<int>(x1) + static_cast<int>(x2));
     newX1 = mid - minBoxSize / 2;
     newX2 = mid + minBoxSize / 2;
   }
   if (newY2 - newY1 < minBoxSize) {
-    int mid = 0.5 * (int(y1) + int(y2));
+    const int mid = 0.5 * (static_cast<int>(y1) + static_cast<int>(y2));
     newY1 = mid - minBoxSize / 2;
     newY2 = mid + minBoxSize / 2;
   }
-  if (newX1 >= 0)
+  if (newX1 >= 0) {
     x1 = newX1;
-  else
+  } else {
     x1 = 0;
-  if (newX2 < int(width))
+  }
+  if (newX2 < static_cast<int>(width)) {
     x2 = newX2;
-  else
+  } else {
     x2 = width;
-  if (newY1 >= 0)
+  }
+  if (newY1 >= 0) {
     y1 = newY1;
-  else
+  } else {
     y1 = 0;
-  if (newY2 < int(height))
+  }
+  if (newY2 < static_cast<int>(height)) {
     y2 = newY2;
-  else
+  } else {
     y2 = height;
+  }
   while ((x2 - x1) % 8 != 0) x2--;
   while ((y2 - y1) % 8 != 0) y2--;
 }
@@ -465,8 +472,9 @@ bool IUWTDeconvolutionAlgorithm::findAndDeconvolveStructure(
         float lowestRMS = std::min(_psfResponse[0].rms, _psfResponse[1].rms);
         maxVal = val.val / lowestRMS * _psfResponse[1].peakResponse /
                  _psfResponse[0].peakResponseToNextScale;
-      } else
+      } else {
         maxVal = absCoef;
+      }
     }
   }
   if (maxValScale == -1) {
@@ -543,7 +551,7 @@ bool IUWTDeconvolutionAlgorithm::fillAndDeconvolveStructure(
     int maxScale =
         std::max(IUWTDecomposition::EndScale(std::min(x2 - x1, y2 - y1)),
                  maxComp.scale + 1);
-    if (maxScale < int(curEndScale)) {
+    if (maxScale < static_cast<int>(curEndScale)) {
       std::cout << "Bounding box too small for largest scale of " << curEndScale
                 << " -- ignoring scales>=" << maxScale
                 << " in this iteration.\n";
@@ -557,9 +565,9 @@ bool IUWTDeconvolutionAlgorithm::fillAndDeconvolveStructure(
 
     aocommon::UVector<bool> trimmedPriorMask;
     bool* trimmedPriorMaskPtr;
-    if (priorMask == nullptr)
+    if (priorMask == nullptr) {
       trimmedPriorMaskPtr = nullptr;
-    else {
+    } else {
       trimmedPriorMask.resize(newWidth * newHeight);
       trimmedPriorMaskPtr = trimmedPriorMask.data();
       Image::TrimBox(trimmedPriorMaskPtr, x1, y1, newWidth, newHeight,
@@ -702,15 +710,16 @@ void IUWTDeconvolutionAlgorithm::performSubImageFitSingle(
                                    peakLevel * 1e-4, comp, width, height, area);
         // Find bounding box and copy active pixels to subDirty
         subDirty = Image(width, height, 0.0);
-        size_t boxX1 = width, boxX2 = 0, boxY1 = height, boxY2 = 0;
-        for (std::vector<ImageAnalysis::Component2D>::const_iterator a =
-                 area.begin();
-             a != area.end(); ++a) {
-          size_t index = a->x + a->y * width;
-          boxX1 = std::min(a->x, boxX1);
-          boxX2 = std::max(a->x, boxX2);
-          boxY1 = std::min(a->y, boxY1);
-          boxY2 = std::max(a->y, boxY2);
+        size_t boxX1 = width;
+        size_t boxX2 = 0;
+        size_t boxY1 = height;
+        size_t boxY2 = 0;
+        for (const ImageAnalysis::Component2D& a : area) {
+          const size_t index = a.x + a.y * width;
+          boxX1 = std::min(a.x, boxX1);
+          boxX2 = std::max(a.x, boxX2);
+          boxY1 = std::min(a.y, boxY1);
+          boxY2 = std::max(a.y, boxY2);
           subDirty[index] = structureModel[index];
         }
         adjustBox(boxX1, boxY1, boxX2, boxY2, width, height, iuwt.NScales());
@@ -726,10 +735,8 @@ void IUWTDeconvolutionAlgorithm::performSubImageFitSingle(
           const float integratedFactor = correctionFactors[componentIndex];
           if (std::isfinite(factor) && std::isfinite(integratedFactor) &&
               integratedFactor != 0.0) {
-            for (std::vector<ImageAnalysis::Component2D>::const_iterator a =
-                     area.begin();
-                 a != area.end(); ++a) {
-              size_t index = a->x + a->y * width;
+            for (const ImageAnalysis::Component2D& a : area) {
+              const size_t index = a.x + a.y * width;
               fittedSubModel[index] +=
                   structureModel[index] * factor / integratedFactor;
             }
@@ -790,19 +797,18 @@ float IUWTDeconvolutionAlgorithm::performSubImageComponentFit(
   iuwt.ApplyMask(mask);
   iuwt.Recompose(model, false);
 
-  float modelSum = 0.0, dirtySum = 0.0;
-  for (std::vector<ImageAnalysis::Component2D>::const_iterator a = area.begin();
-       a != area.end(); ++a) {
-    size_t index = (a->x - xOffset) + (a->y - yOffset) * width;
+  float modelSum = 0.0;
+  float dirtySum = 0.0;
+  for (const ImageAnalysis::Component2D& a : area) {
+    const size_t index = (a.x - xOffset) + (a.y - yOffset) * width;
     modelSum += model[index];
     dirtySum += maskedDirty[index];
   }
-  // std::cout << "factor=" << dirtySum << " / " << modelSum << " = " <<
-  // dirtySum/modelSum << '\n';
-  if (modelSum == 0.0 || !std::isfinite(dirtySum) || !std::isfinite(modelSum))
+  if (modelSum == 0.0 || !std::isfinite(dirtySum) || !std::isfinite(modelSum)) {
     return 0.0;
-  else
+  } else {
     return dirtySum / modelSum;
+  }
 }
 
 float IUWTDeconvolutionAlgorithm::PerformMajorIteration(
@@ -903,7 +909,7 @@ float IUWTDeconvolutionAlgorithm::PerformMajorIteration(
       }
       if (reachedMajorThreshold) break;
     } else {
-      if (int(curMinScale) + 1 < curEndScale) {
+      if (static_cast<int>(curMinScale) + 1 < curEndScale) {
         ++curMinScale;
         std::cout << "=> Min scale now " << curMinScale << '\n';
       } else {
@@ -911,7 +917,8 @@ float IUWTDeconvolutionAlgorithm::PerformMajorIteration(
         if (curEndScale != maxScale) {
           ++curEndScale;
           std::cout << "=> Scale now " << curEndScale << ".\n";
-          iuwt.reset(new IUWTDecomposition(curEndScale, _width, _height));
+          iuwt =
+              std::make_unique<IUWTDecomposition>(curEndScale, _width, _height);
         } else {
           std::cout << "Max scale reached: finished all scales, quiting.\n";
           doContinue = false;
