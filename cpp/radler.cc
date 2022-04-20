@@ -4,6 +4,7 @@
 
 #include <aocommon/fits/fitsreader.h>
 #include <aocommon/image.h>
+#include <aocommon/imageaccessor.h>
 #include <aocommon/imagecoordinates.h>
 #include <aocommon/logger.h>
 #include <aocommon/units/fluxdensity.h>
@@ -29,12 +30,79 @@ using aocommon::ImageCoordinates;
 using aocommon::Logger;
 using aocommon::units::FluxDensity;
 
+namespace {
+class LoadOnlyImageAccessor final : public aocommon::ImageAccessor {
+ public:
+  LoadOnlyImageAccessor(const aocommon::Image& image) : _image(image) {}
+  ~LoadOnlyImageAccessor() override = default;
+
+  void Load(Image& image) const override { image = _image; }
+
+  void Store(const Image&) override {
+    throw std::logic_error("Unexpected LoadOnlyImageAccessor::Store() call");
+  }
+
+ private:
+  const aocommon::Image& _image;
+};
+
+class LoadAndStoreImageAccessor final : public aocommon::ImageAccessor {
+ public:
+  LoadAndStoreImageAccessor(aocommon::Image& image) : _image(image) {}
+  ~LoadAndStoreImageAccessor() override = default;
+
+  void Load(Image& image) const override { image = _image; }
+
+  void Store(const Image& image) override { _image = image; }
+
+ private:
+  aocommon::Image& _image;
+};
+
+}  // namespace
+
 namespace radler {
 
 Radler::Radler(const Settings& settings,
                std::unique_ptr<DeconvolutionTable> table, double beamSize,
                size_t threadCount)
     : Radler(settings, beamSize) {
+  InitializeDeconvolutionAlgorithm(std::move(table), threadCount);
+}
+
+Radler::Radler(const Settings& settings, const aocommon::Image& psfImage,
+               aocommon::Image& residualImage, aocommon::Image& modelImage,
+               double beamSize, aocommon::PolarizationEnum pol,
+               size_t threadCount)
+    : Radler(settings, beamSize) {
+  if (psfImage.Width() != settings.trimmedImageWidth ||
+      psfImage.Height() != settings.trimmedImageHeight) {
+    throw std::runtime_error("Mismatch in PSF image size");
+  }
+
+  if (residualImage.Width() != settings.trimmedImageWidth ||
+      residualImage.Height() != settings.trimmedImageHeight) {
+    throw std::runtime_error("Mismatch in residual image size");
+  }
+
+  if (modelImage.Width() != settings.trimmedImageWidth ||
+      modelImage.Height() != settings.trimmedImageHeight) {
+    throw std::runtime_error("Mismatch in model image size");
+  }
+
+  // Make DeconvolutionTable with just one entry
+  const size_t n_original_channels = 1;
+  const size_t n_deconvolution_channels = 1;
+  auto table = std::make_unique<DeconvolutionTable>(n_original_channels,
+                                                    n_deconvolution_channels);
+  auto e = std::make_unique<DeconvolutionTableEntry>();
+  e->polarization = pol;
+  e->image_weight = 1.0;  //
+  e->psf_accessor = std::make_unique<LoadOnlyImageAccessor>(psfImage);
+  e->residual_accessor =
+      std::make_unique<LoadAndStoreImageAccessor>(residualImage);
+  e->model_accessor = std::make_unique<LoadAndStoreImageAccessor>(modelImage);
+  table->AddEntry(std::move(e));
   InitializeDeconvolutionAlgorithm(std::move(table), threadCount);
 }
 

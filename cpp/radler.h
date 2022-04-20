@@ -28,6 +28,22 @@ class Radler {
  public:
   Radler(const Settings& settings, std::unique_ptr<DeconvolutionTable> table,
          double beamSize, size_t threadCount);
+
+  /**
+   * @brief Constructor for single channel, single polarization deconvolution.
+   * @param[in] psfImage PSF image.
+   * @param[in/out] residualImage Residual image.
+   * @param[in/out] modelImage Model image.
+   *
+   * Please bear in mind to keep the input images alive in the caller, since
+   * Radler internally only references these images.
+   */
+  Radler(const Settings& settings, const aocommon::Image& psfImage,
+         aocommon::Image& residualImage, aocommon::Image& modelImage,
+         double beamSize,
+         aocommon::PolarizationEnum pol = aocommon::PolarizationEnum::StokesI,
+         size_t threadCount = 1);
+
   ~Radler();
 
   ComponentList GetComponentList() const;
