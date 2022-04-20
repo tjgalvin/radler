@@ -28,8 +28,9 @@ bool ImageAnalysis::IsHighestOnScale0(const IUWTDecomposition& iuwt,
         y = c.y;
       }
     } else {
-      if (exceedsThreshold(iuwt[c.scale][index], highestOtherScales))
+      if (exceedsThreshold(iuwt[c.scale][index], highestOtherScales)) {
         highestOtherScales = iuwt[c.scale][index];
+      }
     }
     if (c.x > 0) {
       if (markedMask[c.scale][index - 1]) {
@@ -55,13 +56,13 @@ bool ImageAnalysis::IsHighestOnScale0(const IUWTDecomposition& iuwt,
         todo.push(Component(c.x, c.y + 1, c.scale));
       }
     }
-    if (c.scale > int(0)) {
+    if (c.scale > 0) {
       if (markedMask[c.scale - 1][index]) {
         markedMask[c.scale - 1][index] = false;
         todo.push(Component(c.x, c.y, c.scale - 1));
       }
     }
-    if (c.scale < int(endScale) - 1) {
+    if (c.scale < static_cast<int>(endScale) - 1) {
       if (markedMask[c.scale + 1][index]) {
         markedMask[c.scale + 1][index] = false;
         todo.push(Component(c.x, c.y, c.scale + 1));
@@ -120,14 +121,14 @@ void ImageAnalysis::Floodfill(const IUWTDecomposition& iuwt, IUWTMask& mask,
         todo.push(Component(c.x, c.y + 1, c.scale));
       }
     }
-    if (c.scale > int(minScale)) {
+    if (c.scale > static_cast<int>(minScale)) {
       if (exceedsThreshold(iuwt[c.scale - 1][index], thresholds[c.scale - 1]) &&
           !mask[c.scale - 1][index]) {
         mask[c.scale - 1][index] = true;
         todo.push(Component(c.x, c.y, c.scale - 1));
       }
     }
-    if (c.scale < int(endScale) - 1) {
+    if (c.scale < static_cast<int>(endScale) - 1) {
       if (exceedsThreshold(iuwt[c.scale + 1][index], thresholds[c.scale + 1]) &&
           !mask[c.scale + 1][index]) {
         mask[c.scale + 1][index] = true;
@@ -188,14 +189,14 @@ void ImageAnalysis::MaskedFloodfill(const IUWTDecomposition& iuwt,
         todo.push(Component(c.x, c.y + 1, c.scale));
       }
     }
-    if (c.scale > int(minScale)) {
+    if (c.scale > static_cast<int>(minScale)) {
       if (exceedsThreshold(iuwt[c.scale - 1][index], thresholds[c.scale - 1]) &&
           !mask[c.scale - 1][index] && priorMask[index]) {
         mask[c.scale - 1][index] = true;
         todo.push(Component(c.x, c.y, c.scale - 1));
       }
     }
-    if (c.scale < int(endScale) - 1) {
+    if (c.scale < static_cast<int>(endScale) - 1) {
       if (exceedsThreshold(iuwt[c.scale + 1][index], thresholds[c.scale + 1]) &&
           !mask[c.scale + 1][index] && priorMask[index]) {
         mask[c.scale + 1][index] = true;
@@ -227,12 +228,13 @@ void ImageAnalysis::SelectStructures(const IUWTDecomposition& iuwt,
             !mask[scale][index] && isInPriorMask) {
           Component component(x, y, scale);
           size_t subAreaSize = 0;
-          if (priorMask == nullptr)
+          if (priorMask == nullptr) {
             Floodfill(iuwt, mask, thresholds, minScale, endScale, component,
                       cleanBorder, subAreaSize);
-          else
+          } else {
             MaskedFloodfill(iuwt, mask, thresholds, minScale, endScale,
                             component, cleanBorder, priorMask, subAreaSize);
+          }
           areaSize += subAreaSize;
         }
       }

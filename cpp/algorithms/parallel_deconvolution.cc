@@ -7,6 +7,8 @@
 
 #include <schaapcommon/fft/convolution.h>
 
+#include <memory>
+
 #include "algorithms/multiscale_algorithm.h"
 #include "math/dijkstra_splitter.h"
 
@@ -28,7 +30,7 @@ ParallelDeconvolution::ParallelDeconvolution(const Settings& settings)
   schaapcommon::fft::MakeFftwfPlannerThreadSafe();
 }
 
-ParallelDeconvolution::~ParallelDeconvolution() {}
+ParallelDeconvolution::~ParallelDeconvolution() = default;
 
 ComponentList ParallelDeconvolution::GetComponentList(
     const DeconvolutionTable& table) const {
@@ -92,16 +94,18 @@ void ParallelDeconvolution::SetAlgorithm(
     _algorithms.front()->SetThreadCount(threadsPerAlg);
     Logger::Debug << "Parallel deconvolution will use " << _algorithms.size()
                   << " subimages.\n";
-    for (size_t i = 1; i != _algorithms.size(); ++i)
+    for (size_t i = 1; i != _algorithms.size(); ++i) {
       _algorithms[i] = _algorithms.front()->Clone();
+    }
   }
 }
 
 void ParallelDeconvolution::SetRMSFactorImage(Image&& image) {
-  if (_settings.parallel.max_size == 0)
+  if (_settings.parallel.max_size == 0) {
     _algorithms.front()->SetRMSFactorImage(std::move(image));
-  else
+  } else {
     _rmsImage = std::move(image);
+  }
 }
 
 void ParallelDeconvolution::SetThreshold(double threshold) {
@@ -120,18 +124,20 @@ void ParallelDeconvolution::SetAutoMaskMode(bool trackPerScaleMasks,
 }
 
 void ParallelDeconvolution::SetCleanMask(const bool* mask) {
-  if (_algorithms.size() == 1)
+  if (_algorithms.size() == 1) {
     _algorithms.front()->SetCleanMask(mask);
-  else
+  } else {
     _mask = mask;
+  }
 }
 
 void ParallelDeconvolution::SetSpectrallyForcedImages(
     std::vector<Image>&& images) {
-  if (_algorithms.size() == 1)
+  if (_algorithms.size() == 1) {
     _algorithms.front()->SetSpectrallyForcedImages(std::move(images));
-  else
+  } else {
     _spectrallyForcedImages = std::move(images);
+  }
 }
 
 void ParallelDeconvolution::runSubImage(
@@ -159,8 +165,8 @@ void ParallelDeconvolution::runSubImage(
   // Construct the smaller psfs
   std::vector<Image> subPsfs;
   subPsfs.reserve(psfImages.size());
-  for (size_t i = 0; i != psfImages.size(); ++i) {
-    subPsfs.emplace_back(psfImages[i].Trim(subImg.width, subImg.height));
+  for (const aocommon::Image& psfImage : psfImages) {
+    subPsfs.emplace_back(psfImage.Trim(subImg.width, subImg.height));
   }
   _algorithms[subImg.index]->SetCleanMask(subImg.mask.data());
 
@@ -183,10 +189,11 @@ void ParallelDeconvolution::runSubImage(
   }
 
   size_t maxNIter = _algorithms[subImg.index]->MaxNIter();
-  if (findPeakOnly)
+  if (findPeakOnly) {
     _algorithms[subImg.index]->SetMaxNIter(0);
-  else
+  } else {
     _algorithms[subImg.index]->SetMajorIterThreshold(majorIterThreshold);
+  }
 
   if (_usePerScaleMasks || _trackPerScaleMasks) {
     std::lock_guard<std::mutex> lock(mutex);
@@ -204,9 +211,10 @@ void ParallelDeconvolution::runSubImage(
       for (size_t i = 0; i != msAlg.GetScaleMaskCount(); ++i) {
         aocommon::UVector<bool>& output = msAlg.GetScaleMask(i);
         output.assign(subImg.width * subImg.height, false);
-        if (i < _scaleMasks.size())
+        if (i < _scaleMasks.size()) {
           Image::TrimBox(output.data(), subImg.x, subImg.y, subImg.width,
                          subImg.height, _scaleMasks[i].data(), width, height);
+        }
       }
     }
   }
@@ -224,15 +232,17 @@ void ParallelDeconvolution::runSubImage(
         static_cast<class MultiScaleAlgorithm&>(*_algorithms[subImg.index]);
     if (_scaleMasks.empty()) {
       _scaleMasks.resize(msAlg.ScaleCount());
-      for (aocommon::UVector<bool>& scaleMask : _scaleMasks)
+      for (aocommon::UVector<bool>& scaleMask : _scaleMasks) {
         scaleMask.assign(width * height, false);
+      }
     }
     for (size_t i = 0; i != msAlg.ScaleCount(); ++i) {
       const aocommon::UVector<bool>& msMask = msAlg.GetScaleMask(i);
-      if (i < _scaleMasks.size())
+      if (i < _scaleMasks.size()) {
         Image::CopyMasked(_scaleMasks[i].data(), subImg.x, subImg.y, width,
                           msMask.data(), subImg.width, subImg.height,
                           subImg.boundaryMask.data());
+      }
     }
   }
 
@@ -241,9 +251,10 @@ void ParallelDeconvolution::runSubImage(
     std::lock_guard<std::mutex> lock(mutex);
     MultiScaleAlgorithm& algorithm =
         static_cast<MultiScaleAlgorithm&>(*_algorithms[subImg.index]);
-    if (!_componentList)
-      _componentList.reset(new ComponentList(
-          width, height, algorithm.ScaleCount(), dataImage.size()));
+    if (!_componentList) {
+      _componentList = std::make_unique<ComponentList>(
+          width, height, algorithm.ScaleCount(), dataImage.size());
+    }
     _componentList->Add(algorithm.GetComponentList(), subImg.x, subImg.y);
     algorithm.ClearComponentList();
   }
@@ -356,8 +367,9 @@ void ParallelDeconvolution::executeParallelRun(
       if (_mask != nullptr) {
         Image::TrimBox(mask.data(), subImage.x, subImage.y, subImage.width,
                        subImage.height, _mask, width, height);
-        for (size_t i = 0; i != subImage.mask.size(); ++i)
+        for (size_t i = 0; i != subImage.mask.size(); ++i) {
           subImage.mask[i] = subImage.mask[i] && mask[i];
+        }
       }
     }
   }
@@ -366,8 +378,9 @@ void ParallelDeconvolution::executeParallelRun(
   // Initialize loggers
   std::mutex mutex;
   _logs.Initialize(_horImages, _verImages);
-  for (size_t i = 0; i != _algorithms.size(); ++i)
+  for (size_t i = 0; i != _algorithms.size(); ++i) {
     _algorithms[i]->SetLogReceiver(_logs[i]);
+  }
 
   // Find the starting peak over all subimages
   aocommon::ParallelFor<size_t> loop(_settings.parallel.max_threads);
@@ -417,19 +430,21 @@ void ParallelDeconvolution::executeParallelRun(
   for (SubImage& img : subImages) {
     if (!img.reachedMajorThreshold) ++subImagesFinished;
     if (_algorithms[img.index]->IterationNumber() >=
-        _algorithms[img.index]->MaxNIter())
+        _algorithms[img.index]->MaxNIter()) {
       reachedMaxNIter = true;
+    }
   }
   Logger::Info << subImagesFinished << " / " << subImages.size()
                << " sub-images finished";
   reachedMajorThreshold = (subImagesFinished != subImages.size());
-  if (reachedMajorThreshold && !reachedMaxNIter)
+  if (reachedMajorThreshold && !reachedMaxNIter) {
     Logger::Info << ": Continue next major iteration.\n";
-  else if (reachedMajorThreshold && reachedMaxNIter) {
+  } else if (reachedMajorThreshold && reachedMaxNIter) {
     Logger::Info << ", but nr. of iterations reached at least once: "
                     "Deconvolution finished.\n";
     reachedMajorThreshold = false;
-  } else
+  } else {
     Logger::Info << ": Deconvolution finished.\n";
+  }
 }
 }  // namespace radler::algorithms

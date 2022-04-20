@@ -27,7 +27,7 @@ class MinimalImageAccessor final : public aocommon::ImageAccessor {
                        aocommon::FitsWriter writer,
                        const std::string& output_fits)
       : _image(image), _writer(writer), _output_fits(output_fits) {}
-  ~MinimalImageAccessor() override {}
+  ~MinimalImageAccessor() override = default;
 
   void Load(aocommon::Image& image) const override { image = _image; }
 

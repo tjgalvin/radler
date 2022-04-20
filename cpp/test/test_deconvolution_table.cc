@@ -23,7 +23,7 @@ BOOST_AUTO_TEST_CASE(constructor) {
   }
 
   BOOST_TEST_REQUIRE(table.DeconvolutionGroups().size() == kTableSize);
-  for (int index = 0; index < int(kTableSize); ++index) {
+  for (int index = 0; index < static_cast<int>(kTableSize); ++index) {
     BOOST_TEST(table.DeconvolutionGroups()[index] ==
                std::vector<int>(1, index));
   }

@@ -18,10 +18,11 @@ size_t SubMinorModel::GetMaxComponent(Image& scratch, float& maxValue) const {
   maxValue = scratch[0];
   for (size_t i = 0; i != size(); ++i) {
     float value;
-    if (AllowNegatives)
+    if (AllowNegatives) {
       value = std::fabs(scratch[i]);
-    else
+    } else {
       value = scratch[i];
+    }
     if (value > maxValue) {
       maxComponent = i;
       maxValue = value;
@@ -40,12 +41,13 @@ std::optional<float> SubMinorLoop::Run(
   findPeakPositions(convolvedResidual);
 
   _subMinorModel.MakeSets(convolvedResidual);
-  if (!_rmsFactorImage.Empty())
+  if (!_rmsFactorImage.Empty()) {
     _subMinorModel.MakeRMSFactorImage(_rmsFactorImage);
+  }
   _logReceiver.Debug << "Number of components selected > " << _threshold << ": "
                      << _subMinorModel.size() << '\n';
 
-  if (_subMinorModel.size() == 0) return std::optional<float>();
+  if (_subMinorModel.size() == 0) return std::nullopt;
 
   Image scratch(_subMinorModel.size(), 1);
   float maxValue;
@@ -58,21 +60,24 @@ std::optional<float> SubMinorLoop::Run(
          (!_stopOnNegativeComponent || maxValue >= 0.0)) {
     aocommon::UVector<float> componentValues(_subMinorModel.Residual().size());
     for (size_t imgIndex = 0; imgIndex != _subMinorModel.Residual().size();
-         ++imgIndex)
+         ++imgIndex) {
       componentValues[imgIndex] =
           _subMinorModel.Residual()[imgIndex][maxComponent] * _gain;
+    }
     _fluxCleaned += maxValue * _gain;
 
     const size_t x = _subMinorModel.X(maxComponent),
                  y = _subMinorModel.Y(maxComponent);
 
-    if (_fitter)
+    if (_fitter) {
       _fitter->FitAndEvaluate(componentValues.data(), x, y, fittingScratch);
+    }
 
     for (size_t imgIndex = 0; imgIndex != _subMinorModel.Model().size();
-         ++imgIndex)
+         ++imgIndex) {
       _subMinorModel.Model().Data(imgIndex)[maxComponent] +=
           componentValues[imgIndex];
+    }
 
     /*
       Commented out because even in verbose mode this is a bit too verbose, but
@@ -90,8 +95,10 @@ std::optional<float> SubMinorLoop::Run(
       for (size_t px = 0; px != _subMinorModel.size(); ++px) {
         int psfX = _subMinorModel.X(px) - x + _width / 2;
         int psfY = _subMinorModel.Y(px) - y + _height / 2;
-        if (psfX >= 0 && psfX < int(_width) && psfY >= 0 && psfY < int(_height))
+        if (psfX >= 0 && psfX < static_cast<int>(_width) && psfY >= 0 &&
+            psfY < static_cast<int>(_height)) {
           image[px] -= psf[psfX + psfY * _width] * psfFactor;
+        }
       }
     }
 
@@ -145,10 +152,11 @@ void SubMinorLoop::findPeakPositions(ImageSet& convolvedResidual) {
       float* imagePtr = integratedScratch.Data() + y * _width;
       for (size_t x = xiStart; x != xiEnd; ++x) {
         float value;
-        if (_allowNegativeComponents)
+        if (_allowNegativeComponents) {
           value = fabs(imagePtr[x]);
-        else
+        } else {
           value = imagePtr[x];
+        }
         if (value >= _threshold && maskPtr[x]) _subMinorModel.AddPosition(x, y);
       }
     }
@@ -157,10 +165,11 @@ void SubMinorLoop::findPeakPositions(ImageSet& convolvedResidual) {
       float* imagePtr = integratedScratch.Data() + y * _width;
       for (size_t x = xiStart; x != xiEnd; ++x) {
         float value;
-        if (_allowNegativeComponents)
+        if (_allowNegativeComponents) {
           value = fabs(imagePtr[x]);
-        else
+        } else {
           value = imagePtr[x];
+        }
         if (value >= _threshold) _subMinorModel.AddPosition(x, y);
       }
     }

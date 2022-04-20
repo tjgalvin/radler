@@ -17,9 +17,10 @@ void MultiScaleTransforms::Transform(std::vector<Image>& images, Image& scratch,
 
   schaapcommon::fft::PrepareSmallConvolutionKernel(
       scratch.Data(), _width, _height, shape.Data(), kernelSize, _threadCount);
-  for (Image& image : images)
+  for (Image& image : images) {
     schaapcommon::fft::Convolve(image.Data(), scratch.Data(), _width, _height,
                                 _threadCount);
+  }
 }
 
 void MultiScaleTransforms::PrepareTransform(float* kernel, float scale) {

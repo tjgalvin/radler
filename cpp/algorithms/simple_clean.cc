@@ -13,28 +13,33 @@
 #include <immintrin.h>
 #endif
 
-namespace radler {
-namespace algorithms {
+namespace radler::algorithms {
 void SimpleClean::SubtractImage(float* image, const float* psf, size_t width,
                                 size_t height, size_t x, size_t y,
                                 float factor) {
-  size_t startX, startY, endX, endY;
-  int offsetX = (int)x - width / 2, offsetY = (int)y - height / 2;
+  size_t startX;
+  size_t startY;
+  size_t endX;
+  size_t endY;
+  const int offsetX = static_cast<int>(x) - width / 2;
+  const int offsetY = static_cast<int>(y) - height / 2;
 
-  if (offsetX > 0)
+  if (offsetX > 0) {
     startX = offsetX;
-  else
+  } else {
     startX = 0;
+  }
 
-  if (offsetY > 0)
+  if (offsetY > 0) {
     startY = offsetY;
-  else
+  } else {
     startY = 0;
+  }
 
   endX = x + width / 2;
   if (endX > width) endX = width;
 
-  bool isAligned = ((endX - startX) % 2) == 0;
+  const bool isAligned = ((endX - startX) % 2) == 0;
   if (!isAligned) --endX;
 
   endY = y + height / 2;
@@ -58,20 +63,23 @@ void SimpleClean::PartialSubtractImage(float* image, const float* psf,
                                        size_t width, size_t height, size_t x,
                                        size_t y, float factor, size_t startY,
                                        size_t endY) {
-  size_t startX, endX;
-  int offsetX = (int)x - width / 2, offsetY = (int)y - height / 2;
+  size_t startX;
+  size_t endX;
+  const int offsetX = static_cast<int>(x) - width / 2;
+  const int offsetY = static_cast<int>(y) - height / 2;
 
-  if (offsetX > 0)
+  if (offsetX > 0) {
     startX = offsetX;
-  else
+  } else {
     startX = 0;
+  }
 
-  if (offsetY > (int)startY) startY = offsetY;
+  if (offsetY > static_cast<int>(startY)) startY = offsetY;
 
   endX = x + width / 2;
   if (endX > width) endX = width;
 
-  bool isAligned = ((endX - startX) % 2) == 0;
+  const bool isAligned = ((endX - startX) % 2) == 0;
   if (!isAligned) --endX;
 
   endY = std::min(y + height / 2, endY);
@@ -94,19 +102,22 @@ void SimpleClean::PartialSubtractImage(float* image, size_t imgWidth,
                                        size_t psfWidth, size_t psfHeight,
                                        size_t x, size_t y, float factor,
                                        size_t startY, size_t endY) {
-  size_t startX, endX;
-  int offsetX = (int)x - psfWidth / 2, offsetY = (int)y - psfHeight / 2;
+  size_t startX;
+  size_t endX;
+  const int offsetX = static_cast<int>(x) - psfWidth / 2;
+  const int offsetY = static_cast<int>(y) - psfHeight / 2;
 
-  if (offsetX > 0)
+  if (offsetX > 0) {
     startX = offsetX;
-  else
+  } else {
     startX = 0;
+  }
 
-  if (offsetY > (int)startY) startY = offsetY;
+  if (offsetY > static_cast<int>(startY)) startY = offsetY;
 
   endX = std::min(x + psfWidth / 2, imgWidth);
 
-  bool isAligned = ((endX - startX) % 2) == 0;
+  const bool isAligned = ((endX - startX) % 2) == 0;
   if (!isAligned) --endX;
 
   endY = std::min(y + psfHeight / 2, endY);
@@ -131,19 +142,22 @@ void SimpleClean::PartialSubtractImageAVX(double* image, size_t imgWidth,
                                           size_t psfHeight, size_t x, size_t y,
                                           double factor, size_t startY,
                                           size_t endY) {
-  size_t startX, endX;
-  int offsetX = (int)x - psfWidth / 2, offsetY = (int)y - psfHeight / 2;
+  size_t startX;
+  size_t endX;
+  const int offsetX = static_cast<int>(x) - psfWidth / 2;
+  const int offsetY = static_cast<int>(y) - psfHeight / 2;
 
-  if (offsetX > 0)
+  if (offsetX > 0) {
     startX = offsetX;
-  else
+  } else {
     startX = 0;
+  }
 
-  if (offsetY > (int)startY) startY = offsetY;
+  if (offsetY > static_cast<int>(startY)) startY = offsetY;
 
   endX = std::min(x + psfWidth / 2, imgWidth);
 
-  size_t unAlignedCount = (endX - startX) % 4;
+  const size_t unAlignedCount = (endX - startX) % 4;
   endX -= unAlignedCount;
 
   endY = std::min(y + psfHeight / 2, endY);
@@ -174,5 +188,4 @@ void SimpleClean::PartialSubtractImageAVX(double* image, size_t imgWidth,
 }
 
 #endif
-}  // namespace algorithms
-}  // namespace radler
+}  // namespace radler::algorithms

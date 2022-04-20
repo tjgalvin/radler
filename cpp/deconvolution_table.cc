@@ -13,10 +13,11 @@ DeconvolutionTable::DeconvolutionTable(int n_original_groups,
     : entries_(),
       channel_index_offset_(channel_index_offset),
       original_groups_(std::max(n_original_groups, 1)),
-      deconvolution_groups_((n_deconvolution_groups <= 0)
-                                ? original_groups_.size()
-                                : std::min(original_groups_.size(),
-                                           size_t(n_deconvolution_groups))) {
+      deconvolution_groups_(
+          (n_deconvolution_groups <= 0)
+              ? original_groups_.size()
+              : std::min(original_groups_.size(),
+                         static_cast<size_t>(n_deconvolution_groups))) {
   // Create an entry in deconvolution_groups for each original group.
   for (int i = 0; i < n_original_groups; ++i) {
     int deconvolution_index =

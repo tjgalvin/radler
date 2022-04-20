@@ -60,8 +60,9 @@ void RMSImage::SlidingMinimum(Image& output, const Image& input,
         size_t bottom =
             std::min(y, input.Height() - windowSize / 2) + windowSize / 2;
         vals.clear();
-        for (size_t winY = top; winY != bottom; ++winY)
+        for (size_t winY = top; winY != bottom; ++winY) {
           vals.push_back(temp[winY * width + x]);
+        }
         output[y * width + x] = *std::min_element(vals.begin(), vals.end());
       }
     }

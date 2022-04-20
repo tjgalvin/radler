@@ -17,17 +17,19 @@ struct PyChannel {
 
 class PySpectralFitter {
  public:
-  PySpectralFitter(schaapcommon::fitters::SpectralFitter& fitter)
+  explicit PySpectralFitter(schaapcommon::fitters::SpectralFitter& fitter)
       : _fitter(fitter) {}
 
   pybind11::array_t<double> fit(pybind11::array_t<double> values, size_t x,
                                 size_t y) {
-    if (values.ndim() != 1)
+    if (values.ndim() != 1) {
       throw std::runtime_error(
           "spectral_fitter.fit(): Invalid dimensions of values array");
-    if (size_t(values.shape()[0]) != _fitter.NFrequencies())
+    }
+    if (static_cast<size_t>(values.shape()[0]) != _fitter.NFrequencies()) {
       throw std::runtime_error(
           "spectral_fitter.fit(): Incorrect size of values array");
+    }
     aocommon::UVector<float> vec(_fitter.NFrequencies());
     pybind11::buffer_info info = values.request();
     const unsigned char* buffer = static_cast<const unsigned char*>(info.ptr);
@@ -40,7 +42,7 @@ class PySpectralFitter {
     pybind11::buffer_info resultBuf(
         nullptr,  // ask NumPy to allocate
         sizeof(double), pybind11::format_descriptor<double>::value, 1,
-        {ptrdiff_t(_fitter.NTerms())}, {sizeof(double)}  // Stride
+        {static_cast<ptrdiff_t>(_fitter.NTerms())}, {sizeof(double)}  // Stride
     );
     pybind11::array_t<double> pyResult(resultBuf);
     std::copy_n(result.data(), _fitter.NTerms(),
@@ -50,13 +52,15 @@ class PySpectralFitter {
 
   pybind11::array_t<double> fit_and_evaluate(pybind11::array_t<double> values,
                                              size_t x, size_t y) {
-    if (values.ndim() != 1)
+    if (values.ndim() != 1) {
       throw std::runtime_error(
           "spectral_fitter.fit_and_evaluate(): Invalid dimensions of values "
           "array");
-    if (size_t(values.shape()[0]) != _fitter.NFrequencies())
+    }
+    if (static_cast<size_t>(values.shape()[0]) != _fitter.NFrequencies()) {
       throw std::runtime_error(
           "spectral_fitter.fit_and_evaluate(): Incorrect size of values array");
+    }
     aocommon::UVector<float> vec(_fitter.NFrequencies());
     pybind11::buffer_info info = values.request();
     const unsigned char* buffer = static_cast<const unsigned char*>(info.ptr);
@@ -70,7 +74,8 @@ class PySpectralFitter {
     pybind11::buffer_info resultBuf(
         nullptr,  // ask NumPy to allocate
         sizeof(double), pybind11::format_descriptor<double>::value, 1,
-        {ptrdiff_t(_fitter.NFrequencies())}, {sizeof(double)}  // Stride
+        {static_cast<ptrdiff_t>(_fitter.NFrequencies())},
+        {sizeof(double)}  // Stride
     );
     pybind11::array_t<double> pyResult(resultBuf);
     std::copy_n(vec.data(), _fitter.NFrequencies(),
@@ -84,7 +89,7 @@ class PySpectralFitter {
 
 struct PyMetaData {
  public:
-  PyMetaData(schaapcommon::fitters::SpectralFitter& _spectral_fitter)
+  explicit PyMetaData(schaapcommon::fitters::SpectralFitter& _spectral_fitter)
       : spectral_fitter(_spectral_fitter) {}
 
   std::vector<PyChannel> channels;
@@ -133,7 +138,7 @@ PythonDeconvolution::PythonDeconvolution(const PythonDeconvolution& other)
       _deconvolveFunction(
           std::make_unique<pybind11::function>(*other._deconvolveFunction)) {}
 
-PythonDeconvolution::~PythonDeconvolution() {}
+PythonDeconvolution::~PythonDeconvolution() = default;
 
 void PythonDeconvolution::setBuffer(const ImageSet& imageSet, double* ptr) {
   size_t nFreq = imageSet.NDeconvolutionChannels();
@@ -196,8 +201,8 @@ float PythonDeconvolution::ExecuteMajorIteration(
     pybind11::buffer_info residualBuf(
         nullptr,  // ask NumPy to allocate
         sizeof(double), pybind11::format_descriptor<double>::value, 4,
-        {ptrdiff_t(nFreq), ptrdiff_t(nPol), ptrdiff_t(height),
-         ptrdiff_t(width)},
+        {static_cast<ptrdiff_t>(nFreq), static_cast<ptrdiff_t>(nPol),
+         static_cast<ptrdiff_t>(height), static_cast<ptrdiff_t>(width)},
         {sizeof(double) * width * height * nPol,
          sizeof(double) * width * height, sizeof(double) * width,
          sizeof(double)}  // Strides
@@ -208,8 +213,8 @@ float PythonDeconvolution::ExecuteMajorIteration(
     // Create Model array
     pybind11::buffer_info modelBuf(
         nullptr, sizeof(double), pybind11::format_descriptor<double>::value, 4,
-        {ptrdiff_t(nFreq), ptrdiff_t(nPol), ptrdiff_t(height),
-         ptrdiff_t(width)},
+        {static_cast<ptrdiff_t>(nFreq), static_cast<ptrdiff_t>(nPol),
+         static_cast<ptrdiff_t>(height), static_cast<ptrdiff_t>(width)},
         {sizeof(double) * width * height * nPol,
          sizeof(double) * width * height, sizeof(double) * width,
          sizeof(double)});
@@ -219,7 +224,8 @@ float PythonDeconvolution::ExecuteMajorIteration(
     // Create PSF array
     pybind11::buffer_info psfBuf(
         nullptr, sizeof(double), pybind11::format_descriptor<double>::value, 3,
-        {ptrdiff_t(nFreq), ptrdiff_t(height), ptrdiff_t(width)},
+        {static_cast<ptrdiff_t>(nFreq), static_cast<ptrdiff_t>(height),
+         static_cast<ptrdiff_t>(width)},
         {sizeof(double) * width * height, sizeof(double) * width,
          sizeof(double)});
     pybind11::array_t<double> pyPsfs(psfBuf);
@@ -257,11 +263,12 @@ float PythonDeconvolution::ExecuteMajorIteration(
   const bool isComplete =
       resultDict.contains("residual") && resultDict.contains("model") &&
       resultDict.contains("level") && resultDict.contains("continue");
-  if (!isComplete)
+  if (!isComplete) {
     throw std::runtime_error(
         "In python deconvolution code: Dictionary returned by deconvolve() is "
         "missing items; should have 'residual', 'model', 'level' and "
         "'continue'");
+  }
   pybind11::array_t<double> residualRes =
       resultDict["residual"].cast<pybind11::array_t<double>>();
   getBuffer(dirtySet, static_cast<const double*>(residualRes.request().ptr));
