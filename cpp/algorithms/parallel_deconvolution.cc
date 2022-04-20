@@ -46,9 +46,9 @@ ComponentList ParallelDeconvolution::GetComponentList(
       list = *_componentList;
     }
   } else {
-    const size_t w = _settings.trimmedImageWidth;
-    const size_t h = _settings.trimmedImageHeight;
-    ImageSet modelSet(table, _settings.squaredJoins,
+    const size_t w = _settings.trimmed_image_width;
+    const size_t h = _settings.trimmed_image_height;
+    ImageSet modelSet(table, _settings.squared_joins,
                       _settings.linkedPolarizations, w, h);
     modelSet.LoadAndAverage(false);
     list = ComponentList(w, h, modelSet);
@@ -81,8 +81,8 @@ void ParallelDeconvolution::SetAlgorithm(
     _algorithms.resize(1);
     _algorithms.front() = std::move(algorithm);
   } else {
-    const size_t width = _settings.trimmedImageWidth;
-    const size_t height = _settings.trimmedImageHeight;
+    const size_t width = _settings.trimmed_image_width;
+    const size_t height = _settings.trimmed_image_height;
     size_t maxSubImageSize = _settings.parallel.max_size;
     _horImages = (width + maxSubImageSize - 1) / maxSubImageSize,
     _verImages = (height + maxSubImageSize - 1) / maxSubImageSize;
@@ -144,8 +144,8 @@ void ParallelDeconvolution::runSubImage(
     SubImage& subImg, ImageSet& dataImage, const ImageSet& modelImage,
     ImageSet& resultModel, const std::vector<aocommon::Image>& psfImages,
     double majorIterThreshold, bool findPeakOnly, std::mutex& mutex) {
-  const size_t width = _settings.trimmedImageWidth;
-  const size_t height = _settings.trimmedImageHeight;
+  const size_t width = _settings.trimmed_image_width;
+  const size_t height = _settings.trimmed_image_height;
 
   std::unique_ptr<ImageSet> subModel, subData;
   {
@@ -246,7 +246,7 @@ void ParallelDeconvolution::runSubImage(
     }
   }
 
-  if (_settings.saveSourceList &&
+  if (_settings.save_source_list &&
       _settings.algorithm_type == AlgorithmType::kMultiscale) {
     std::lock_guard<std::mutex> lock(mutex);
     MultiScaleAlgorithm& algorithm =
@@ -306,7 +306,7 @@ void ParallelDeconvolution::executeParallelRun(
   std::vector<VerticalArea> verticalAreas(_horImages);
 
   Logger::Info << "Calculating edge paths...\n";
-  aocommon::ParallelFor<size_t> splitLoop(_settings.threadCount);
+  aocommon::ParallelFor<size_t> splitLoop(_settings.thread_count);
 
   // Divide into columns (i.e. construct the vertical lines)
   splitLoop.Run(1, _horImages, [&](size_t divNr, size_t) {

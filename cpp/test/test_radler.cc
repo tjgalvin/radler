@@ -50,11 +50,11 @@ void FillPsfAndResidual(aocommon::Image& psf_image,
 
 struct SettingsFixture {
   SettingsFixture() {
-    settings.trimmedImageWidth = kWidth;
-    settings.trimmedImageHeight = kHeight;
+    settings.trimmed_image_width = kWidth;
+    settings.trimmed_image_height = kHeight;
     settings.pixel_scale.x = kPixelScale;
     settings.pixel_scale.y = kPixelScale;
-    settings.deconvolutionIterationCount = 1000;
+    settings.minor_iteration_count = 1000;
     settings.threshold = 1.0e-8;
   }
 

@@ -77,18 +77,18 @@ Radler::Radler(const Settings& settings, const aocommon::Image& psfImage,
                double beamSize, aocommon::PolarizationEnum pol,
                size_t threadCount)
     : Radler(settings, beamSize) {
-  if (psfImage.Width() != settings.trimmedImageWidth ||
-      psfImage.Height() != settings.trimmedImageHeight) {
+  if (psfImage.Width() != settings.trimmed_image_width ||
+      psfImage.Height() != settings.trimmed_image_height) {
     throw std::runtime_error("Mismatch in PSF image size");
   }
 
-  if (residualImage.Width() != settings.trimmedImageWidth ||
-      residualImage.Height() != settings.trimmedImageHeight) {
+  if (residualImage.Width() != settings.trimmed_image_width ||
+      residualImage.Height() != settings.trimmed_image_height) {
     throw std::runtime_error("Mismatch in residual image size");
   }
 
-  if (modelImage.Width() != settings.trimmedImageWidth ||
-      modelImage.Height() != settings.trimmedImageHeight) {
+  if (modelImage.Width() != settings.trimmed_image_width ||
+      modelImage.Height() != settings.trimmed_image_height) {
     throw std::runtime_error("Mismatch in model image size");
   }
 
@@ -114,8 +114,8 @@ Radler::Radler(const Settings& settings, double beamSize)
       _parallelDeconvolution(
           std::make_unique<algorithms::ParallelDeconvolution>(_settings)),
       _autoMaskIsFinished(false),
-      _imgWidth(_settings.trimmedImageWidth),
-      _imgHeight(_settings.trimmedImageHeight),
+      _imgWidth(_settings.trimmed_image_width),
+      _imgHeight(_settings.trimmed_image_height),
       _pixelScaleX(_settings.pixel_scale.x),
       _pixelScaleY(_settings.pixel_scale.y),
       _autoMask(),
@@ -142,9 +142,9 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
   Logger::Info.Flush();
   Logger::Info << " == Deconvolving (" << majorIterationNr << ") ==\n";
 
-  ImageSet residualSet(*_table, _settings.squaredJoins,
+  ImageSet residualSet(*_table, _settings.squared_joins,
                        _settings.linkedPolarizations, _imgWidth, _imgHeight);
-  ImageSet modelSet(*_table, _settings.squaredJoins,
+  ImageSet modelSet(*_table, _settings.squared_joins,
                     _settings.linkedPolarizations, _imgWidth, _imgHeight);
 
   Logger::Debug << "Loading residual images...\n";
@@ -191,13 +191,13 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
         case LocalRmsMethod::kRmsWindow:
           math::RMSImage::Make(rmsImage, integrated, _settings.local_rms.window,
                                _beamSize, _beamSize, 0.0, _pixelScaleX,
-                               _pixelScaleY, _settings.threadCount);
+                               _pixelScaleY, _settings.thread_count);
           break;
         case LocalRmsMethod::kRmsAndMinimumWindow:
           math::RMSImage::MakeWithNegativityLimit(
               rmsImage, integrated, _settings.local_rms.window, _beamSize,
               _beamSize, 0.0, _pixelScaleX, _pixelScaleY,
-              _settings.threadCount);
+              _settings.thread_count);
           break;
       }
       // Normalize the RMS image relative to the threshold so that Jy remains
@@ -258,16 +258,16 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
     reachedMajorThreshold = true;
   }
 
-  if (_settings.majorIterationCount != 0 &&
-      majorIterationNr >= _settings.majorIterationCount) {
+  if (_settings.major_iteration_count != 0 &&
+      majorIterationNr >= _settings.major_iteration_count) {
     reachedMajorThreshold = false;
     Logger::Info << "Maximum number of major iterations was reached: not "
                     "continuing deconvolution.\n";
   }
 
-  if (_settings.deconvolutionIterationCount != 0 &&
+  if (_settings.minor_iteration_count != 0 &&
       _parallelDeconvolution->FirstAlgorithm().IterationNumber() >=
-          _settings.deconvolutionIterationCount) {
+          _settings.minor_iteration_count) {
     reachedMajorThreshold = false;
     Logger::Info
         << "Maximum number of minor deconvolution iterations was reached: not "
@@ -276,7 +276,8 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
 
   residualSet.AssignAndStoreResidual();
   modelSet.InterpolateAndStoreModel(
-      _parallelDeconvolution->FirstAlgorithm().Fitter(), _settings.threadCount);
+      _parallelDeconvolution->FirstAlgorithm().Fitter(),
+      _settings.thread_count);
 }
 
 void Radler::InitializeDeconvolutionAlgorithm(
@@ -303,7 +304,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
       break;
     case AlgorithmType::kMoreSane:
       algorithm = std::make_unique<algorithms::MoreSane>(_settings.more_sane,
-                                                         _settings.prefixName);
+                                                         _settings.prefix_name);
       break;
     case AlgorithmType::kIuwt: {
       algorithm = std::make_unique<algorithms::IUWTDeconvolution>(
@@ -313,7 +314,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
     case AlgorithmType::kMultiscale: {
       algorithm = std::make_unique<algorithms::MultiScaleAlgorithm>(
           _settings.multiscale, _beamSize, _pixelScaleX, _pixelScaleY,
-          _settings.saveSourceList);
+          _settings.save_source_list);
       break;
     }
     case AlgorithmType::kGenericClean:
@@ -322,13 +323,13 @@ void Radler::InitializeDeconvolutionAlgorithm(
       break;
   }
 
-  algorithm->SetMaxNIter(_settings.deconvolutionIterationCount);
+  algorithm->SetMaxNIter(_settings.minor_iteration_count);
   algorithm->SetThreshold(_settings.threshold);
   algorithm->SetMinorLoopGain(_settings.minor_loop_gain);
   algorithm->SetMajorLoopGain(_settings.major_loop_gain);
-  algorithm->SetCleanBorderRatio(_settings.deconvolutionBorderRatio);
-  algorithm->SetAllowNegativeComponents(_settings.allowNegativeComponents);
-  algorithm->SetStopOnNegativeComponents(_settings.stopOnNegativeComponents);
+  algorithm->SetCleanBorderRatio(_settings.border_ratio);
+  algorithm->SetAllowNegativeComponents(_settings.allow_negative_components);
+  algorithm->SetStopOnNegativeComponents(_settings.stop_on_negative_components);
   algorithm->SetThreadCount(threadCount);
   algorithm->SetSpectralFittingMode(_settings.spectral_fitting.mode,
                                     _settings.spectral_fitting.terms);
@@ -380,8 +381,8 @@ void Radler::RemoveNaNsInPSF(float* psf, size_t width, size_t height) {
 
 void Radler::readMask(const DeconvolutionTable& groupTable) {
   bool hasMask = false;
-  if (!_settings.fitsDeconvolutionMask.empty()) {
-    FitsReader maskReader(_settings.fitsDeconvolutionMask, true, true);
+  if (!_settings.fits_mask.empty()) {
+    FitsReader maskReader(_settings.fits_mask, true, true);
     if (maskReader.ImageWidth() != _imgWidth ||
         maskReader.ImageHeight() != _imgHeight) {
       throw std::runtime_error(
@@ -390,12 +391,11 @@ void Radler::readMask(const DeconvolutionTable& groupTable) {
     }
     aocommon::UVector<float> maskData(_imgWidth * _imgHeight);
     if (maskReader.NFrequencies() == 1) {
-      Logger::Debug << "Reading mask '" << _settings.fitsDeconvolutionMask
-                    << "'...\n";
+      Logger::Debug << "Reading mask '" << _settings.fits_mask << "'...\n";
       maskReader.Read(maskData.data());
-    } else if (maskReader.NFrequencies() == _settings.channelsOut) {
-      Logger::Debug << "Reading mask '" << _settings.fitsDeconvolutionMask
-                    << "' (" << (groupTable.Front().original_channel_index + 1)
+    } else if (maskReader.NFrequencies() == _settings.channels_out) {
+      Logger::Debug << "Reading mask '" << _settings.fits_mask << "' ("
+                    << (groupTable.Front().original_channel_index + 1)
                     << ")...\n";
       maskReader.ReadIndex(maskData.data(),
                            groupTable.Front().original_channel_index);
@@ -404,7 +404,7 @@ void Radler::readMask(const DeconvolutionTable& groupTable) {
       msg << "The number of frequencies in the specified fits mask ("
           << maskReader.NFrequencies()
           << ") does not match the number of requested output channels ("
-          << _settings.channelsOut << ")";
+          << _settings.channels_out << ")";
       throw std::runtime_error(msg.str());
     }
     _cleanMask.assign(_imgWidth * _imgHeight, false);
@@ -413,12 +413,11 @@ void Radler::readMask(const DeconvolutionTable& groupTable) {
     }
 
     hasMask = true;
-  } else if (!_settings.casaDeconvolutionMask.empty()) {
+  } else if (!_settings.casa_mask.empty()) {
     if (_cleanMask.empty()) {
-      Logger::Info << "Reading CASA mask '" << _settings.casaDeconvolutionMask
-                   << "'...\n";
+      Logger::Info << "Reading CASA mask '" << _settings.casa_mask << "'...\n";
       _cleanMask.assign(_imgWidth * _imgHeight, false);
-      utils::CasaMaskReader maskReader(_settings.casaDeconvolutionMask);
+      utils::CasaMaskReader maskReader(_settings.casa_mask);
       if (maskReader.Width() != _imgWidth ||
           maskReader.Height() != _imgHeight) {
         throw std::runtime_error(
@@ -468,7 +467,7 @@ void Radler::readMask(const DeconvolutionTable& groupTable) {
                               _settings.pixel_scale.y);
     std::string filename = _settings.horizon_mask_filename;
     if (filename.empty()) {
-      filename = _settings.prefixName + "-horizon-mask.fits";
+      filename = _settings.prefix_name + "-horizon-mask.fits";
     }
     writer.Write(filename, image.Data());
   }

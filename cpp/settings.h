@@ -39,15 +39,15 @@ struct Settings {
    * Settings that are duplicates from top level settings, and also used outside
    * deconvolution.
    */
-  size_t trimmedImageWidth = 0;
-  size_t trimmedImageHeight = 0;
-  size_t channelsOut = 1;
+  size_t trimmed_image_width = 0;
+  size_t trimmed_image_height = 0;
+  size_t channels_out = 1;
   struct {
     double x = 0.0;
     double y = 0.0;
   } pixel_scale;
-  size_t threadCount = aocommon::system::ProcessorCount();
-  std::string prefixName = "wsclean";
+  size_t thread_count = aocommon::system::ProcessorCount();
+  std::string prefix_name = "wsclean";
   /** @} */
 
   /**
@@ -112,17 +112,17 @@ struct Settings {
    */
   std::optional<double> auto_mask_sigma = std::nullopt;
 
-  bool saveSourceList = false;
-  size_t deconvolutionIterationCount = 0;
-  size_t majorIterationCount = 20;
-  bool allowNegativeComponents = true;
-  bool stopOnNegativeComponents = false;
-  bool squaredJoins = false;
-  double spectralCorrectionFrequency = 0.0;
-  std::vector<float> spectralCorrection;
-  double deconvolutionBorderRatio = 0.0;
-  std::string fitsDeconvolutionMask;
-  std::string casaDeconvolutionMask;
+  bool save_source_list = false;
+  size_t minor_iteration_count = 0;
+  size_t major_iteration_count = 20;
+  bool allow_negative_components = true;
+  bool stop_on_negative_components = false;
+  bool squared_joins = false;
+  double spectral_correction_frequency = 0.0;
+  std::vector<float> spectral_correction;
+  double border_ratio = 0.0;
+  std::string fits_mask;
+  std::string casa_mask;
 
   /**
    * The horizon mask distance allows masking out emission beyond the horizon.
@@ -161,7 +161,7 @@ struct Settings {
    * channels are averaged, and after deconvolution they are interpolated.
    * If it is 0, all channels should be used.
    */
-  size_t deconvolutionChannelCount = 0;
+  size_t deconvolution_channel_count = 0;
   /** @} */
 
   /**
