@@ -3,6 +3,7 @@
 #ifndef RADLER_DECONVOLUTION_SETTINGS_H_
 #define RADLER_DECONVOLUTION_SETTINGS_H_
 
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -82,10 +83,35 @@ struct Settings {
    */
   double major_loop_gain = 1.0;
 
-  bool autoDeconvolutionThreshold = false;
-  bool autoMask = false;
-  double autoDeconvolutionThresholdSigma = 0.0;
-  double autoMaskSigma = 0.0;
+  /**
+   * @brief Sigma value for automatically setting the cleaning threshold.
+   *
+   * If set, Radler will calculate the standard deviation of the residual image
+   * before the start of every major deconvolution iteration, and continue
+   * deconvolving until the peak flux density is below this sigma value times
+   * the noise standard deviation. The standard deviation is calculated using
+   * the medium absolute deviation, which is a robust estimator that is not very
+   * sensitive to source structure still present in the image.
+   *
+   * If unset, automatic thresholding is not used.
+   */
+  std::optional<double> auto_threshold_sigma = std::nullopt;
+
+  /**
+   * @brief Sigma value for automatically creating and applying mask images.
+   *
+   * If set, Radler performs these steps:
+   * # Radler starts cleaning towards a threshold of the given sigma value.
+   * # Once the sigma level is reached, Radler generates a mask using the
+   * positions and (when using multi-scale cleaning) scale of each component.
+   * # Cleaning then continues until the final threshold value, as set using the
+   * @ref threshold or @ref auto_threshold_sigma values. During this final
+   * deconvolution stage, the generated mask constrains the cleaning.
+   *
+   * If unset, automatic masking is not used.
+   */
+  std::optional<double> auto_mask_sigma = std::nullopt;
+
   bool saveSourceList = false;
   size_t deconvolutionIterationCount = 0;
   size_t majorIterationCount = 20;

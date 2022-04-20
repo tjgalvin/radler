@@ -156,7 +156,7 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
   double stddev = integrated.StdDevFromMAD();
   Logger::Info << "Estimated standard deviation of background noise: "
                << FluxDensity::ToNiceString(stddev) << '\n';
-  if (_settings.autoMask && _autoMaskIsFinished) {
+  if (_settings.auto_mask_sigma && _autoMaskIsFinished) {
     // When we are in the second phase of automasking, don't use
     // the RMS background anymore
     _parallelDeconvolution->SetRMSFactorImage(Image());
@@ -208,13 +208,12 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
       _parallelDeconvolution->SetRMSFactorImage(std::move(rmsImage));
     }
   }
-  if (_settings.autoMask && !_autoMaskIsFinished)
+  if (_settings.auto_mask_sigma && !_autoMaskIsFinished)
     _parallelDeconvolution->SetThreshold(
-        std::max(stddev * _settings.autoMaskSigma, _settings.threshold));
-  else if (_settings.autoDeconvolutionThreshold)
-    _parallelDeconvolution->SetThreshold(
-        std::max(stddev * _settings.autoDeconvolutionThresholdSigma,
-                 _settings.threshold));
+        std::max(stddev * (*_settings.auto_mask_sigma), _settings.threshold));
+  else if (_settings.auto_threshold_sigma)
+    _parallelDeconvolution->SetThreshold(std::max(
+        stddev * (*_settings.auto_threshold_sigma), _settings.threshold));
   integrated.Reset();
 
   Logger::Debug << "Loading PSFs...\n";
@@ -222,14 +221,14 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
       residualSet.LoadAndAveragePSFs();
 
   if (_settings.algorithm_type == AlgorithmType::kMultiscale) {
-    if (_settings.autoMask) {
+    if (_settings.auto_mask_sigma) {
       if (_autoMaskIsFinished)
         _parallelDeconvolution->SetAutoMaskMode(false, true);
       else
         _parallelDeconvolution->SetAutoMaskMode(true, false);
     }
   } else {
-    if (_settings.autoMask && _autoMaskIsFinished) {
+    if (_settings.auto_mask_sigma && _autoMaskIsFinished) {
       if (_autoMask.empty()) {
         _autoMask.resize(_imgWidth * _imgHeight);
         for (size_t imgIndex = 0; imgIndex != modelSet.size(); ++imgIndex) {
@@ -246,7 +245,8 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
   _parallelDeconvolution->ExecuteMajorIteration(
       residualSet, modelSet, psfImages, reachedMajorThreshold);
 
-  if (!reachedMajorThreshold && _settings.autoMask && !_autoMaskIsFinished) {
+  if (!reachedMajorThreshold && _settings.auto_mask_sigma &&
+      !_autoMaskIsFinished) {
     Logger::Info << "Auto-masking threshold reached; continuing next major "
                     "iteration with deeper threshold and mask.\n";
     _autoMaskIsFinished = true;
