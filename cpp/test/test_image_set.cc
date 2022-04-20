@@ -47,7 +47,7 @@ class LoadOnlyImageAccessor final : public aocommon::ImageAccessor {
   void Load(Image& image) const override { image = _image; }
 
   void Store(const Image&) override {
-    throw std::logic_error("Unexpected MimimalImageAccessor::Store() call");
+    throw std::logic_error("Unexpected LoadOnlyImageAccessor::Store() call");
   }
 
  private:
