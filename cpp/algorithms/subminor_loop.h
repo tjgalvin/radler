@@ -53,6 +53,12 @@ class SubMinorModel {
  public:
   SubMinorModel(size_t width, size_t /*height*/) : _width(width) {}
 
+  // TODO(AST-912) Make copy/move operations Google Style compliant.
+  SubMinorModel(const SubMinorModel&) = delete;
+  SubMinorModel(SubMinorModel&&) = default;
+  SubMinorModel& operator=(const SubMinorModel&) = delete;
+  SubMinorModel& operator=(SubMinorModel&&) = default;
+
   void AddPosition(size_t x, size_t y) {
     _positions.push_back(std::make_pair(x, y));
   }
@@ -62,8 +68,8 @@ class SubMinorModel {
    */
   size_t size() const { return _positions.size(); }
 
-  void MakeSets(const ImageSet& templateSet);
-  void MakeRMSFactorImage(aocommon::Image& rmsFactorImage);
+  void MakeSets(const ImageSet& residual_set);
+  void MakeRmsFactorImage(aocommon::Image& rms_factor_image);
 
   ImageSet& Residual() { return *_residual; }
   const ImageSet& Residual() const { return *_residual; }
@@ -75,13 +81,13 @@ class SubMinorModel {
   size_t Y(size_t index) const { return _positions[index].second; }
   size_t FullIndex(size_t index) const { return X(index) + Y(index) * _width; }
   template <bool AllowNegatives>
-  size_t GetMaxComponent(aocommon::Image& scratch, float& maxValue) const;
-  size_t GetMaxComponent(aocommon::Image& scratch, float& maxValue,
+  size_t GetMaxComponent(aocommon::Image& scratch, float& max_value) const;
+  size_t GetMaxComponent(aocommon::Image& scratch, float& max_value,
                          bool allowNegatives) const {
     if (allowNegatives)
-      return GetMaxComponent<true>(scratch, maxValue);
+      return GetMaxComponent<true>(scratch, max_value);
     else
-      return GetMaxComponent<false>(scratch, maxValue);
+      return GetMaxComponent<false>(scratch, max_value);
   }
 
  private:
@@ -93,12 +99,12 @@ class SubMinorModel {
 
 class SubMinorLoop {
  public:
-  SubMinorLoop(size_t width, size_t height, size_t convolutionWidth,
-               size_t convolutionHeight, aocommon::LogReceiver& logReceiver)
+  SubMinorLoop(size_t width, size_t height, size_t padded_width,
+               size_t padded_height, aocommon::LogReceiver& log_receiver)
       : _width(width),
         _height(height),
-        _paddedWidth(convolutionWidth),
-        _paddedHeight(convolutionHeight),
+        _paddedWidth(padded_width),
+        _paddedHeight(padded_height),
         _threshold(0.0),
         _consideredPixelThreshold(0.0),
         _gain(0.0),
@@ -112,54 +118,60 @@ class SubMinorLoop {
         _fitter(nullptr),
         _subMinorModel(width, height),
         _fluxCleaned(0.0),
-        _logReceiver(logReceiver),
+        _logReceiver(log_receiver),
         _threadCount(1) {}
+
+  // TODO(AST-912) Make copy/move operations Google Style compliant.
+  SubMinorLoop(const SubMinorLoop&) = delete;
+  SubMinorLoop(SubMinorLoop&&) = default;
+  SubMinorLoop& operator=(const SubMinorLoop&) = delete;
+  SubMinorLoop& operator=(SubMinorLoop&&) = delete;
 
   /**
    * @param threshold The threshold to which this subminor run should clean
-   * @param consideredPixelThreshold The threshold that is used to determine
+   * @param considered_pixel_threshold The threshold that is used to determine
    * whether a pixel is considered. Typically, this is similar to threshold, but
    * it can be set lower if it is important that all peak values are below the
    * threshold, as otherwise some pixels might not be considered but get
    * increased by the cleaning, thereby stay above the threshold. This is
    * important for making multi-scale clean efficient near a stopping threshold.
    */
-  void SetThreshold(float threshold, float consideredPixelThreshold) {
+  void SetThreshold(float threshold, float considered_pixel_threshold) {
     _threshold = threshold;
-    _consideredPixelThreshold = consideredPixelThreshold;
+    _consideredPixelThreshold = considered_pixel_threshold;
   }
 
-  void SetIterationInfo(size_t currentIteration, size_t maxIterations) {
-    _currentIteration = currentIteration;
-    _maxIterations = maxIterations;
+  void SetIterationInfo(size_t current_iteration, size_t max_iterations) {
+    _currentIteration = current_iteration;
+    _maxIterations = max_iterations;
   }
 
   void SetGain(float minor_loop_gain) { _gain = minor_loop_gain; }
 
-  void SetAllowNegativeComponents(bool allowNegativeComponents) {
-    _allowNegativeComponents = allowNegativeComponents;
+  void SetAllowNegativeComponents(bool allow_negative_components) {
+    _allowNegativeComponents = allow_negative_components;
   }
 
-  void SetStopOnNegativeComponent(bool stopOnNegativeComponent) {
-    _stopOnNegativeComponent = stopOnNegativeComponent;
+  void SetStopOnNegativeComponent(bool stop_on_negative_component) {
+    _stopOnNegativeComponent = stop_on_negative_component;
   }
 
   void SetSpectralFitter(const schaapcommon::fitters::SpectralFitter* fitter) {
     _fitter = fitter;
   }
 
-  void SetCleanBorders(size_t horizontalBorder, size_t verticalBorder) {
-    _horizontalBorder = horizontalBorder;
-    _verticalBorder = verticalBorder;
+  void SetCleanBorders(size_t horizontal_border, size_t vertical_border) {
+    _horizontalBorder = horizontal_border;
+    _verticalBorder = vertical_border;
   }
 
   void SetMask(const bool* mask) { _mask = mask; }
 
-  void SetRMSFactorImage(const aocommon::Image& image) {
+  void SetRmsFactorImage(const aocommon::Image& image) {
     _rmsFactorImage = image;
   }
 
-  void SetThreadCount(size_t threadCount) { _threadCount = threadCount; }
+  void SetThreadCount(size_t thread_count) { _threadCount = thread_count; }
 
   size_t CurrentIteration() const { return _currentIteration; }
 
@@ -173,20 +185,21 @@ class SubMinorLoop {
    * The produced model is convolved with the given psf, and the result is
    * subtracted from the given residual image. To be called after Run(). After
    * this method, the residual will hold the result of the subminor loop run.
-   * scratchA and scratchB need to be able to store the full padded image
-   * (_untrimmedWidth x _untrimmedHeight). scratchC only needs to store the
-   * trimmed size (_width x _height).
+   * @p scratch_a and @p scratch_b need to be able to store the full padded
+   * image (_paddedWidth x _paddedHeight). @p scratch_p only needs to
+   * store the trimmed size (_width x _height).
    */
-  void CorrectResidualDirty(float* scratchA, float* scratchB, float* scratchC,
-                            size_t imageIndex, float* residual,
-                            const float* singleConvolvedPsf) const;
+  void CorrectResidualDirty(float* scratch_a, float* scratch_b,
+                            float* scratch_c, size_t image_index,
+                            float* residual,
+                            const float* single_convolved_psf) const;
 
-  void GetFullIndividualModel(size_t imageIndex,
+  void GetFullIndividualModel(size_t image_index,
                               float* individualModelImg) const;
 
   void UpdateAutoMask(bool* mask) const;
 
-  void UpdateComponentList(ComponentList& list, size_t scaleIndex) const;
+  void UpdateComponentList(ComponentList& list, size_t scale_index) const;
 
  private:
   void findPeakPositions(ImageSet& convolvedResidual);

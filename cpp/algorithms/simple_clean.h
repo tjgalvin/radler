@@ -9,31 +9,27 @@
 #define USE_INTRINSICS
 #endif
 
-namespace radler::algorithms {
+namespace radler::algorithms::simple_clean {
 
-class SimpleClean {
- public:
-  SimpleClean() = delete;
-  static void SubtractImage(float* image, const float* psf, size_t width,
-                            size_t height, size_t x, size_t y, float factor);
+void SubtractImage(float* image, const float* psf, size_t width, size_t height,
+                   size_t x, size_t y, float factor);
 
-  static void PartialSubtractImage(float* image, const float* psf, size_t width,
-                                   size_t height, size_t x, size_t y,
-                                   float factor, size_t startY, size_t endY);
+void PartialSubtractImage(float* image, const float* psf, size_t width,
+                          size_t height, size_t x, size_t y, float factor,
+                          size_t start_y, size_t end_y);
 
-  static void PartialSubtractImage(float* image, size_t imgWidth,
-                                   size_t imgHeight, const float* psf,
-                                   size_t psfWidth, size_t psfHeight, size_t x,
-                                   size_t y, float factor, size_t startY,
-                                   size_t endY);
+void PartialSubtractImage(float* image, size_t image_width, size_t image_height,
+                          const float* psf, size_t psf_width, size_t psf_height,
+                          size_t x, size_t y, float factor, size_t start_y,
+                          size_t end_y);
 
 #if defined __AVX__ && defined USE_INTRINSICS
-  static void PartialSubtractImageAVX(double* image, size_t imgWidth,
-                                      size_t imgHeight, const double* psf,
-                                      size_t psfWidth, size_t psfHeight,
-                                      size_t x, size_t y, double factor,
-                                      size_t startY, size_t endY);
+void PartialSubtractImageAVX(double* image, size_t image_width,
+                             size_t image_height, const double* psf,
+                             size_t psf_width, size_t psf_height, size_t x,
+                             size_t y, double factor, size_t start_y,
+                             size_t end_y);
 #endif
-};
-}  // namespace radler::algorithms
+
+}  // namespace radler::algorithms::simple_clean
 #endif  // RADLER_ALGORITHMS_SIMPLE_CLEAN_H_

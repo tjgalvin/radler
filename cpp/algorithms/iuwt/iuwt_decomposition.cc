@@ -6,9 +6,9 @@ using aocommon::Image;
 
 namespace radler::algorithms::iuwt {
 
-void IUWTDecomposition::DecomposeMT(aocommon::StaticFor<size_t>& loop,
+void IuwtDecomposition::DecomposeMt(aocommon::StaticFor<size_t>& loop,
                                     const float* input, float* scratch,
-                                    bool includeLargest) {
+                                    bool include_largest) {
   Image& i1(_scales.back().Coefficients());
   i1 = Image(_width, _height);
 
@@ -47,14 +47,14 @@ void IUWTDecomposition::DecomposeMT(aocommon::StaticFor<size_t>& loop,
   // The largest (residual) scales are in i1, but since the
   // largest scale is aliased to i1, it's already stored there.
   // Hence we can skip this:
-  // if(includeLargest)
+  // if(include_largest)
   //	_scales.back().Coefficients() = i1;
 
   // Do free the memory of the largest scale if it is not necessary:
-  if (!includeLargest) _scales.back().Coefficients().Reset();
+  if (!include_largest) _scales.back().Coefficients().Reset();
 }
 
-void IUWTDecomposition::convolveMT(aocommon::StaticFor<size_t>& loop,
+void IuwtDecomposition::convolveMT(aocommon::StaticFor<size_t>& loop,
                                    float* output, const float* image,
                                    float* scratch, size_t width, size_t height,
                                    int scale) {
@@ -68,7 +68,7 @@ void IUWTDecomposition::convolveMT(aocommon::StaticFor<size_t>& loop,
   });
 }
 
-void IUWTDecomposition::differenceMT(aocommon::StaticFor<size_t>& loop,
+void IuwtDecomposition::differenceMT(aocommon::StaticFor<size_t>& loop,
                                      float* dest, const float* lhs,
                                      const float* rhs, size_t width,
                                      size_t height) {
@@ -77,7 +77,7 @@ void IUWTDecomposition::differenceMT(aocommon::StaticFor<size_t>& loop,
   });
 }
 
-void IUWTDecomposition::convolveHorizontalFast(float* output,
+void IuwtDecomposition::convolveHorizontalFast(float* output,
                                                const float* image, size_t width,
                                                size_t height, int scale) {
   const size_t H_SIZE = 5;
@@ -130,7 +130,7 @@ void IUWTDecomposition::convolveHorizontalFast(float* output,
 }
 
 // This version is not as fast as the one below.
-void IUWTDecomposition::convolveVerticalPartialFastFailed(
+void IuwtDecomposition::convolveVerticalPartialFastFailed(
     float* output, const float* image, size_t width, size_t height,
     size_t startX, size_t endX, int scale) {
   const size_t H_SIZE = 5;
@@ -159,7 +159,7 @@ void IUWTDecomposition::convolveVerticalPartialFastFailed(
   }
 }
 
-void IUWTDecomposition::convolveVerticalPartialFast(float* output,
+void IuwtDecomposition::convolveVerticalPartialFast(float* output,
                                                     const float* image,
                                                     size_t width, size_t height,
                                                     size_t startX, size_t endX,

@@ -15,33 +15,39 @@
 // a somewhat experimental stage and is not even compiled.
 
 namespace radler::algorithms {
-struct LSDeconvolutionData;
+struct LsDeconvolutionData;  // Defined in ls_deconvolution.cc.
 
-class LSDeconvolution : public DeconvolutionAlgorithm {
+class LsDeconvolution final : public DeconvolutionAlgorithm {
  public:
-  LSDeconvolution();
-  ~LSDeconvolution();
+  LsDeconvolution();
+  ~LsDeconvolution();
 
-  LSDeconvolution(const LSDeconvolution& source);
+  LsDeconvolution(const LsDeconvolution& source);
 
-  float ExecuteMajorIteration(ImageSet& dataImage, ImageSet& modelImage,
-                              const std::vector<aocommon::Image>& psfImages,
-                              bool& reachedMajorThreshold) final override {
-    ExecuteMajorIteration(dataImage[0], modelImage[0], psfImages[0],
-                          dataImage.Width(), dataImage.Height(),
-                          reachedMajorThreshold);
+  // TODO(AST-912) Make copy/move operations Google Style compliant.
+  LsDeconvolution(const LsDeconvolution&) = default;
+  LsDeconvolution(LsDeconvolution&&) = delete;
+  LsDeconvolution& operator=(const LsDeconvolution&) = delete;
+  LsDeconvolution& operator=(LsDeconvolution&&) = delete;
+
+  float ExecuteMajorIteration(ImageSet& data_image, ImageSet& model_image,
+                              const std::vector<aocommon::Image>& psf_images,
+                              bool& reached_major_threshold) final {
+    ExecuteMajorIteration(data_image[0], model_image[0], psf_images[0],
+                          data_image.Width(), data_image.Height(),
+                          reached_major_threshold);
     return 0.0;
   }
 
-  std::unique_ptr<DeconvolutionAlgorithm> Clone() const final override {
-    return std::make_unique<LSDeconvolution>(*this);
+  std::unique_ptr<DeconvolutionAlgorithm> Clone() const final {
+    return std::make_unique<LsDeconvolution>(*this);
   }
 
-  void ExecuteMajorIteration(double* dataImage, double* modelImage,
-                             const double* psfImage, size_t width,
-                             size_t height, bool& reachedMajorThreshold) {
-    nonLinearFit(dataImage, modelImage, psfImage, width, height,
-                 reachedMajorThreshold);
+  void ExecuteMajorIteration(double* data_image, double* model_image,
+                             const double* psf_image, size_t width,
+                             size_t height, bool& reached_major_threshold) {
+    nonLinearFit(data_image, model_image, psf_image, width, height,
+                 reached_major_threshold);
   }
 
  private:
@@ -49,14 +55,15 @@ class LSDeconvolution : public DeconvolutionAlgorithm {
       aocommon::UVector<std::pair<size_t, size_t>>& maskPositions,
       const bool* mask, size_t width, size_t height);
 
-  void linearFit(double* dataImage, double* modelImage, const double* psfImage,
-                 size_t width, size_t height, bool& reachedMajorThreshold);
+  void linearFit(double* data_image, double* model_image,
+                 const double* psfImage, size_t width, size_t height,
+                 bool& reachedMajorThreshold);
 
-  void nonLinearFit(double* dataImage, double* modelImage,
+  void nonLinearFit(double* data_image, double* model_image,
                     const double* psfImage, size_t width, size_t height,
                     bool& reachedMajorThreshold);
 
-  std::unique_ptr<LSDeconvolutionData> _data;
+  std::unique_ptr<LsDeconvolutionData> _data;
 };
 }  // namespace radler::algorithms
 #endif

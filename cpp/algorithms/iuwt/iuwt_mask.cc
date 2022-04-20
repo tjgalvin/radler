@@ -8,7 +8,7 @@
 
 namespace radler::algorithms::iuwt {
 
-std::string IUWTMask::Summary(const IUWTDecomposition& iuwt) const {
+std::string IuwtMask::Summary(const IuwtDecomposition& iuwt) const {
   std::ostringstream str;
   str << "IUWTMask with " << _masks.size()
       << " scale masks (iuwt: " << iuwt.Summary() << ")\n";

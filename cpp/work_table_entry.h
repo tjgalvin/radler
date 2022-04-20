@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-#ifndef RADLER_DECONVOLUTION_TABLE_ENTRY_H_
-#define RADLER_DECONVOLUTION_TABLE_ENTRY_H_
+#ifndef RADLER_WORK_TABLE_ENTRY_H_
+#define RADLER_WORK_TABLE_ENTRY_H_
 
 #include <memory>
 #include <vector>
@@ -10,13 +10,13 @@
 #include <aocommon/polarization.h>
 
 namespace radler {
-struct DeconvolutionTableEntry {
+struct WorkTableEntry {
   double CentralFrequency() const {
     return 0.5 * (band_start_frequency + band_end_frequency);
   }
 
   /**
-   * Index of the entry in its DeconvolutionTable.
+   * Index of the entry in its WorkTable.
    */
   size_t index = 0;
 

@@ -12,6 +12,12 @@ class DijkstraSplitter {
   DijkstraSplitter(std::size_t width, std::size_t height)
       : width_(width), height_(height) {}
 
+  // TODO(AST-912) Make copy/move operations Google Style compliant.
+  DijkstraSplitter(const DijkstraSplitter&) = default;
+  DijkstraSplitter(DijkstraSplitter&&) = default;
+  DijkstraSplitter& operator=(const DijkstraSplitter&) = delete;
+  DijkstraSplitter& operator=(DijkstraSplitter&&) = delete;
+
   struct Coord {
     Coord() = default;
     Coord(std::size_t _x, std::size_t _y) : x(_x), y(_y) {}

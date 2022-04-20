@@ -142,7 +142,7 @@ PythonDeconvolution::~PythonDeconvolution() = default;
 
 void PythonDeconvolution::setBuffer(const ImageSet& imageSet, double* ptr) {
   size_t nFreq = imageSet.NDeconvolutionChannels();
-  size_t nPol = imageSet.size() / imageSet.NDeconvolutionChannels();
+  size_t nPol = imageSet.Size() / imageSet.NDeconvolutionChannels();
 
   for (size_t freq = 0; freq != nFreq; ++freq) {
     for (size_t pol = 0; pol != nPol; ++pol) {
@@ -155,7 +155,7 @@ void PythonDeconvolution::setBuffer(const ImageSet& imageSet, double* ptr) {
 
 void PythonDeconvolution::getBuffer(ImageSet& imageSet, const double* ptr) {
   size_t nFreq = imageSet.NDeconvolutionChannels();
-  size_t nPol = imageSet.size() / imageSet.NDeconvolutionChannels();
+  size_t nPol = imageSet.Size() / imageSet.NDeconvolutionChannels();
 
   for (size_t freq = 0; freq != nFreq; ++freq) {
     for (size_t pol = 0; pol != nPol; ++pol) {
@@ -186,12 +186,12 @@ void PythonDeconvolution::setPsf(const std::vector<aocommon::Image>& psfs,
 }
 
 float PythonDeconvolution::ExecuteMajorIteration(
-    ImageSet& dirtySet, ImageSet& modelSet,
-    const std::vector<aocommon::Image>& psfs, bool& reachedMajorThreshold) {
-  const size_t width = dirtySet.Width();
-  const size_t height = dirtySet.Height();
-  size_t nFreq = dirtySet.NDeconvolutionChannels();
-  size_t nPol = dirtySet.size() / dirtySet.NDeconvolutionChannels();
+    ImageSet& dirty_set, ImageSet& model_set,
+    const std::vector<aocommon::Image>& psfs, bool& reached_major_threshold) {
+  const size_t width = dirty_set.Width();
+  const size_t height = dirty_set.Height();
+  size_t nFreq = dirty_set.NDeconvolutionChannels();
+  size_t nPol = dirty_set.Size() / dirty_set.NDeconvolutionChannels();
 
   pybind11::object result;
 
@@ -208,7 +208,7 @@ float PythonDeconvolution::ExecuteMajorIteration(
          sizeof(double)}  // Strides
     );
     pybind11::array_t<double> pyResiduals(residualBuf);
-    setBuffer(dirtySet, static_cast<double*>(pyResiduals.request(true).ptr));
+    setBuffer(dirty_set, static_cast<double*>(pyResiduals.request(true).ptr));
 
     // Create Model array
     pybind11::buffer_info modelBuf(
@@ -219,7 +219,7 @@ float PythonDeconvolution::ExecuteMajorIteration(
          sizeof(double) * width * height, sizeof(double) * width,
          sizeof(double)});
     pybind11::array_t<double> pyModel(modelBuf);
-    setBuffer(modelSet, static_cast<double*>(pyModel.request(true).ptr));
+    setBuffer(model_set, static_cast<double*>(pyModel.request(true).ptr));
 
     // Create PSF array
     pybind11::buffer_info psfBuf(
@@ -231,24 +231,24 @@ float PythonDeconvolution::ExecuteMajorIteration(
     pybind11::array_t<double> pyPsfs(psfBuf);
     setPsf(psfs, static_cast<double*>(pyPsfs.request(true).ptr), width, height);
 
-    PyMetaData meta(_spectralFitter);
-    meta.channels.resize(_spectralFitter.NFrequencies());
-    for (size_t i = 0; i != _spectralFitter.NFrequencies(); ++i) {
-      meta.channels[i].frequency = _spectralFitter.Frequency(i);
-      meta.channels[i].weight = _spectralFitter.Weight(i);
+    PyMetaData meta(spectral_fitter_);
+    meta.channels.resize(spectral_fitter_.NFrequencies());
+    for (size_t i = 0; i != spectral_fitter_.NFrequencies(); ++i) {
+      meta.channels[i].frequency = spectral_fitter_.Frequency(i);
+      meta.channels[i].weight = spectral_fitter_.Weight(i);
     }
-    meta.gain = _minorLoopGain;
-    meta.iteration_number = _iterationNumber;
-    meta.major_iter_threshold = _majorIterThreshold;
-    meta.max_iterations = _maxIter;
-    meta.mgain = _majorLoopGain;
-    meta.final_threshold = _threshold;
+    meta.gain = minor_loop_gain_;
+    meta.iteration_number = iteration_number_;
+    meta.major_iter_threshold = major_iteration_threshold_;
+    meta.max_iterations = max_iterations_;
+    meta.mgain = major_loop_gain_;
+    meta.final_threshold = threshold_;
 
     // Run the python code
     result = (*_deconvolveFunction)(std::move(pyResiduals), std::move(pyModel),
                                     std::move(pyPsfs), &meta);
 
-    _iterationNumber = meta.iteration_number;
+    iteration_number_ = meta.iteration_number;
   }
 
   // Extract the results
@@ -271,13 +271,13 @@ float PythonDeconvolution::ExecuteMajorIteration(
   }
   pybind11::array_t<double> residualRes =
       resultDict["residual"].cast<pybind11::array_t<double>>();
-  getBuffer(dirtySet, static_cast<const double*>(residualRes.request().ptr));
+  getBuffer(dirty_set, static_cast<const double*>(residualRes.request().ptr));
   pybind11::array_t<double> modelRes =
       resultDict["model"].cast<pybind11::array_t<double>>();
-  getBuffer(modelSet, static_cast<const double*>(modelRes.request().ptr));
+  getBuffer(model_set, static_cast<const double*>(modelRes.request().ptr));
 
   double level = resultDict["level"].cast<double>();
-  reachedMajorThreshold = resultDict["continue"].cast<bool>();
+  reached_major_threshold = resultDict["continue"].cast<bool>();
   return level;
 }
 }  // namespace radler::algorithms

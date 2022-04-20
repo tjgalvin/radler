@@ -16,30 +16,35 @@
 
 namespace radler::algorithms {
 
-class IUWTDeconvolution : public DeconvolutionAlgorithm {
+class IuwtDeconvolution final : public DeconvolutionAlgorithm {
  public:
-  explicit IUWTDeconvolution(bool useSNRTest) : _useSNRTest(useSNRTest) {}
+  explicit IuwtDeconvolution(bool use_snr_test) : use_snr_test_(use_snr_test) {}
 
-  float ExecuteMajorIteration(ImageSet& dataImage, ImageSet& modelImage,
-                              const std::vector<aocommon::Image>& psfImages,
-                              bool& reachedMajorThreshold) final override {
-    IUWTDeconvolutionAlgorithm algorithm(
-        dataImage.Width(), dataImage.Height(), _minorLoopGain, _majorLoopGain,
-        _cleanBorderRatio, _allowNegativeComponents, _cleanMask, _threshold,
-        _useSNRTest);
+  IuwtDeconvolution(const IuwtDeconvolution&) = default;
+  IuwtDeconvolution(IuwtDeconvolution&&) = default;
+  IuwtDeconvolution& operator=(const IuwtDeconvolution&) = default;
+  IuwtDeconvolution& operator=(IuwtDeconvolution&&) = default;
+
+  float ExecuteMajorIteration(ImageSet& data_image, ImageSet& model_image,
+                              const std::vector<aocommon::Image>& psf_images,
+                              bool& reached_major_threshold) final {
+    IuwtDeconvolutionAlgorithm algorithm(
+        data_image.Width(), data_image.Height(), minor_loop_gain_,
+        major_loop_gain_, clean_border_ratio_, allow_negative_components_,
+        clean_mask_, threshold_, use_snr_test_);
     float val = algorithm.PerformMajorIteration(
-        _iterationNumber, MaxNIter(), modelImage, dataImage, psfImages,
-        reachedMajorThreshold);
-    if (_iterationNumber >= MaxNIter()) reachedMajorThreshold = false;
+        iteration_number_, MaxIterations(), model_image, data_image, psf_images,
+        reached_major_threshold);
+    if (iteration_number_ >= MaxIterations()) reached_major_threshold = false;
     return val;
   }
 
-  std::unique_ptr<DeconvolutionAlgorithm> Clone() const final override {
-    return std::make_unique<IUWTDeconvolution>(*this);
+  std::unique_ptr<DeconvolutionAlgorithm> Clone() const final {
+    return std::make_unique<IuwtDeconvolution>(*this);
   }
 
  private:
-  const bool _useSNRTest;
+  const bool use_snr_test_;
 };
 }  // namespace radler::algorithms
 #endif  // RADLER_ALGORITHMS_IUWT_DECONVOLUTION_H_

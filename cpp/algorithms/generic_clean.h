@@ -18,27 +18,32 @@ namespace radler::algorithms {
  * provided. It can use a Clark-like optimization to speed up the cleaning. When
  * multiple frequencies are provided, it can perform spectral fitting.
  */
-class GenericClean : public DeconvolutionAlgorithm {
+class GenericClean final : public DeconvolutionAlgorithm {
  public:
-  explicit GenericClean(bool useSubMinorOptimization);
+  explicit GenericClean(bool use_sub_minor_optimization);
+  // TODO(AST-912) Make copy/move operations Google Style compliant.
+  GenericClean(const GenericClean&) = default;
+  GenericClean(GenericClean&&) = delete;
+  GenericClean& operator=(const GenericClean&) = delete;
+  GenericClean& operator=(GenericClean&&) = delete;
 
-  float ExecuteMajorIteration(ImageSet& dirtySet, ImageSet& modelSet,
+  float ExecuteMajorIteration(ImageSet& dirty_set, ImageSet& model_set,
                               const std::vector<aocommon::Image>& psfs,
-                              bool& reachedMajorThreshold) final override;
+                              bool& reached_major_threshold) final;
 
-  virtual std::unique_ptr<DeconvolutionAlgorithm> Clone() const final override {
+  std::unique_ptr<DeconvolutionAlgorithm> Clone() const final {
     return std::unique_ptr<DeconvolutionAlgorithm>(new GenericClean(*this));
   }
 
  private:
-  size_t _convolutionWidth;
-  size_t _convolutionHeight;
-  const float _convolutionPadding;
-  bool _useSubMinorOptimization;
+  size_t convolution_width_;
+  size_t convolution_height_;
+  const float convolution_padding_;
+  bool use_sub_minor_optimization_;
 
   // Scratch buffer should at least accomodate space for image.Size() floats
   // and is only used to avoid unnecessary memory allocations.
-  std::optional<float> findPeak(const aocommon::Image& image,
+  std::optional<float> FindPeak(const aocommon::Image& image,
                                 float* scratch_buffer, size_t& x, size_t& y);
 };
 }  // namespace radler::algorithms

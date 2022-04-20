@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-#include "deconvolution_table.h"
+#include "work_table.h"
 
 #include <algorithm>
 #include <cassert>
 
 namespace radler {
 
-DeconvolutionTable::DeconvolutionTable(int n_original_groups,
-                                       int n_deconvolution_groups,
-                                       int channel_index_offset)
+WorkTable::WorkTable(int n_original_groups, int n_deconvolution_groups,
+                     int channel_index_offset)
     : entries_(),
       channel_index_offset_(channel_index_offset),
       original_groups_(std::max(n_original_groups, 1)),
@@ -26,8 +25,7 @@ DeconvolutionTable::DeconvolutionTable(int n_original_groups,
   }
 }
 
-void DeconvolutionTable::AddEntry(
-    std::unique_ptr<DeconvolutionTableEntry> entry) {
+void WorkTable::AddEntry(std::unique_ptr<WorkTableEntry> entry) {
   const size_t original_channel_index = entry->original_channel_index;
   assert(original_channel_index < original_groups_.size());
 

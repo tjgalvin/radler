@@ -12,54 +12,54 @@
 #include "utils/application.h"
 
 namespace radler::algorithms {
-void MoreSane::ExecuteMajorIteration(float* residualData, float* modelData,
-                                     const aocommon::Image& psfImage) {
-  const size_t width = psfImage.Width();
-  const size_t height = psfImage.Height();
-  if (_iterationNumber != 0) {
+void MoreSane::ExecuteMajorIteration(float* residual_data, float* model_data,
+                                     const aocommon::Image& psf_image) {
+  const size_t width = psf_image.Width();
+  const size_t height = psf_image.Height();
+  if (iteration_number_ != 0) {
     aocommon::Logger::Info << "Convolving model with psf...\n";
     aocommon::Image preparedPsf(width, height);
     schaapcommon::fft::PrepareConvolutionKernel(
-        preparedPsf.Data(), psfImage.Data(), width, height, _threadCount);
-    schaapcommon::fft::Convolve(modelData, preparedPsf.Data(), width, height,
-                                _threadCount);
+        preparedPsf.Data(), psf_image.Data(), width, height, thread_count_);
+    schaapcommon::fft::Convolve(model_data, preparedPsf.Data(), width, height,
+                                thread_count_);
     aocommon::Logger::Info << "Adding model back to residual...\n";
     for (size_t i = 0; i != width * height; ++i) {
-      residualData[i] += modelData[i];
+      residual_data[i] += model_data[i];
     }
   }
   std::ostringstream outputStr;
-  outputStr << prefix_name_ << "-tmp-moresaneoutput" << _iterationNumber;
+  outputStr << prefix_name_ << "-tmp-moresaneoutput" << iteration_number_;
   const std::string dirtyName(prefix_name_ + "-tmp-moresaneinput-dirty.fits"),
       psfName(prefix_name_ + "-tmp-moresaneinput-psf.fits"),
       maskName(prefix_name_ + "-tmp-moresaneinput-mask.fits"),
       outputName(outputStr.str());
   aocommon::FitsWriter writer;
   writer.SetImageDimensions(width, height);
-  if (_cleanMask != nullptr) writer.WriteMask(maskName, _cleanMask);
-  writer.Write(dirtyName, residualData);
-  writer.Write(psfName, psfImage.Data());
+  if (clean_mask_ != nullptr) writer.WriteMask(maskName, clean_mask_);
+  writer.Write(dirtyName, residual_data);
+  writer.Write(psfName, psf_image.Data());
 
   std::ostringstream commandLine;
   commandLine << "time python \"" << settings_.location << "\" ";
-  if (!_allowNegativeComponents) commandLine << "-ep ";
-  if (_cleanMask != nullptr) commandLine << "-m \"" << maskName + "\" ";
+  if (!allow_negative_components_) commandLine << "-ep ";
+  if (clean_mask_ != nullptr) commandLine << "-m \"" << maskName + "\" ";
   if (!settings_.arguments.empty()) commandLine << settings_.arguments << ' ';
   commandLine << "\"" << dirtyName << "\" \"" << psfName << "\" \""
               << outputName << '\"';
   if (!settings_.sigma_levels.empty()) {
     commandLine << " -sl "
                 << settings_.sigma_levels[std::min(
-                       _iterationNumber, settings_.sigma_levels.size() - 1)]
+                       iteration_number_, settings_.sigma_levels.size() - 1)]
                 << " ";
   }
 
   utils::Application::Run(commandLine.str());
 
   aocommon::FitsReader modelReader(outputName + "_model.fits");
-  modelReader.Read(modelData);
+  modelReader.Read(model_data);
   aocommon::FitsReader residualReader(outputName + "_residual.fits");
-  residualReader.Read(residualData);
+  residualReader.Read(residual_data);
 
   unlink(dirtyName.c_str());
   unlink(psfName.c_str());
@@ -69,19 +69,19 @@ void MoreSane::ExecuteMajorIteration(float* residualData, float* modelData,
 }
 
 float MoreSane::ExecuteMajorIteration(
-    ImageSet& dataImage, ImageSet& modelImage,
-    const std::vector<aocommon::Image>& psfImages,
-    bool& reachedMajorThreshold) {
-  for (size_t i = 0; i != dataImage.size(); ++i) {
-    float* residualData = dataImage.Data(i);
-    float* modelData = modelImage.Data(i);
-    const aocommon::Image psfImage = psfImages[dataImage.PSFIndex(i)];
-    ExecuteMajorIteration(residualData, modelData, psfImage);
+    ImageSet& data_image, ImageSet& model_image,
+    const std::vector<aocommon::Image>& psf_images,
+    bool& reached_major_threshold) {
+  for (size_t i = 0; i != data_image.Size(); ++i) {
+    float* residual_data = data_image.Data(i);
+    float* model_data = model_image.Data(i);
+    const aocommon::Image psf_image = psf_images[data_image.PsfIndex(i)];
+    ExecuteMajorIteration(residual_data, model_data, psf_image);
   }
 
-  ++_iterationNumber;
+  ++iteration_number_;
 
-  reachedMajorThreshold = _iterationNumber < _maxIter;
+  reached_major_threshold = iteration_number_ < max_iterations_;
   return 0.0;
 }
 }  // namespace radler::algorithms

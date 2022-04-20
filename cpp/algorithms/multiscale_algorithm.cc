@@ -25,35 +25,36 @@ MultiScaleAlgorithm::MultiScaleAlgorithm(const Settings::Multiscale& settings,
                                          double beamSize, double pixelScaleX,
                                          double pixelScaleY,
                                          bool trackComponents)
-    : _settings(settings),
-      _beamSizeInPixels(beamSize / std::max(pixelScaleX, pixelScaleY)),
-      _trackPerScaleMasks(false),
-      _usePerScaleMasks(false),
-      _trackComponents(trackComponents) {
-  if (_beamSizeInPixels <= 0.0) _beamSizeInPixels = 1;
+    : settings_(settings),
+      beam_size_in_pixels_(beamSize / std::max(pixelScaleX, pixelScaleY)),
+      track_per_scale_masks_(false),
+      use_per_scale_masks_(false),
+      track_components_(trackComponents) {
+  if (beam_size_in_pixels_ <= 0.0) beam_size_in_pixels_ = 1;
 }
 
 MultiScaleAlgorithm::~MultiScaleAlgorithm() {
   aocommon::Logger::Info << "Multi-scale cleaning summary:\n";
   size_t sumComponents = 0;
   float sumFlux = 0.0;
-  for (const ScaleInfo& scaleEntry : _scaleInfos) {
+  for (const ScaleInfo& scaleEntry : scale_infos_) {
     aocommon::Logger::Info << "- Scale " << round(scaleEntry.scale)
                            << " px, nr of components cleaned: "
-                           << scaleEntry.nComponentsCleaned << " ("
+                           << scaleEntry.n_components_cleaned << " ("
                            << FluxDensity::ToNiceString(
-                                  scaleEntry.totalFluxCleaned)
+                                  scaleEntry.total_flux_cleaned)
                            << ")\n";
-    sumComponents += scaleEntry.nComponentsCleaned;
-    sumFlux += scaleEntry.totalFluxCleaned;
+    sumComponents += scaleEntry.n_components_cleaned;
+    sumFlux += scaleEntry.total_flux_cleaned;
   }
   aocommon::Logger::Info << "Total: " << sumComponents << " components ("
                          << FluxDensity::ToNiceString(sumFlux) << ")\n";
 }
 
 float MultiScaleAlgorithm::ExecuteMajorIteration(
-    ImageSet& dirtySet, ImageSet& modelSet,
-    const std::vector<aocommon::Image>& psfs, bool& reachedMajorThreshold) {
+    ImageSet& data_image, ImageSet& model_image,
+    const std::vector<aocommon::Image>& psf_images,
+    bool& reached_major_threshold) {
   // Rough overview of the procedure:
   // Convolve integrated image (all scales)
   // Find integrated peak & scale
@@ -70,47 +71,47 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
   // (This excludes creating the convolved PSFs and twice-convolved PSFs
   //  at the appropriate moments).
 
-  const size_t width = dirtySet.Width();
-  const size_t height = dirtySet.Height();
+  const size_t width = data_image.Width();
+  const size_t height = data_image.Height();
 
-  if (_stopOnNegativeComponent) _allowNegativeComponents = true;
+  if (stop_on_negative_component_) allow_negative_components_ = true;
   // The threads always need to be stopped at the end of this function, so we
   // use a scoped unique ptr.
   std::unique_ptr<ThreadedDeconvolutionTools> tools(
-      new ThreadedDeconvolutionTools(_threadCount));
+      new ThreadedDeconvolutionTools(thread_count_));
 
-  initializeScaleInfo(std::min(width, height));
+  InitializeScaleInfo(std::min(width, height));
 
-  if (_trackPerScaleMasks) {
+  if (track_per_scale_masks_) {
     // Note that in a second round the nr of scales can be different (due to
     // different width/height, e.g. caused by a different subdivision in
     // parallel cleaning).
-    for (const aocommon::UVector<bool>& mask : _scaleMasks) {
+    for (const aocommon::UVector<bool>& mask : scale_masks_) {
       if (mask.size() != width * height) {
         throw std::runtime_error(
             "Invalid automask size in multiscale algorithm");
       }
     }
-    while (_scaleMasks.size() < _scaleInfos.size()) {
-      _scaleMasks.emplace_back(width * height, false);
+    while (scale_masks_.size() < scale_infos_.size()) {
+      scale_masks_.emplace_back(width * height, false);
     }
   }
-  if (_trackComponents) {
-    if (_componentList == nullptr) {
-      _componentList.reset(new ComponentList(width, height, _scaleInfos.size(),
-                                             dirtySet.size()));
-    } else if (_componentList->Width() != width ||
-               _componentList->Height() != height) {
+  if (track_components_) {
+    if (component_list_ == nullptr) {
+      component_list_.reset(new ComponentList(
+          width, height, scale_infos_.size(), data_image.Size()));
+    } else if (component_list_->Width() != width ||
+               component_list_->Height() != height) {
       throw std::runtime_error("Error in component list dimensions!");
     }
   }
-  if (!_rmsFactorImage.Empty() && (_rmsFactorImage.Width() != width ||
-                                   _rmsFactorImage.Height() != height)) {
+  if (!rms_factor_image_.Empty() && (rms_factor_image_.Width() != width ||
+                                     rms_factor_image_.Height() != height)) {
     throw std::runtime_error("Error in RMS factor image dimensions!");
   }
 
   bool hasHitThresholdInSubLoop = false;
-  size_t thresholdCountdown = std::max(size_t{8}, _scaleInfos.size() * 3 / 2);
+  size_t thresholdCountdown = std::max(size_t{8}, scale_infos_.size() * 3 / 2);
 
   Image scratch;
   Image scratchB;
@@ -120,574 +121,584 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
   // so here the required size for the largest scale is calculated.
   size_t scratchWidth;
   size_t scratchHeight;
-  getConvolutionDimensions(_scaleInfos.size() - 1, width, height, scratchWidth,
+  GetConvolutionDimensions(scale_infos_.size() - 1, width, height, scratchWidth,
                            scratchHeight);
   scratch = Image(scratchWidth, scratchHeight);
   scratchB = Image(scratchWidth, scratchHeight);
   integratedScratch = Image(width, height);
   std::unique_ptr<std::unique_ptr<Image[]>[]> convolvedPSFs(
-      new std::unique_ptr<Image[]>[dirtySet.PSFCount()]);
-  dirtySet.GetIntegratedPSF(integratedScratch, psfs);
-  convolvePSFs(convolvedPSFs[0], integratedScratch, scratch, true);
+      new std::unique_ptr<Image[]>[data_image.PsfCount()]);
+  data_image.GetIntegratedPsf(integratedScratch, psf_images);
+  ConvolvePsfs(convolvedPSFs[0], integratedScratch, scratch, true);
 
   // If there's only one, the integrated equals the first, so we can skip this
-  if (dirtySet.PSFCount() > 1) {
-    for (size_t i = 0; i != dirtySet.PSFCount(); ++i) {
-      convolvePSFs(convolvedPSFs[i], psfs[i], scratch, false);
+  if (data_image.PsfCount() > 1) {
+    for (size_t i = 0; i != data_image.PsfCount(); ++i) {
+      ConvolvePsfs(convolvedPSFs[i], psf_images[i], scratch, false);
     }
   }
 
-  multiscale::MultiScaleTransforms msTransforms(width, height, _settings.shape);
-  msTransforms.SetThreadCount(_threadCount);
+  multiscale::MultiScaleTransforms msTransforms(width, height, settings_.shape);
+  msTransforms.SetThreadCount(thread_count_);
 
   size_t scaleWithPeak;
-  findActiveScaleConvolvedMaxima(dirtySet, integratedScratch, scratch, true,
+  FindActiveScaleConvolvedMaxima(data_image, integratedScratch, scratch, true,
                                  tools.get());
-  if (!selectMaximumScale(scaleWithPeak)) {
-    _logReceiver->Warn << "No peak found during multi-scale cleaning! Aborting "
-                          "deconvolution.\n";
-    reachedMajorThreshold = false;
+  if (!SelectMaximumScale(scaleWithPeak)) {
+    log_receiver_->Warn
+        << "No peak found during multi-scale cleaning! Aborting "
+           "deconvolution.\n";
+    reached_major_threshold = false;
     return 0.0;
   }
 
   bool isFinalThreshold = false;
   float mGainThreshold =
-      std::fabs(_scaleInfos[scaleWithPeak].maxUnnormalizedImageValue *
-                _scaleInfos[scaleWithPeak].biasFactor) *
-      (1.0 - _majorLoopGain);
-  mGainThreshold = std::max(mGainThreshold, MajorIterThreshold());
+      std::fabs(scale_infos_[scaleWithPeak].max_unnormalized_image_value *
+                scale_infos_[scaleWithPeak].bias_factor) *
+      (1.0 - major_loop_gain_);
+  mGainThreshold = std::max(mGainThreshold, MajorIterationThreshold());
   float firstThreshold = mGainThreshold;
-  if (_threshold > firstThreshold) {
-    firstThreshold = _threshold;
+  if (threshold_ > firstThreshold) {
+    firstThreshold = threshold_;
     isFinalThreshold = true;
   }
 
-  _logReceiver->Info
+  log_receiver_->Info
       << "Starting multi-scale cleaning. Start peak="
       << FluxDensity::ToNiceString(
-             _scaleInfos[scaleWithPeak].maxUnnormalizedImageValue *
-             _scaleInfos[scaleWithPeak].biasFactor)
+             scale_infos_[scaleWithPeak].max_unnormalized_image_value *
+             scale_infos_[scaleWithPeak].bias_factor)
       << ", major iteration threshold="
       << FluxDensity::ToNiceString(firstThreshold);
-  if (isFinalThreshold) _logReceiver->Info << " (final)";
-  _logReceiver->Info << '\n';
+  if (isFinalThreshold) log_receiver_->Info << " (final)";
+  log_receiver_->Info << '\n';
 
-  ImageSet individualConvolvedImages(dirtySet, width, height);
+  ImageSet individualConvolvedImages(data_image, width, height);
 
   //
   // The minor iteration loop
   //
-  while (_iterationNumber < MaxNIter() &&
-         std::fabs(_scaleInfos[scaleWithPeak].maxUnnormalizedImageValue *
-                   _scaleInfos[scaleWithPeak].biasFactor) > firstThreshold &&
+  while (iteration_number_ < MaxIterations() &&
+         std::fabs(scale_infos_[scaleWithPeak].max_unnormalized_image_value *
+                   scale_infos_[scaleWithPeak].bias_factor) > firstThreshold &&
          (!StopOnNegativeComponents() ||
-          _scaleInfos[scaleWithPeak].maxUnnormalizedImageValue >= 0.0) &&
+          scale_infos_[scaleWithPeak].max_unnormalized_image_value >= 0.0) &&
          thresholdCountdown > 0) {
     // Create double-convolved PSFs & individually convolved images for this
     // scale
     std::vector<Image> transformList;
-    transformList.reserve(dirtySet.PSFCount() + dirtySet.size());
-    for (size_t i = 0; i != dirtySet.PSFCount(); ++i) {
+    transformList.reserve(data_image.PsfCount() + data_image.Size());
+    for (size_t i = 0; i != data_image.PsfCount(); ++i) {
       transformList.push_back(convolvedPSFs[i][scaleWithPeak]);
     }
-    for (size_t i = 0; i != dirtySet.size(); ++i) {
+    for (size_t i = 0; i != data_image.Size(); ++i) {
       transformList.emplace_back(width, height);
-      std::copy_n(dirtySet.Data(i), width * height,
+      std::copy_n(data_image.Data(i), width * height,
                   transformList.back().Data());
     }
-    if (_scaleInfos[scaleWithPeak].scale != 0.0) {
+    if (scale_infos_[scaleWithPeak].scale != 0.0) {
       msTransforms.Transform(transformList, scratch,
-                             _scaleInfos[scaleWithPeak].scale);
+                             scale_infos_[scaleWithPeak].scale);
     }
 
     std::vector<Image> twiceConvolvedPSFs;
-    twiceConvolvedPSFs.reserve(dirtySet.PSFCount());
-    for (size_t i = 0; i != dirtySet.PSFCount(); ++i) {
+    twiceConvolvedPSFs.reserve(data_image.PsfCount());
+    for (size_t i = 0; i != data_image.PsfCount(); ++i) {
       twiceConvolvedPSFs.emplace_back(std::move(transformList[i]));
     }
-    for (size_t i = 0; i != dirtySet.size(); ++i) {
+    for (size_t i = 0; i != data_image.Size(); ++i) {
       individualConvolvedImages.SetImage(
-          i, std::move(transformList[i + dirtySet.PSFCount()]));
+          i, std::move(transformList[i + data_image.PsfCount()]));
     }
 
     //
     // The sub-minor iteration loop for this scale
     //
     float subIterationGainThreshold =
-        std::fabs(_scaleInfos[scaleWithPeak].maxUnnormalizedImageValue *
-                  _scaleInfos[scaleWithPeak].biasFactor) *
-        (1.0 - _settings.sub_minor_loop_gain);
+        std::fabs(scale_infos_[scaleWithPeak].max_unnormalized_image_value *
+                  scale_infos_[scaleWithPeak].bias_factor) *
+        (1.0 - settings_.sub_minor_loop_gain);
     float firstSubIterationThreshold = subIterationGainThreshold;
     if (firstThreshold > firstSubIterationThreshold) {
       firstSubIterationThreshold = firstThreshold;
       if (!hasHitThresholdInSubLoop) {
-        _logReceiver->Info << "Subminor loop is near minor loop threshold. "
-                              "Initiating countdown.\n";
+        log_receiver_->Info << "Subminor loop is near minor loop threshold. "
+                               "Initiating countdown.\n";
         hasHitThresholdInSubLoop = true;
       }
       thresholdCountdown--;
-      _logReceiver->Info << '(' << thresholdCountdown << ") ";
+      log_receiver_->Info << '(' << thresholdCountdown << ") ";
     }
     // TODO we could chose to run the non-fast loop until we hit e.g. 10
     // iterations in a scale, because the fast loop takes more constant time and
     // is only efficient when doing many iterations.
-    if (_settings.fast_sub_minor_loop) {
-      size_t subMinorStartIteration = _iterationNumber;
+    if (settings_.fast_sub_minor_loop) {
+      size_t subMinorStartIteration = iteration_number_;
       size_t convolutionWidth, convolutionHeight;
-      getConvolutionDimensions(scaleWithPeak, width, height, convolutionWidth,
+      GetConvolutionDimensions(scaleWithPeak, width, height, convolutionWidth,
                                convolutionHeight);
       SubMinorLoop subLoop(width, height, convolutionWidth, convolutionHeight,
-                           *_logReceiver);
-      subLoop.SetIterationInfo(_iterationNumber, MaxNIter());
+                           *log_receiver_);
+      subLoop.SetIterationInfo(iteration_number_, MaxIterations());
       subLoop.SetThreshold(
-          firstSubIterationThreshold / _scaleInfos[scaleWithPeak].biasFactor,
-          subIterationGainThreshold / _scaleInfos[scaleWithPeak].biasFactor);
-      subLoop.SetGain(_scaleInfos[scaleWithPeak].gain);
+          firstSubIterationThreshold / scale_infos_[scaleWithPeak].bias_factor,
+          subIterationGainThreshold / scale_infos_[scaleWithPeak].bias_factor);
+      subLoop.SetGain(scale_infos_[scaleWithPeak].gain);
       subLoop.SetAllowNegativeComponents(AllowNegativeComponents());
       subLoop.SetStopOnNegativeComponent(StopOnNegativeComponents());
-      subLoop.SetThreadCount(_threadCount);
-      const size_t scaleBorder = ceil(_scaleInfos[scaleWithPeak].scale * 0.5),
+      subLoop.SetThreadCount(thread_count_);
+      const size_t scaleBorder = ceil(scale_infos_[scaleWithPeak].scale * 0.5),
                    horBorderSize = std::max<size_t>(
-                       round(width * _cleanBorderRatio), scaleBorder),
+                       round(width * clean_border_ratio_), scaleBorder),
                    vertBorderSize = std::max<size_t>(
-                       round(height * _cleanBorderRatio), scaleBorder);
+                       round(height * clean_border_ratio_), scaleBorder);
       subLoop.SetCleanBorders(horBorderSize, vertBorderSize);
-      if (!_rmsFactorImage.Empty()) subLoop.SetRMSFactorImage(_rmsFactorImage);
-      if (_usePerScaleMasks) {
-        subLoop.SetMask(_scaleMasks[scaleWithPeak].data());
-      } else if (_cleanMask) {
-        subLoop.SetMask(_cleanMask);
+      if (!rms_factor_image_.Empty())
+        subLoop.SetRmsFactorImage(rms_factor_image_);
+      if (use_per_scale_masks_) {
+        subLoop.SetMask(scale_masks_[scaleWithPeak].data());
+      } else if (clean_mask_) {
+        subLoop.SetMask(clean_mask_);
       }
       subLoop.SetSpectralFitter(&Fitter());
 
       subLoop.Run(individualConvolvedImages, twiceConvolvedPSFs);
 
-      _iterationNumber = subLoop.CurrentIteration();
-      _scaleInfos[scaleWithPeak].nComponentsCleaned +=
-          (_iterationNumber - subMinorStartIteration);
-      _scaleInfos[scaleWithPeak].totalFluxCleaned += subLoop.FluxCleaned();
+      iteration_number_ = subLoop.CurrentIteration();
+      scale_infos_[scaleWithPeak].n_components_cleaned +=
+          (iteration_number_ - subMinorStartIteration);
+      scale_infos_[scaleWithPeak].total_flux_cleaned += subLoop.FluxCleaned();
 
-      for (size_t imageIndex = 0; imageIndex != dirtySet.size(); ++imageIndex) {
+      for (size_t imageIndex = 0; imageIndex != data_image.Size();
+           ++imageIndex) {
         // TODO this can be multi-threaded if each thread has its own
         // temporaries
         const aocommon::Image& psf =
-            convolvedPSFs[dirtySet.PSFIndex(imageIndex)][scaleWithPeak];
+            convolvedPSFs[data_image.PsfIndex(imageIndex)][scaleWithPeak];
         subLoop.CorrectResidualDirty(scratch.Data(), scratchB.Data(),
                                      integratedScratch.Data(), imageIndex,
-                                     dirtySet.Data(imageIndex), psf.Data());
+                                     data_image.Data(imageIndex), psf.Data());
 
         subLoop.GetFullIndividualModel(imageIndex, scratch.Data());
         if (imageIndex == 0) {
-          if (_trackPerScaleMasks) {
-            subLoop.UpdateAutoMask(_scaleMasks[scaleWithPeak].data());
+          if (track_per_scale_masks_) {
+            subLoop.UpdateAutoMask(scale_masks_[scaleWithPeak].data());
           }
-          if (_trackComponents) {
-            subLoop.UpdateComponentList(*_componentList, scaleWithPeak);
+          if (track_components_) {
+            subLoop.UpdateComponentList(*component_list_, scaleWithPeak);
           }
         }
-        if (_scaleInfos[scaleWithPeak].scale != 0.0) {
+        if (scale_infos_[scaleWithPeak].scale != 0.0) {
           std::vector<Image> transformList{std::move(scratch)};
           msTransforms.Transform(transformList, integratedScratch,
-                                 _scaleInfos[scaleWithPeak].scale);
+                                 scale_infos_[scaleWithPeak].scale);
           scratch = std::move(transformList[0]);
         }
-        float* model = modelSet.Data(imageIndex);
+        float* model = model_image.Data(imageIndex);
         for (size_t i = 0; i != width * height; ++i) {
           model[i] += scratch.Data()[i];
         }
       }
 
     } else {  // don't use the Clark optimization
-      const ScaleInfo& maxScaleInfo = _scaleInfos[scaleWithPeak];
-      while (_iterationNumber < MaxNIter() &&
-             std::fabs(maxScaleInfo.maxUnnormalizedImageValue *
-                       maxScaleInfo.biasFactor) > firstSubIterationThreshold &&
-             (!StopOnNegativeComponents() ||
-              _scaleInfos[scaleWithPeak].maxUnnormalizedImageValue >= 0.0)) {
+      const ScaleInfo& maxScaleInfo = scale_infos_[scaleWithPeak];
+      while (
+          iteration_number_ < MaxIterations() &&
+          std::fabs(maxScaleInfo.max_unnormalized_image_value *
+                    maxScaleInfo.bias_factor) > firstSubIterationThreshold &&
+          (!StopOnNegativeComponents() ||
+           scale_infos_[scaleWithPeak].max_unnormalized_image_value >= 0.0)) {
         aocommon::UVector<float> componentValues;
-        measureComponentValues(componentValues, scaleWithPeak,
+        MeasureComponentValues(componentValues, scaleWithPeak,
                                individualConvolvedImages);
-        const size_t x = maxScaleInfo.maxImageValueX;
-        const size_t y = maxScaleInfo.maxImageValueY;
+        const size_t x = maxScaleInfo.max_image_value_x;
+        const size_t y = maxScaleInfo.max_image_value_y;
         PerformSpectralFit(componentValues.data(), x, y);
 
-        for (size_t imgIndex = 0; imgIndex != dirtySet.size(); ++imgIndex) {
+        for (size_t imgIndex = 0; imgIndex != data_image.Size(); ++imgIndex) {
           // Subtract component from individual, non-deconvolved images
           componentValues[imgIndex] =
               componentValues[imgIndex] * maxScaleInfo.gain;
 
           const aocommon::Image& psf =
-              convolvedPSFs[dirtySet.PSFIndex(imgIndex)][scaleWithPeak];
-          tools->SubtractImage(dirtySet.Data(imgIndex), psf, x, y,
+              convolvedPSFs[data_image.PsfIndex(imgIndex)][scaleWithPeak];
+          tools->SubtractImage(data_image.Data(imgIndex), psf, x, y,
                                componentValues[imgIndex]);
 
           // Subtract twice convolved PSFs from convolved images
-          tools->SubtractImage(individualConvolvedImages.Data(imgIndex),
-                               twiceConvolvedPSFs[dirtySet.PSFIndex(imgIndex)],
-                               x, y, componentValues[imgIndex]);
+          tools->SubtractImage(
+              individualConvolvedImages.Data(imgIndex),
+              twiceConvolvedPSFs[data_image.PsfIndex(imgIndex)], x, y,
+              componentValues[imgIndex]);
           // TODO this is incorrect, but why is the residual without
           // Cotton-Schwab still OK ? Should test
           // tools->SubtractImage(individualConvolvedImages[imgIndex], psf,
           // width, height, x, y, componentValues[imgIndex]);
 
           // Adjust model
-          addComponentToModel(modelSet, imgIndex, scaleWithPeak,
+          AddComponentToModel(model_image, imgIndex, scaleWithPeak,
                               componentValues[imgIndex]);
         }
-        if (_trackComponents) {
-          _componentList->Add(x, y, scaleWithPeak, componentValues.data());
+        if (track_components_) {
+          component_list_->Add(x, y, scaleWithPeak, componentValues.data());
         }
 
         // Find maximum for this scale
         individualConvolvedImages.GetLinearIntegrated(integratedScratch);
-        findPeakDirect(integratedScratch, scratch, scaleWithPeak);
-        _logReceiver->Debug
+        FindPeakDirect(integratedScratch, scratch, scaleWithPeak);
+        log_receiver_->Debug
             << "Scale now "
-            << std::fabs(_scaleInfos[scaleWithPeak].maxUnnormalizedImageValue *
-                         _scaleInfos[scaleWithPeak].biasFactor)
+            << std::fabs(
+                   scale_infos_[scaleWithPeak].max_unnormalized_image_value *
+                   scale_infos_[scaleWithPeak].bias_factor)
             << '\n';
 
-        ++_iterationNumber;
+        ++iteration_number_;
       }
     }
 
-    activateScales(scaleWithPeak);
+    ActivateScales(scaleWithPeak);
 
-    findActiveScaleConvolvedMaxima(dirtySet, integratedScratch, scratch, false,
-                                   tools.get());
+    FindActiveScaleConvolvedMaxima(data_image, integratedScratch, scratch,
+                                   false, tools.get());
 
-    if (!selectMaximumScale(scaleWithPeak)) {
-      _logReceiver->Warn << "No peak found in main loop of multi-scale "
-                            "cleaning! Aborting deconvolution.\n";
-      reachedMajorThreshold = false;
+    if (!SelectMaximumScale(scaleWithPeak)) {
+      log_receiver_->Warn << "No peak found in main loop of multi-scale "
+                             "cleaning! Aborting deconvolution.\n";
+      reached_major_threshold = false;
       return 0.0;
     }
 
-    _logReceiver->Info
-        << "Iteration " << _iterationNumber << ", scale "
-        << round(_scaleInfos[scaleWithPeak].scale) << " px : "
+    log_receiver_->Info
+        << "Iteration " << iteration_number_ << ", scale "
+        << round(scale_infos_[scaleWithPeak].scale) << " px : "
         << FluxDensity::ToNiceString(
-               _scaleInfos[scaleWithPeak].maxUnnormalizedImageValue *
-               _scaleInfos[scaleWithPeak].biasFactor)
-        << " at " << _scaleInfos[scaleWithPeak].maxImageValueX << ','
-        << _scaleInfos[scaleWithPeak].maxImageValueY << '\n';
+               scale_infos_[scaleWithPeak].max_unnormalized_image_value *
+               scale_infos_[scaleWithPeak].bias_factor)
+        << " at " << scale_infos_[scaleWithPeak].max_image_value_x << ','
+        << scale_infos_[scaleWithPeak].max_image_value_y << '\n';
   }
 
-  bool maxIterReached = _iterationNumber >= MaxNIter(),
+  bool maxIterReached = iteration_number_ >= MaxIterations(),
        negativeReached =
            StopOnNegativeComponents() &&
-           _scaleInfos[scaleWithPeak].maxUnnormalizedImageValue < 0.0;
+           scale_infos_[scaleWithPeak].max_unnormalized_image_value < 0.0;
   // finalThresholdReached =
-  // std::fabs(_scaleInfos[scaleWithPeak].maxUnnormalizedImageValue *
-  // _scaleInfos[scaleWithPeak].biasFactor) <= _threshold;
+  // std::fabs(scale_infos_[scaleWithPeak].max_unnormalized_image_value *
+  // scale_infos_[scaleWithPeak].bias_factor) <= threshold_;
 
   if (maxIterReached) {
-    _logReceiver->Info << "Cleaning finished because maximum number of "
-                          "iterations was reached.\n";
+    log_receiver_->Info << "Cleaning finished because maximum number of "
+                           "iterations was reached.\n";
   } else if (negativeReached) {
-    _logReceiver->Info
+    log_receiver_->Info
         << "Cleaning finished because a negative component was found.\n";
   } else if (isFinalThreshold) {
-    _logReceiver->Info
+    log_receiver_->Info
         << "Cleaning finished because the final threshold was reached.\n";
   } else {
-    _logReceiver->Info << "Minor loop finished, continuing cleaning after "
-                          "inversion/prediction round.\n";
+    log_receiver_->Info << "Minor loop finished, continuing cleaning after "
+                           "inversion/prediction round.\n";
   }
 
-  reachedMajorThreshold =
+  reached_major_threshold =
       !maxIterReached && !isFinalThreshold && !negativeReached;
-  return _scaleInfos[scaleWithPeak].maxUnnormalizedImageValue *
-         _scaleInfos[scaleWithPeak].biasFactor;
+  return scale_infos_[scaleWithPeak].max_unnormalized_image_value *
+         scale_infos_[scaleWithPeak].bias_factor;
 }
 
-void MultiScaleAlgorithm::initializeScaleInfo(size_t minWidthHeight) {
-  if (_settings.scale_list.empty()) {
-    if (_scaleInfos.empty()) {
+void MultiScaleAlgorithm::InitializeScaleInfo(size_t min_width_height) {
+  if (settings_.scale_list.empty()) {
+    if (scale_infos_.empty()) {
       size_t scaleIndex = 0;
-      double scale = _beamSizeInPixels * 2.0;
+      double scale = beam_size_in_pixels_ * 2.0;
       do {
-        ScaleInfo& newEntry = _scaleInfos.emplace_back();
+        ScaleInfo& newEntry = scale_infos_.emplace_back();
         if (scaleIndex == 0) {
           newEntry.scale = 0.0;
         } else {
           newEntry.scale = scale;
         }
-        newEntry.kernelPeak = multiscale::MultiScaleTransforms::KernelPeakValue(
-            scale, minWidthHeight, _settings.shape);
+        newEntry.kernel_peak =
+            multiscale::MultiScaleTransforms::KernelPeakValue(
+                scale, min_width_height, settings_.shape);
 
         scale *= 2.0;
         ++scaleIndex;
       } while (
-          scale < minWidthHeight * 0.5 &&
-          (_settings.max_scales == 0 || scaleIndex < _settings.max_scales));
+          scale < min_width_height * 0.5 &&
+          (settings_.max_scales == 0 || scaleIndex < settings_.max_scales));
     } else {
-      while (!_scaleInfos.empty() &&
-             _scaleInfos.back().scale >= minWidthHeight * 0.5) {
-        _logReceiver->Info
-            << "Scale size " << _scaleInfos.back().scale
+      while (!scale_infos_.empty() &&
+             scale_infos_.back().scale >= min_width_height * 0.5) {
+        log_receiver_->Info
+            << "Scale size " << scale_infos_.back().scale
             << " does not fit in cleaning region: removing scale.\n";
-        _scaleInfos.erase(_scaleInfos.begin() + _scaleInfos.size() - 1);
+        scale_infos_.erase(scale_infos_.begin() + scale_infos_.size() - 1);
       }
     }
-  } else if (_scaleInfos.empty()) {
-    std::multiset<double> sortedScaleList(_settings.scale_list.begin(),
-                                          _settings.scale_list.end());
+  } else if (scale_infos_.empty()) {
+    std::multiset<double> sortedScaleList(settings_.scale_list.begin(),
+                                          settings_.scale_list.end());
     for (double scale : sortedScaleList) {
-      ScaleInfo& newEntry = _scaleInfos.emplace_back();
+      ScaleInfo& newEntry = scale_infos_.emplace_back();
       newEntry.scale = scale;
-      newEntry.kernelPeak = multiscale::MultiScaleTransforms::KernelPeakValue(
-          newEntry.scale, minWidthHeight, _settings.shape);
+      newEntry.kernel_peak = multiscale::MultiScaleTransforms::KernelPeakValue(
+          newEntry.scale, min_width_height, settings_.shape);
     }
   }
 }
 
-void MultiScaleAlgorithm::convolvePSFs(std::unique_ptr<Image[]>& convolvedPSFs,
+void MultiScaleAlgorithm::ConvolvePsfs(std::unique_ptr<Image[]>& convolved_psfs,
                                        const Image& psf, Image& scratch,
-                                       bool isIntegrated) {
+                                       bool is_integrated) {
   multiscale::MultiScaleTransforms msTransforms(psf.Width(), psf.Height(),
-                                                _settings.shape);
-  msTransforms.SetThreadCount(_threadCount);
-  convolvedPSFs = std::make_unique<Image[]>(_scaleInfos.size());
-  if (isIntegrated) _logReceiver->Info << "Scale info:\n";
-  const double firstAutoScaleSize = _beamSizeInPixels * 2.0;
-  for (size_t scaleIndex = 0; scaleIndex != _scaleInfos.size(); ++scaleIndex) {
-    ScaleInfo& scaleEntry = _scaleInfos[scaleIndex];
+                                                settings_.shape);
+  msTransforms.SetThreadCount(thread_count_);
+  convolved_psfs = std::make_unique<Image[]>(scale_infos_.size());
+  if (is_integrated) log_receiver_->Info << "Scale info:\n";
+  const double firstAutoScaleSize = beam_size_in_pixels_ * 2.0;
+  for (size_t scaleIndex = 0; scaleIndex != scale_infos_.size(); ++scaleIndex) {
+    ScaleInfo& scaleEntry = scale_infos_[scaleIndex];
 
-    convolvedPSFs[scaleIndex] = psf;
+    convolved_psfs[scaleIndex] = psf;
 
-    if (isIntegrated) {
+    if (is_integrated) {
       if (scaleEntry.scale != 0.0) {
-        msTransforms.Transform(convolvedPSFs[scaleIndex], scratch,
+        msTransforms.Transform(convolved_psfs[scaleIndex], scratch,
                                scaleEntry.scale);
       }
 
-      scaleEntry.psfPeak =
-          convolvedPSFs[scaleIndex]
-                       [psf.Width() / 2 + (psf.Height() / 2) * psf.Width()];
+      scaleEntry.psf_peak =
+          convolved_psfs[scaleIndex]
+                        [psf.Width() / 2 + (psf.Height() / 2) * psf.Width()];
       // We normalize this factor to 1 for scale 0, so:
       // factor = (psf / kernel) / (psf0 / kernel0) = psf * kernel0 / (kernel *
       // psf0)
-      // scaleEntry.biasFactor = std::max(1.0,
-      //	scaleEntry.psfPeak * scaleInfos[0].kernelPeak /
-      //	(scaleEntry.kernelPeak * scaleInfos[0].psfPeak));
+      // scaleEntry.bias_factor = std::max(1.0,
+      //	scaleEntry.psf_peak * scaleInfos[0].kernel_peak /
+      //	(scaleEntry.kernel_peak * scaleInfos[0].psf_peak));
       double expTerm;
-      if (scaleEntry.scale == 0.0 || _scaleInfos.size() < 2) {
+      if (scaleEntry.scale == 0.0 || scale_infos_.size() < 2) {
         expTerm = 0.0;
       } else {
         expTerm = std::log2(scaleEntry.scale / firstAutoScaleSize);
       }
-      scaleEntry.biasFactor = std::pow(_settings.scale_bias, -expTerm) * 1.0;
+      scaleEntry.bias_factor = std::pow(settings_.scale_bias, -expTerm) * 1.0;
 
       // I tried this, but wasn't perfect:
-      // _minorLoopGain * _scaleInfos[0].kernelPeak / scaleEntry.kernelPeak;
-      scaleEntry.gain = _minorLoopGain / scaleEntry.psfPeak;
+      // minor_loop_gain_ * scale_infos_[0].kernel_peak /
+      // scaleEntry.kernel_peak;
+      scaleEntry.gain = minor_loop_gain_ / scaleEntry.psf_peak;
 
-      scaleEntry.isActive = true;
+      scaleEntry.is_active = true;
 
       if (scaleEntry.scale == 0.0) {
-        convolvedPSFs[scaleIndex] = psf;
+        convolved_psfs[scaleIndex] = psf;
       }
 
-      _logReceiver->Info << "- Scale " << round(scaleEntry.scale)
-                         << ", bias factor="
-                         << round(scaleEntry.biasFactor * 10.0) / 10.0
-                         << ", psfpeak=" << scaleEntry.psfPeak
-                         << ", gain=" << scaleEntry.gain
-                         << ", kernel peak=" << scaleEntry.kernelPeak << '\n';
+      log_receiver_->Info << "- Scale " << round(scaleEntry.scale)
+                          << ", bias factor="
+                          << round(scaleEntry.bias_factor * 10.0) / 10.0
+                          << ", psfpeak=" << scaleEntry.psf_peak
+                          << ", gain=" << scaleEntry.gain
+                          << ", kernel peak=" << scaleEntry.kernel_peak << '\n';
     } else {
       if (scaleEntry.scale != 0.0) {
-        msTransforms.Transform(convolvedPSFs[scaleIndex], scratch,
+        msTransforms.Transform(convolved_psfs[scaleIndex], scratch,
                                scaleEntry.scale);
       }
     }
   }
 }
 
-void MultiScaleAlgorithm::findActiveScaleConvolvedMaxima(
-    const ImageSet& imageSet, Image& integratedScratch, Image& scratch,
-    bool reportRMS, ThreadedDeconvolutionTools* tools) {
+void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
+    const ImageSet& image_set, Image& integrated_scratch, Image& scratch,
+    bool report_rms, ThreadedDeconvolutionTools* tools) {
   multiscale::MultiScaleTransforms msTransforms(
-      imageSet.Width(), imageSet.Height(), _settings.shape);
-  imageSet.GetLinearIntegrated(integratedScratch);
+      image_set.Width(), image_set.Height(), settings_.shape);
+  image_set.GetLinearIntegrated(integrated_scratch);
   aocommon::UVector<float> transformScales;
   aocommon::UVector<size_t> transformIndices;
   std::vector<aocommon::UVector<bool>> transformScaleMasks;
-  for (size_t scaleIndex = 0; scaleIndex != _scaleInfos.size(); ++scaleIndex) {
-    ScaleInfo& scaleEntry = _scaleInfos[scaleIndex];
-    if (scaleEntry.isActive) {
+  for (size_t scaleIndex = 0; scaleIndex != scale_infos_.size(); ++scaleIndex) {
+    ScaleInfo& scaleEntry = scale_infos_[scaleIndex];
+    if (scaleEntry.is_active) {
       if (scaleEntry.scale == 0) {
         // Don't convolve scale 0: this is the delta function scale
-        findPeakDirect(integratedScratch, scratch, scaleIndex);
-        if (reportRMS) {
+        FindPeakDirect(integrated_scratch, scratch, scaleIndex);
+        if (report_rms) {
           scaleEntry.rms = ThreadedDeconvolutionTools::RMS(
-              integratedScratch, imageSet.Width() * imageSet.Height());
+              integrated_scratch, image_set.Width() * image_set.Height());
         }
       } else {
         transformScales.push_back(scaleEntry.scale);
         transformIndices.push_back(scaleIndex);
-        if (_usePerScaleMasks) {
-          transformScaleMasks.push_back(_scaleMasks[scaleIndex]);
+        if (use_per_scale_masks_) {
+          transformScaleMasks.push_back(scale_masks_[scaleIndex]);
         }
       }
     }
   }
   std::vector<ThreadedDeconvolutionTools::PeakData> results;
 
-  tools->FindMultiScalePeak(&msTransforms, integratedScratch, transformScales,
-                            results, _allowNegativeComponents, _cleanMask,
-                            transformScaleMasks, _cleanBorderRatio,
-                            _rmsFactorImage, reportRMS);
+  tools->FindMultiScalePeak(&msTransforms, integrated_scratch, transformScales,
+                            results, allow_negative_components_, clean_mask_,
+                            transformScaleMasks, clean_border_ratio_,
+                            rms_factor_image_, report_rms);
 
   for (size_t i = 0; i != results.size(); ++i) {
-    ScaleInfo& scaleEntry = _scaleInfos[transformIndices[i]];
-    scaleEntry.maxNormalizedImageValue =
+    ScaleInfo& scaleEntry = scale_infos_[transformIndices[i]];
+    scaleEntry.max_normalized_image_value =
         results[i].normalizedValue.value_or(0.0);
-    scaleEntry.maxUnnormalizedImageValue =
+    scaleEntry.max_unnormalized_image_value =
         results[i].unnormalizedValue.value_or(0.0);
-    scaleEntry.maxImageValueX = results[i].x;
-    scaleEntry.maxImageValueY = results[i].y;
-    if (reportRMS) scaleEntry.rms = results[i].rms;
+    scaleEntry.max_image_value_x = results[i].x;
+    scaleEntry.max_image_value_y = results[i].y;
+    if (report_rms) scaleEntry.rms = results[i].rms;
   }
-  if (reportRMS) {
-    _logReceiver->Info << "RMS per scale: {";
-    for (size_t scaleIndex = 0; scaleIndex != _scaleInfos.size();
+  if (report_rms) {
+    log_receiver_->Info << "RMS per scale: {";
+    for (size_t scaleIndex = 0; scaleIndex != scale_infos_.size();
          ++scaleIndex) {
-      ScaleInfo& scaleEntry = _scaleInfos[scaleIndex];
-      if (scaleIndex != 0) _logReceiver->Info << ", ";
-      _logReceiver->Info << round(scaleEntry.scale) << ": "
-                         << FluxDensity::ToNiceString(scaleEntry.rms);
+      ScaleInfo& scaleEntry = scale_infos_[scaleIndex];
+      if (scaleIndex != 0) log_receiver_->Info << ", ";
+      log_receiver_->Info << round(scaleEntry.scale) << ": "
+                          << FluxDensity::ToNiceString(scaleEntry.rms);
     }
-    _logReceiver->Info << "}\n";
+    log_receiver_->Info << "}\n";
   }
 }
 
-bool MultiScaleAlgorithm::selectMaximumScale(size_t& scaleWithPeak) {
+bool MultiScaleAlgorithm::SelectMaximumScale(size_t& scale_with_peak) {
   // Find max component
   std::map<float, size_t> peakToScaleMap;
-  for (size_t i = 0; i != _scaleInfos.size(); ++i) {
-    if (_scaleInfos[i].isActive) {
-      float maxVal = std::fabs(_scaleInfos[i].maxUnnormalizedImageValue *
-                               _scaleInfos[i].biasFactor);
+  for (size_t i = 0; i != scale_infos_.size(); ++i) {
+    if (scale_infos_[i].is_active) {
+      float maxVal = std::fabs(scale_infos_[i].max_unnormalized_image_value *
+                               scale_infos_[i].bias_factor);
       peakToScaleMap.insert(std::make_pair(maxVal, i));
     }
   }
   if (peakToScaleMap.empty()) {
-    scaleWithPeak = std::numeric_limits<size_t>::max();
+    scale_with_peak = std::numeric_limits<size_t>::max();
     return false;
   } else {
     std::map<float, size_t>::const_reverse_iterator mapIter =
         peakToScaleMap.rbegin();
-    scaleWithPeak = mapIter->second;
+    scale_with_peak = mapIter->second;
     return true;
   }
 }
 
-void MultiScaleAlgorithm::activateScales(size_t scaleWithLastPeak) {
-  for (size_t i = 0; i != _scaleInfos.size(); ++i) {
-    bool doActivate =
-        i == scaleWithLastPeak ||
-        /*i == runnerUp ||*/ std::fabs(
-            _scaleInfos[i].maxUnnormalizedImageValue) *
-                _scaleInfos[i].biasFactor >
-            std::fabs(
-                _scaleInfos[scaleWithLastPeak].maxUnnormalizedImageValue) *
-                (1.0 - _minorLoopGain) *
-                _scaleInfos[scaleWithLastPeak].biasFactor;
-    if (!_scaleInfos[i].isActive && doActivate) {
-      _logReceiver->Debug << "Scale " << _scaleInfos[i].scale
-                          << " is now significant and is activated.\n";
-      _scaleInfos[i].isActive = true;
-    } else if (_scaleInfos[i].isActive && !doActivate) {
-      _logReceiver->Debug << "Scale " << _scaleInfos[i].scale
-                          << " is insignificant and is deactivated.\n";
-      _scaleInfos[i].isActive = false;
+void MultiScaleAlgorithm::ActivateScales(size_t scale_with_last_peak) {
+  for (size_t i = 0; i != scale_infos_.size(); ++i) {
+    bool doActivate = i == scale_with_last_peak ||
+                      /*i == runnerUp ||*/ std::fabs(
+                          scale_infos_[i].max_unnormalized_image_value) *
+                              scale_infos_[i].bias_factor >
+                          std::fabs(scale_infos_[scale_with_last_peak]
+                                        .max_unnormalized_image_value) *
+                              (1.0 - minor_loop_gain_) *
+                              scale_infos_[scale_with_last_peak].bias_factor;
+    if (!scale_infos_[i].is_active && doActivate) {
+      log_receiver_->Debug << "Scale " << scale_infos_[i].scale
+                           << " is now significant and is activated.\n";
+      scale_infos_[i].is_active = true;
+    } else if (scale_infos_[i].is_active && !doActivate) {
+      log_receiver_->Debug << "Scale " << scale_infos_[i].scale
+                           << " is insignificant and is deactivated.\n";
+      scale_infos_[i].is_active = false;
     }
   }
 }
 
-void MultiScaleAlgorithm::measureComponentValues(
-    aocommon::UVector<float>& componentValues, size_t scaleIndex,
-    ImageSet& imageSet) {
-  const ScaleInfo& scale = _scaleInfos[scaleIndex];
-  componentValues.resize(imageSet.size());
-  _logReceiver->Debug << "Measuring " << scale.maxImageValueX << ','
-                      << scale.maxImageValueY << ", scale " << scale.scale
-                      << ", integrated=" << scale.maxUnnormalizedImageValue
-                      << ":";
-  for (size_t i = 0; i != imageSet.size(); ++i) {
-    componentValues[i] = imageSet[i][scale.maxImageValueX +
-                                     scale.maxImageValueY * imageSet.Width()];
-    _logReceiver->Debug << ' ' << componentValues[i];
+void MultiScaleAlgorithm::MeasureComponentValues(
+    aocommon::UVector<float>& component_values, size_t scale_index,
+    ImageSet& image_set) {
+  const ScaleInfo& scale = scale_infos_[scale_index];
+  component_values.resize(image_set.Size());
+  log_receiver_->Debug << "Measuring " << scale.max_image_value_x << ','
+                       << scale.max_image_value_y << ", scale " << scale.scale
+                       << ", integrated=" << scale.max_unnormalized_image_value
+                       << ":";
+  for (size_t i = 0; i != image_set.Size(); ++i) {
+    component_values[i] =
+        image_set[i][scale.max_image_value_x +
+                     scale.max_image_value_y * image_set.Width()];
+    log_receiver_->Debug << ' ' << component_values[i];
   }
-  _logReceiver->Debug << '\n';
+  log_receiver_->Debug << '\n';
 }
 
-void MultiScaleAlgorithm::addComponentToModel(ImageSet& modelSet,
-                                              size_t imgIndex,
-                                              size_t scaleWithPeak,
-                                              float componentValue) {
-  const size_t x = _scaleInfos[scaleWithPeak].maxImageValueX;
-  const size_t y = _scaleInfos[scaleWithPeak].maxImageValueY;
-  float* modelData = modelSet.Data(imgIndex);
-  if (_scaleInfos[scaleWithPeak].scale == 0.0) {
-    modelData[x + modelSet.Width() * y] += componentValue;
+void MultiScaleAlgorithm::AddComponentToModel(ImageSet& model_image,
+                                              size_t image_index,
+                                              size_t scale_with_peak,
+                                              float component_value) {
+  const size_t x = scale_infos_[scale_with_peak].max_image_value_x;
+  const size_t y = scale_infos_[scale_with_peak].max_image_value_y;
+  float* modelData = model_image.Data(image_index);
+  if (scale_infos_[scale_with_peak].scale == 0.0) {
+    modelData[x + model_image.Width() * y] += component_value;
   } else {
     multiscale::MultiScaleTransforms::AddShapeComponent(
-        modelData, modelSet.Width(), modelSet.Height(),
-        _scaleInfos[scaleWithPeak].scale, x, y, componentValue,
-        _settings.shape);
+        modelData, model_image.Width(), model_image.Height(),
+        scale_infos_[scale_with_peak].scale, x, y, component_value,
+        settings_.shape);
   }
 
-  _scaleInfos[scaleWithPeak].nComponentsCleaned++;
-  _scaleInfos[scaleWithPeak].totalFluxCleaned += componentValue;
+  scale_infos_[scale_with_peak].n_components_cleaned++;
+  scale_infos_[scale_with_peak].total_flux_cleaned += component_value;
 
-  if (_trackPerScaleMasks) {
-    _scaleMasks[scaleWithPeak][x + modelSet.Width() * y] = true;
+  if (track_per_scale_masks_) {
+    scale_masks_[scale_with_peak][x + model_image.Width() * y] = true;
   }
 }
 
-void MultiScaleAlgorithm::findPeakDirect(const aocommon::Image& image,
+void MultiScaleAlgorithm::FindPeakDirect(const aocommon::Image& image,
                                          aocommon::Image& scratch,
-                                         size_t scaleIndex) {
-  ScaleInfo& scaleInfo = _scaleInfos[scaleIndex];
-  const size_t horBorderSize = std::round(image.Width() * _cleanBorderRatio);
-  const size_t vertBorderSize = std::round(image.Height() * _cleanBorderRatio);
+                                         size_t scale_index) {
+  ScaleInfo& scaleInfo = scale_infos_[scale_index];
+  const size_t horBorderSize = std::round(image.Width() * clean_border_ratio_);
+  const size_t vertBorderSize =
+      std::round(image.Height() * clean_border_ratio_);
   const float* actualImage;
-  if (_rmsFactorImage.Empty()) {
+  if (rms_factor_image_.Empty()) {
     actualImage = image.Data();
   } else {
     scratch = image;
-    scratch *= _rmsFactorImage;
+    scratch *= rms_factor_image_;
     actualImage = scratch.Data();
   }
 
   std::optional<float> maxValue;
-  if (_usePerScaleMasks) {
-    maxValue = math::PeakFinder::FindWithMask(
-        actualImage, image.Width(), image.Height(), scaleInfo.maxImageValueX,
-        scaleInfo.maxImageValueY, _allowNegativeComponents, 0, image.Height(),
-        _scaleMasks[scaleIndex].data(), horBorderSize, vertBorderSize);
-  } else if (_cleanMask == nullptr) {
-    maxValue = math::PeakFinder::Find(
-        actualImage, image.Width(), image.Height(), scaleInfo.maxImageValueX,
-        scaleInfo.maxImageValueY, _allowNegativeComponents, 0, image.Height(),
-        horBorderSize, vertBorderSize);
+  if (use_per_scale_masks_) {
+    maxValue = math::peak_finder::FindWithMask(
+        actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
+        scaleInfo.max_image_value_y, allow_negative_components_, 0,
+        image.Height(), scale_masks_[scale_index].data(), horBorderSize,
+        vertBorderSize);
+  } else if (clean_mask_ == nullptr) {
+    maxValue = math::peak_finder::Find(
+        actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
+        scaleInfo.max_image_value_y, allow_negative_components_, 0,
+        image.Height(), horBorderSize, vertBorderSize);
   } else {
-    maxValue = math::PeakFinder::FindWithMask(
-        actualImage, image.Width(), image.Height(), scaleInfo.maxImageValueX,
-        scaleInfo.maxImageValueY, _allowNegativeComponents, 0, image.Height(),
-        _cleanMask, horBorderSize, vertBorderSize);
+    maxValue = math::peak_finder::FindWithMask(
+        actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
+        scaleInfo.max_image_value_y, allow_negative_components_, 0,
+        image.Height(), clean_mask_, horBorderSize, vertBorderSize);
   }
 
-  scaleInfo.maxUnnormalizedImageValue = maxValue.value_or(0.0);
-  if (_rmsFactorImage.Empty()) {
-    scaleInfo.maxNormalizedImageValue = maxValue.value_or(0.0);
+  scaleInfo.max_unnormalized_image_value = maxValue.value_or(0.0);
+  if (rms_factor_image_.Empty()) {
+    scaleInfo.max_normalized_image_value = maxValue.value_or(0.0);
   } else {
-    scaleInfo.maxNormalizedImageValue =
+    scaleInfo.max_normalized_image_value =
         maxValue.value_or(0.0) /
-        _rmsFactorImage[scaleInfo.maxImageValueX +
-                        scaleInfo.maxImageValueY * image.Width()];
+        rms_factor_image_[scaleInfo.max_image_value_x +
+                          scaleInfo.max_image_value_y * image.Width()];
   }
 }
 
@@ -707,10 +718,10 @@ static size_t calculateGoodFFTSize(size_t n) {
   return bestfac;
 }
 
-void MultiScaleAlgorithm::getConvolutionDimensions(
-    size_t scaleIndex, size_t width, size_t height, size_t& width_result,
+void MultiScaleAlgorithm::GetConvolutionDimensions(
+    size_t scale_index, size_t width, size_t height, size_t& width_result,
     size_t& height_result) const {
-  double scale = _scaleInfos[scaleIndex].scale;
+  double scale = scale_infos_[scale_index].scale;
   // The factor of 1.5 comes from some superficial experience with diverging
   // runs. It's supposed to be a balance between diverging runs caused by
   // insufficient padding on one hand, and taking up too much memory on the
@@ -718,8 +729,8 @@ void MultiScaleAlgorithm::getConvolutionDimensions(
   // and conv width=1650. Divergence occurred on scale 363. Was solved with conv
   // width=2250. 2250 = 1.1*(363*factor + 1500)  --> factor = 1.5 And solved
   // with conv width=2000. 2000 = 1.1*(363*factor + 1500)  --> factor = 0.8
-  width_result = ceil(_settings.convolution_padding * (scale * 1.5 + width));
-  height_result = ceil(_settings.convolution_padding * (scale * 1.5 + height));
+  width_result = ceil(settings_.convolution_padding * (scale * 1.5 + width));
+  height_result = ceil(settings_.convolution_padding * (scale * 1.5 + height));
   width_result = calculateGoodFFTSize(width_result);
   height_result = calculateGoodFFTSize(height_result);
 }

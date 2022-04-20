@@ -18,19 +18,23 @@ class function;
 
 namespace radler::algorithms {
 
-class PythonDeconvolution : public DeconvolutionAlgorithm {
+class PythonDeconvolution final : public DeconvolutionAlgorithm {
  public:
   PythonDeconvolution(const std::string& filename);
 
+  // TODO(AST-912) Make copy/move operations Google Style compliant.
   PythonDeconvolution(const PythonDeconvolution& other);
+  PythonDeconvolution(PythonDeconvolution&&) = delete;
+  PythonDeconvolution& operator=(const PythonDeconvolution&) = delete;
+  PythonDeconvolution& operator=(PythonDeconvolution&&) = delete;
 
   ~PythonDeconvolution() override;
 
-  float ExecuteMajorIteration(ImageSet& dirtySet, ImageSet& modelSet,
+  float ExecuteMajorIteration(ImageSet& dirty_set, ImageSet& model_set,
                               const std::vector<aocommon::Image>& psfs,
-                              bool& reachedMajorThreshold) final override;
+                              bool& reached_major_threshold) final;
 
-  virtual std::unique_ptr<DeconvolutionAlgorithm> Clone() const final override {
+  std::unique_ptr<DeconvolutionAlgorithm> Clone() const final {
     return std::make_unique<PythonDeconvolution>(*this);
   }
 

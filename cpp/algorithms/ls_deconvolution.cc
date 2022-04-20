@@ -14,8 +14,8 @@ using aocommon::Logger;
 
 namespace radler::algorithms {
 
-struct LSDeconvolutionData {
-  LSDeconvolution* parent;
+struct LsDeconvolutionData {
+  LsDeconvolution* parent;
   gsl_multifit_fdfsolver* solver;
   aocommon::UVector<std::pair<size_t, size_t>> maskPositions;
   size_t width, height;
@@ -24,8 +24,8 @@ struct LSDeconvolutionData {
   const double* psf;
 
   static int fitting_func(const gsl_vector* xvec, void* data, gsl_vector* f) {
-    const LSDeconvolutionData& lsData =
-        *reinterpret_cast<LSDeconvolutionData*>(data);
+    const LsDeconvolutionData& lsData =
+        *reinterpret_cast<LsDeconvolutionData*>(data);
 
     size_t i = 0, midX = lsData.width + (lsData.width / 2),
            midY = lsData.height + (lsData.height / 2);
@@ -84,8 +84,8 @@ struct LSDeconvolutionData {
 #ifdef OUTPUT_LSD_DEBUG_INFO
     // Logger::Info << "Calculating Jacobian... " << std::flush;
 #endif
-    const LSDeconvolutionData& lsData =
-        *reinterpret_cast<LSDeconvolutionData*>(data);
+    const LsDeconvolutionData& lsData =
+        *reinterpret_cast<LsDeconvolutionData*>(data);
 
     size_t i = 0, midX = lsData.width + (lsData.width / 2),
            midY = lsData.height + (lsData.height / 2);
@@ -137,14 +137,14 @@ struct LSDeconvolutionData {
   }
 };
 
-LSDeconvolution::LSDeconvolution() : _data(new LSDeconvolutionData()) {}
+LsDeconvolution::LsDeconvolution() : _data(new LsDeconvolutionData()) {}
 
-LSDeconvolution::LSDeconvolution(const LSDeconvolution& source)
-    : DeconvolutionAlgorithm(), _data(new LSDeconvolutionData(*source._data)) {}
+LsDeconvolution::LsDeconvolution(const LsDeconvolution& source)
+    : DeconvolutionAlgorithm(), _data(new LsDeconvolutionData(*source._data)) {}
 
-LSDeconvolution::~LSDeconvolution() {}
+LsDeconvolution::~LsDeconvolution() {}
 
-void LSDeconvolution::getMaskPositions(
+void LsDeconvolution::getMaskPositions(
     aocommon::UVector<std::pair<size_t, size_t>>& maskPositions,
     const bool* mask, size_t width, size_t height) {
   const bool* maskPtr = mask;
@@ -158,7 +158,7 @@ void LSDeconvolution::getMaskPositions(
   }
 }
 
-void LSDeconvolution::linearFit(double* dataImage, double* modelImage,
+void LsDeconvolution::linearFit(double* dataImage, double* modelImage,
                                 const double* psfImage, size_t width,
                                 size_t height,
                                 bool& /*reachedMajorThreshold*/) {
@@ -236,7 +236,7 @@ void LSDeconvolution::linearFit(double* dataImage, double* modelImage,
   gsl_matrix_free(cov);
 }
 
-void LSDeconvolution::nonLinearFit(double* dataImage, double* modelImage,
+void LsDeconvolution::nonLinearFit(double* dataImage, double* modelImage,
                                    const double* psfImage, size_t width,
                                    size_t height,
                                    bool& /*reachedMajorThreshold*/) {
@@ -258,9 +258,9 @@ void LSDeconvolution::nonLinearFit(double* dataImage, double* modelImage,
   _data->regularization = 0.1;
 
   gsl_multifit_function_fdf fdf;
-  fdf.f = &LSDeconvolutionData::fitting_func;
-  fdf.df = &LSDeconvolutionData::fitting_func_deriv;
-  fdf.fdf = &LSDeconvolutionData::fitting_func_both;
+  fdf.f = &LsDeconvolutionData::fitting_func;
+  fdf.df = &LsDeconvolutionData::fitting_func_deriv;
+  fdf.fdf = &LsDeconvolutionData::fitting_func_both;
   fdf.n = dataCount;
   fdf.p = parameterCount;
   fdf.params = &*_data;

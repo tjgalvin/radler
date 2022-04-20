@@ -7,20 +7,27 @@
 #include <string>
 #include <sstream>
 #include <limits>
+#include <memory>
 
 #include <aocommon/uvector.h>
 
 namespace radler::algorithms::iuwt {
-class IUWTMask {
+class IuwtDecomposition;  // Forward declared to avoid a circular dependency.
+
+class IuwtMask {
  public:
-  IUWTMask(int scaleCount, size_t width, size_t height)
-      : _masks(scaleCount), _width(width), _height(height) {
-    for (int i = 0; i != scaleCount; ++i)
-      _masks[i].assign(width * height, false);
+  IuwtMask(int masks, size_t width, size_t height)
+      : _masks(masks), _width(width), _height(height) {
+    for (int i = 0; i != masks; ++i) _masks[i].assign(width * height, false);
   }
 
-  IUWTMask* CreateTrimmed(size_t x1, size_t y1, size_t x2, size_t y2) const {
-    std::unique_ptr<IUWTMask> p(new IUWTMask(ScaleCount(), x2 - x1, y2 - y1));
+  IuwtMask(const IuwtMask&) = default;
+  IuwtMask(IuwtMask&&) = default;
+  IuwtMask& operator=(const IuwtMask&) = default;
+  IuwtMask& operator=(IuwtMask&&) = default;
+
+  IuwtMask* CreateTrimmed(size_t x1, size_t y1, size_t x2, size_t y2) const {
+    std::unique_ptr<IuwtMask> p(new IuwtMask(ScaleCount(), x2 - x1, y2 - y1));
 
     for (size_t i = 0; i != _masks.size(); ++i)
       copySmallerPart(_masks[i], p->_masks[i], x1, y1, x2, y2);
@@ -44,7 +51,7 @@ class IUWTMask {
     }
     return str.str();
   }
-  std::string Summary(const class IUWTDecomposition& iuwt) const;
+  std::string Summary(const IuwtDecomposition& iuwt) const;
 
   size_t HighestActiveScale() const {
     for (int m = _masks.size() - 1; m != -1; --m) {
@@ -55,11 +62,11 @@ class IUWTMask {
     return 0;  // avoid compiler warning
   }
 
-  void TransferScaleUpwards(size_t fromScale) {
-    if (fromScale > 0) {
-      size_t toScale = fromScale - 1;
-      for (size_t i = 0; i != _masks[fromScale].size(); ++i) {
-        if (_masks[fromScale][i]) _masks[toScale][i] = true;
+  void TransferScaleUpwards(size_t from_scale) {
+    if (from_scale > 0) {
+      size_t toScale = from_scale - 1;
+      for (size_t i = 0; i != _masks[from_scale].size(); ++i) {
+        if (_masks[from_scale][i]) _masks[toScale][i] = true;
       }
     }
   }

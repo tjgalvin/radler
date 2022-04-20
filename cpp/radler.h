@@ -10,14 +10,14 @@
 
 #include "component_list.h"
 #include "settings.h"
+#include "work_table.h"
+#include "work_table_entry.h"
 
 namespace radler {
-
-class DeconvolutionTable;
-struct DeconvolutionTableEntry;
 namespace algorithms {
+// Forward declared since the class isn't part of Radler's public interface.
 class ParallelDeconvolution;
-}
+}  // namespace algorithms
 
 /**
  * @brief Main interfacing class of the Radio Astronomical Deconvolution
@@ -26,25 +26,32 @@ class ParallelDeconvolution;
  */
 class Radler {
  public:
-  Radler(const Settings& settings, std::unique_ptr<DeconvolutionTable> table,
-         double beamSize, size_t threadCount);
+  Radler(const Settings& settings, std::unique_ptr<WorkTable> table,
+         double beam_size, size_t thread_count);
 
   /**
    * @brief Constructor for single channel, single polarization deconvolution.
-   * @param[in] psfImage PSF image.
-   * @param[in/out] residualImage Residual image.
-   * @param[in/out] modelImage Model image.
+   * @param[in] psf_image PSF image.
+   * @param[in/out] residual_image Residual image.
+   * @param[in/out] model_image Model image.
    *
    * Please bear in mind to keep the input images alive in the caller, since
    * Radler internally only references these images.
    */
-  Radler(const Settings& settings, const aocommon::Image& psfImage,
-         aocommon::Image& residualImage, aocommon::Image& modelImage,
-         double beamSize,
-         aocommon::PolarizationEnum pol = aocommon::PolarizationEnum::StokesI,
-         size_t threadCount = 1);
+  Radler(const Settings& settings, const aocommon::Image& psf_image,
+         aocommon::Image& residual_image, aocommon::Image& model_image,
+         double beam_size,
+         aocommon::PolarizationEnum polarization =
+             aocommon::PolarizationEnum::StokesI,
+         size_t thread_count = 1);
 
   ~Radler();
+
+  // TODO(AST-912) Make copy/move operations Google Style compliant.
+  Radler(const Radler&) = delete;
+  Radler(Radler&&) = default;
+  Radler& operator=(const Radler&) = delete;
+  Radler& operator=(Radler&&) = delete;
 
   ComponentList GetComponentList() const;
 
@@ -55,7 +62,7 @@ class Radler {
    */
   const algorithms::DeconvolutionAlgorithm& MaxScaleCountAlgorithm() const;
 
-  void Perform(bool& reachedMajorThreshold, size_t majorIterationNr);
+  void Perform(bool& reached_major_threshold, size_t major_iteration_number);
 
   void FreeDeconvolutionAlgorithms();
 
@@ -64,35 +71,36 @@ class Radler {
   /// Return IterationNumber of the underlying \c DeconvolutionAlgorithm
   size_t IterationNumber() const;
 
-  static void RemoveNaNsInPSF(float* psf, size_t width, size_t height);
-
  private:
   // Constructor that becomes convenient when implementing AST-890
-  Radler(const Settings& settings, double beamSize);
+  Radler(const Settings& settings, double beam_size);
 
   // Initializes the deconvolution algorithm
-  void InitializeDeconvolutionAlgorithm(
-      std::unique_ptr<DeconvolutionTable> table, size_t threadCount);
+  void InitializeDeconvolutionAlgorithm(std::unique_ptr<WorkTable> table,
+                                        size_t thread_count);
 
-  void readMask(const DeconvolutionTable& groupTable);
+  void ReadMask(const WorkTable& group_table);
 
-  const Settings _settings;
+  const Settings settings_;
 
-  std::unique_ptr<DeconvolutionTable> _table;
+  std::unique_ptr<WorkTable> table_;
 
-  std::unique_ptr<algorithms::ParallelDeconvolution> _parallelDeconvolution;
+  std::unique_ptr<algorithms::ParallelDeconvolution> parallel_deconvolution_;
 
-  aocommon::UVector<bool> _cleanMask;
+  aocommon::UVector<bool> clean_mask_;
 
-  bool _autoMaskIsFinished;
-  aocommon::UVector<double> _channelFrequencies;
-  aocommon::UVector<float> _channelWeights;
-  size_t _imgWidth;
-  size_t _imgHeight;
-  double _pixelScaleX;
-  double _pixelScaleY;
-  aocommon::UVector<bool> _autoMask;
-  double _beamSize;
+  bool auto_mask_is_finished_;
+  aocommon::UVector<double> channel_frequencies_;
+  aocommon::UVector<float> channel_weights_;
+  size_t image_width_;
+  size_t image_height_;
+  double pixel_scale_x_;
+  double pixel_scale_y_;
+  aocommon::UVector<bool> auto_mask_;
+  double beam_size_;
 };
+
+void RemoveNansInPsf(float* psf, size_t width, size_t height);
+
 }  // namespace radler
 #endif

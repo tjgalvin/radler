@@ -24,12 +24,15 @@ class ParallelDeconvolution {
 
   ~ParallelDeconvolution();
 
-  DeconvolutionAlgorithm& FirstAlgorithm() { return *_algorithms.front(); }
+  ParallelDeconvolution(const ParallelDeconvolution&) = delete;
+  ParallelDeconvolution(ParallelDeconvolution&&) = delete;
+
+  DeconvolutionAlgorithm& FirstAlgorithm() { return *algorithms_.front(); }
   const DeconvolutionAlgorithm& FirstAlgorithm() const {
-    return *_algorithms.front();
+    return *algorithms_.front();
   }
 
-  ComponentList GetComponentList(const DeconvolutionTable& table) const;
+  ComponentList GetComponentList(const WorkTable& table) const;
 
   /**
    * @brief Same as @c FirstAlgorithm , except that for a multi-scale clean
@@ -37,68 +40,68 @@ class ParallelDeconvolution {
    */
   const DeconvolutionAlgorithm& MaxScaleCountAlgorithm() const;
 
-  void SetAllocator(class ImageBufferAllocator* allocator) {
-    _allocator = allocator;
-  }
-
   void SetAlgorithm(std::unique_ptr<DeconvolutionAlgorithm> algorithm);
 
-  void SetRMSFactorImage(aocommon::Image&& image);
+  void SetRmsFactorImage(aocommon::Image&& image);
 
   void SetThreshold(double threshold);
 
-  bool IsInitialized() const { return !_algorithms.empty(); }
+  bool IsInitialized() const { return !algorithms_.empty(); }
 
-  void SetAutoMaskMode(bool trackPerScaleMasks, bool usePerScaleMasks);
+  void SetAutoMaskMode(bool track_per_scale_masks, bool use_per_scale_masks);
 
   void SetCleanMask(const bool* mask);
 
   void SetSpectrallyForcedImages(std::vector<aocommon::Image>&& images);
 
-  void ExecuteMajorIteration(ImageSet& dataImage, ImageSet& modelImage,
-                             const std::vector<aocommon::Image>& psfImages,
-                             bool& reachedMajorThreshold);
+  void ExecuteMajorIteration(ImageSet& data_image, ImageSet& model_image,
+                             const std::vector<aocommon::Image>& psf_images,
+                             bool& reached_major_threshold);
 
   void FreeDeconvolutionAlgorithms() {
-    _algorithms.clear();
-    _mask = nullptr;
+    algorithms_.clear();
+    mask_ = nullptr;
   }
 
  private:
-  void executeParallelRun(ImageSet& dataImage, ImageSet& modelImage,
-                          const std::vector<aocommon::Image>& psfImages,
-                          bool& reachedMajorThreshold);
+  void ExecuteParallelRun(ImageSet& data_image, ImageSet& model_image,
+                          const std::vector<aocommon::Image>& psf_images,
+                          bool& reached_major_threshold);
 
   struct SubImage {
-    size_t index, x, y, width, height;
+    size_t index;
+    size_t x;
+    size_t y;
+    size_t width;
+    size_t height;
     // Mask to be used during deconvoution (combines user mask with the
     // boundary mask)
     aocommon::UVector<bool> mask;
     // Selects the pixels inside this subimage
-    aocommon::UVector<bool> boundaryMask;
+    aocommon::UVector<bool> boundary_mask;
     double peak;
-    bool reachedMajorThreshold;
+    bool reached_major_threshold;
   };
 
-  void runSubImage(SubImage& subImg, ImageSet& dataImage,
-                   const ImageSet& modelImage, ImageSet& resultModel,
-                   const std::vector<aocommon::Image>& psfImages,
-                   double majorIterThreshold, bool findPeakOnly,
+  void RunSubImage(SubImage& subImg, ImageSet& data_image,
+                   const ImageSet& model_image, ImageSet& result_model,
+                   const std::vector<aocommon::Image>& psf_images,
+                   double major_iteration_threshold, bool find_peak_only,
                    std::mutex& mutex);
 
-  std::vector<std::unique_ptr<DeconvolutionAlgorithm>> _algorithms;
-  logging::SubImageLogSet _logs;
-  size_t _horImages;
-  size_t _verImages;
-  // Radler::_settings outlives ParallelDeconvolution::_settings
-  const Settings& _settings;
-  ImageBufferAllocator* _allocator;
-  const bool* _mask;
-  std::vector<aocommon::Image> _spectrallyForcedImages;
-  bool _trackPerScaleMasks, _usePerScaleMasks;
-  std::vector<aocommon::UVector<bool>> _scaleMasks;
-  std::unique_ptr<class ComponentList> _componentList;
-  aocommon::Image _rmsImage;
+  std::vector<std::unique_ptr<DeconvolutionAlgorithm>> algorithms_;
+  logging::SubImageLogSet logs_;
+  size_t horizontal_images_;
+  size_t vertical_images_;
+  // Radler::settings_ outlives ParallelDeconvolution::settings_
+  const Settings& settings_;
+  const bool* mask_;
+  std::vector<aocommon::Image> spectrally_forced_images_;
+  bool track_per_scale_masks_;
+  bool use_per_scale_masks_;
+  std::vector<aocommon::UVector<bool>> scale_masks_;
+  std::unique_ptr<class ComponentList> component_list_;
+  aocommon::Image rms_image_;
 };
 }  // namespace radler::algorithms
 #endif

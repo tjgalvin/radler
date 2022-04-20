@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-#include "deconvolution_table.h"
+#include "work_table.h"
 
 #include <array>
 
@@ -10,15 +10,15 @@
 
 namespace radler {
 
-BOOST_AUTO_TEST_SUITE(deconvolutiontable)
+BOOST_AUTO_TEST_SUITE(work_table)
 
 BOOST_AUTO_TEST_CASE(constructor) {
   const size_t kTableSize = 42;
 
-  DeconvolutionTable table(kTableSize, kTableSize);
+  WorkTable table(kTableSize, kTableSize);
 
   BOOST_TEST(table.OriginalGroups().size() == kTableSize);
-  for (const DeconvolutionTable::Group& group : table.OriginalGroups()) {
+  for (const WorkTable::Group& group : table.OriginalGroups()) {
     BOOST_TEST(group.empty());
   }
 
@@ -28,46 +28,45 @@ BOOST_AUTO_TEST_CASE(constructor) {
                std::vector<int>(1, index));
   }
 
-  BOOST_TEST((table.begin() == table.end()));
+  BOOST_TEST((table.Begin() == table.End()));
   BOOST_TEST(table.Size() == 0);
 }
 
 BOOST_AUTO_TEST_CASE(single_deconvolution_group) {
-  DeconvolutionTable table(7, 1);
+  WorkTable table(7, 1);
   const std::vector<std::vector<int>> kExpectedGroups{{0, 1, 2, 3, 4, 5, 6}};
   BOOST_TEST_REQUIRE(table.DeconvolutionGroups() == kExpectedGroups);
 }
 
 BOOST_AUTO_TEST_CASE(multiple_deconvolution_groups) {
-  DeconvolutionTable table(7, 3);
+  WorkTable table(7, 3);
   const std::vector<std::vector<int>> kExpectedGroups{
       {0, 1, 2}, {3, 4}, {5, 6}};
   BOOST_TEST_REQUIRE(table.DeconvolutionGroups() == kExpectedGroups);
 }
 
 BOOST_AUTO_TEST_CASE(too_many_deconvolution_groups) {
-  DeconvolutionTable table(7, 42);
+  WorkTable table(7, 42);
   const std::vector<std::vector<int>> kExpectedGroups{{0}, {1}, {2}, {3},
                                                       {4}, {5}, {6}};
   BOOST_TEST_REQUIRE(table.DeconvolutionGroups() == kExpectedGroups);
 }
 
 BOOST_AUTO_TEST_CASE(add_entries) {
-  DeconvolutionTable table(3, 1);
+  WorkTable table(3, 1);
 
-  std::array<test::UniquePtr<DeconvolutionTableEntry>, 3> entries;
+  std::array<test::UniquePtr<WorkTableEntry>, 3> entries;
   entries[0]->original_channel_index = 1;
   entries[1]->original_channel_index = 0;
   entries[2]->original_channel_index = 1;
 
-  for (test::UniquePtr<DeconvolutionTableEntry>& entry : entries) {
+  for (test::UniquePtr<WorkTableEntry>& entry : entries) {
     table.AddEntry(entry.take());
     // table.AddEntry(std::move(entry));
   }
 
   // Check if the OriginalGroups have the correct size and correct entries.
-  const std::vector<DeconvolutionTable::Group>& original_groups =
-      table.OriginalGroups();
+  const std::vector<WorkTable::Group>& original_groups = table.OriginalGroups();
   BOOST_TEST_REQUIRE(original_groups.size() == 3);
 
   BOOST_TEST_REQUIRE(original_groups[0].size() == 1);
@@ -81,7 +80,7 @@ BOOST_AUTO_TEST_CASE(add_entries) {
   // Check if a range based loop, which uses begin() and end(), yields the
   // entries.
   size_t index = 0;
-  for (const DeconvolutionTableEntry& entry : table) {
+  for (const WorkTableEntry& entry : table) {
     BOOST_TEST(&entry == entries[index].get());
     ++index;
   }

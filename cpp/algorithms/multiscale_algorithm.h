@@ -18,99 +18,110 @@
 
 namespace radler::algorithms {
 
-class MultiScaleAlgorithm : public DeconvolutionAlgorithm {
+class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
  public:
   MultiScaleAlgorithm(const Settings::Multiscale& settings, double beamSize,
                       double pixelScaleX, double pixelScaleY,
                       bool trackComponents);
   ~MultiScaleAlgorithm();
 
-  std::unique_ptr<DeconvolutionAlgorithm> Clone() const final override {
+  // TODO(AST-912) Make copy/move operations Google Style compliant.
+  MultiScaleAlgorithm(const MultiScaleAlgorithm&) = default;
+  MultiScaleAlgorithm(MultiScaleAlgorithm&&) = delete;
+  MultiScaleAlgorithm& operator=(const MultiScaleAlgorithm&) = delete;
+  MultiScaleAlgorithm& operator=(MultiScaleAlgorithm&&) = delete;
+
+  std::unique_ptr<DeconvolutionAlgorithm> Clone() const final {
     return std::make_unique<MultiScaleAlgorithm>(*this);
   }
 
-  float ExecuteMajorIteration(ImageSet& dataImage, ImageSet& modelImage,
-                              const std::vector<aocommon::Image>& psfImages,
-                              bool& reachedMajorThreshold) final override;
+  float ExecuteMajorIteration(ImageSet& data_image, ImageSet& model_image,
+                              const std::vector<aocommon::Image>& psf_images,
+                              bool& reached_major_threshold) final;
 
-  void SetAutoMaskMode(bool trackPerScaleMasks, bool usePerScaleMasks) {
-    _trackPerScaleMasks = trackPerScaleMasks;
-    _usePerScaleMasks = usePerScaleMasks;
+  void SetAutoMaskMode(bool track_per_scale_masks, bool use_per_scale_masks) {
+    track_per_scale_masks_ = track_per_scale_masks;
+    use_per_scale_masks_ = use_per_scale_masks;
   }
-  size_t ScaleCount() const { return _scaleInfos.size(); }
-  void ClearComponentList() { _componentList.reset(); }
-  ComponentList& GetComponentList() { return *_componentList; }
-  const ComponentList& GetComponentList() const { return *_componentList; }
-  float ScaleSize(size_t scaleIndex) const {
-    return _scaleInfos[scaleIndex].scale;
+  size_t ScaleCount() const { return scale_infos_.size(); }
+  void ClearComponentList() { component_list_.reset(); }
+  ComponentList& GetComponentList() { return *component_list_; }
+  const ComponentList& GetComponentList() const { return *component_list_; }
+  float ScaleSize(size_t scale_index) const {
+    return scale_infos_[scale_index].scale;
   }
-  size_t GetScaleMaskCount() const { return _scaleMasks.size(); }
-  void SetScaleMaskCount(size_t n) { _scaleMasks.resize(n); }
+  size_t GetScaleMaskCount() const { return scale_masks_.size(); }
+  void SetScaleMaskCount(size_t n) { scale_masks_.resize(n); }
   aocommon::UVector<bool>& GetScaleMask(size_t index) {
-    return _scaleMasks[index];
+    return scale_masks_[index];
   }
 
  private:
-  const Settings::Multiscale& _settings;
-  double _beamSizeInPixels;
+  const Settings::Multiscale& settings_;
+  double beam_size_in_pixels_;
 
   struct ScaleInfo {
     ScaleInfo()
         : scale(0.0),
-          psfPeak(0.0),
-          kernelPeak(0.0),
-          biasFactor(0.0),
+          psf_peak(0.0),
+          kernel_peak(0.0),
+          bias_factor(0.0),
           gain(0.0),
-          maxNormalizedImageValue(0.0),
-          maxUnnormalizedImageValue(0.0),
+          max_normalized_image_value(0.0),
+          max_unnormalized_image_value(0.0),
           rms(0.0),
-          maxImageValueX(0),
-          maxImageValueY(0),
-          isActive(false),
-          nComponentsCleaned(0),
-          totalFluxCleaned(0.0) {}
+          max_image_value_x(0),
+          max_image_value_y(0),
+          is_active(false),
+          n_components_cleaned(0),
+          total_flux_cleaned(0.0) {}
 
     float scale;
-    float psfPeak, kernelPeak, biasFactor, gain;
+    float psf_peak;
+    float kernel_peak;
+    float bias_factor;
+    float gain;
 
     /**
      * The difference between the normalized and unnormalized value is
      * that the unnormalized value is relative to the RMS factor.
      */
-    float maxNormalizedImageValue, maxUnnormalizedImageValue;
+    float max_normalized_image_value;
+    float max_unnormalized_image_value;
     float rms;
-    size_t maxImageValueX, maxImageValueY;
-    bool isActive;
-    size_t nComponentsCleaned;
-    float totalFluxCleaned;
+    size_t max_image_value_x;
+    size_t max_image_value_y;
+    bool is_active;
+    size_t n_components_cleaned;
+    float total_flux_cleaned;
   };
-  std::vector<MultiScaleAlgorithm::ScaleInfo> _scaleInfos;
+  std::vector<MultiScaleAlgorithm::ScaleInfo> scale_infos_;
 
-  bool _trackPerScaleMasks;
-  bool _usePerScaleMasks;
-  bool _trackComponents;
-  std::vector<aocommon::UVector<bool>> _scaleMasks;
-  aocommon::cloned_ptr<ComponentList> _componentList;
+  bool track_per_scale_masks_;
+  bool use_per_scale_masks_;
+  bool track_components_;
+  std::vector<aocommon::UVector<bool>> scale_masks_;
+  aocommon::cloned_ptr<ComponentList> component_list_;
 
-  void initializeScaleInfo(size_t minWidthHeight);
-  void convolvePSFs(std::unique_ptr<aocommon::Image[]>& convolvedPSFs,
+  void InitializeScaleInfo(size_t min_width_height);
+  void ConvolvePsfs(std::unique_ptr<aocommon::Image[]>& convolved_psfs,
                     const aocommon::Image& psf, aocommon::Image& scratch,
-                    bool isIntegrated);
-  void findActiveScaleConvolvedMaxima(const ImageSet& imageSet,
-                                      aocommon::Image& integratedScratch,
-                                      aocommon::Image& scratch, bool reportRMS,
+                    bool is_integrated);
+  void FindActiveScaleConvolvedMaxima(const ImageSet& image_set,
+                                      aocommon::Image& integrated_scratch,
+                                      aocommon::Image& scratch, bool report_rms,
                                       ThreadedDeconvolutionTools* tools);
-  bool selectMaximumScale(size_t& scaleWithPeak);
-  void activateScales(size_t scaleWithLastPeak);
-  void measureComponentValues(aocommon::UVector<float>& componentValues,
-                              size_t scaleIndex, ImageSet& imageSet);
-  void addComponentToModel(ImageSet& modelSet, size_t imgIndex,
-                           size_t scaleWithPeak, float componentValue);
+  bool SelectMaximumScale(size_t& scale_with_peak);
+  void ActivateScales(size_t scale_with_last_peak);
+  void MeasureComponentValues(aocommon::UVector<float>& component_values,
+                              size_t scale_index, ImageSet& image_set);
+  void AddComponentToModel(ImageSet& model_image, size_t image_index,
+                           size_t scale_with_peak, float component_value);
 
-  void findPeakDirect(const aocommon::Image& image, aocommon::Image& scratch,
-                      size_t scaleIndex);
+  void FindPeakDirect(const aocommon::Image& image, aocommon::Image& scratch,
+                      size_t scale_index);
 
-  void getConvolutionDimensions(size_t scaleIndex, size_t width, size_t height,
+  void GetConvolutionDimensions(size_t scale_index, size_t width, size_t height,
                                 size_t& width_out, size_t& height_out) const;
 };
 }  // namespace radler::algorithms

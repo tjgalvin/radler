@@ -16,7 +16,10 @@ class ControllableLog final : public aocommon::LogReceiver {
   ControllableLog(std::mutex* mutex)
       : _mutex(mutex), _isMuted(false), _isActive(true) {}
 
-  virtual ~ControllableLog() {}
+  ControllableLog(const ControllableLog&) = default;
+  ControllableLog(ControllableLog&&) = default;
+  ControllableLog& operator=(const ControllableLog&) = default;
+  ControllableLog& operator=(ControllableLog&&) = default;
 
   void Mute(bool mute) { _isMuted = mute; }
   bool IsMuted() const { return _isMuted; }

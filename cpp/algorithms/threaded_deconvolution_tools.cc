@@ -60,8 +60,8 @@ void ThreadedDeconvolutionTools::SubtractImage(float* image,
 
 std::unique_ptr<ThreadedDeconvolutionTools::ThreadResult>
 ThreadedDeconvolutionTools::SubtractionTask::operator()() {
-  SimpleClean::PartialSubtractImage(image, psf->Data(), psf->Width(),
-                                    psf->Height(), x, y, factor, startY, endY);
+  simple_clean::PartialSubtractImage(image, psf->Data(), psf->Width(),
+                                     psf->Height(), x, y, factor, startY, endY);
   return {};
 }
 
@@ -161,11 +161,11 @@ ThreadedDeconvolutionTools::FindMultiScalePeakTask::operator()() {
   }
   if (rmsFactorImage->Empty()) {
     if (mask == nullptr) {
-      result->unnormalizedValue = math::PeakFinder::Find(
+      result->unnormalizedValue = math::peak_finder::Find(
           image->Data(), width, height, result->x, result->y,
           allowNegativeComponents, 0, height, horBorderSize, vertBorderSize);
     } else {
-      result->unnormalizedValue = math::PeakFinder::FindWithMask(
+      result->unnormalizedValue = math::peak_finder::FindWithMask(
           image->Data(), width, height, result->x, result->y,
           allowNegativeComponents, 0, height, mask, horBorderSize,
           vertBorderSize);
@@ -178,11 +178,11 @@ ThreadedDeconvolutionTools::FindMultiScalePeakTask::operator()() {
     }
 
     if (mask == nullptr) {
-      result->unnormalizedValue = math::PeakFinder::Find(
+      result->unnormalizedValue = math::peak_finder::Find(
           scratch->Data(), width, height, result->x, result->y,
           allowNegativeComponents, 0, height, horBorderSize, vertBorderSize);
     } else {
-      result->unnormalizedValue = math::PeakFinder::FindWithMask(
+      result->unnormalizedValue = math::peak_finder::FindWithMask(
           scratch->Data(), width, height, result->x, result->y,
           allowNegativeComponents, 0, height, mask, horBorderSize,
           vertBorderSize);

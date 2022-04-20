@@ -5,79 +5,66 @@
 
 #include "algorithms/iuwt/iuwt_decomposition.h"
 
-namespace radler::algorithms::iuwt {
+namespace radler::algorithms::iuwt::image_analysis {
 
-class ImageAnalysis {
- public:
-  struct Component {
-    Component(size_t _x, size_t _y, int _scale) : x(_x), y(_y), scale(_scale) {}
+struct Component {
+  Component(size_t _x, size_t _y, int _scale) : x(_x), y(_y), scale(_scale) {}
 
-    std::string ToString() const {
-      std::ostringstream str;
-      str << x << ',' << y << ", scale " << scale;
-      return str.str();
-    }
-
-    size_t x, y;
-    int scale;
-  };
-
-  struct Component2D {
-    Component2D(size_t _x, size_t _y) : x(_x), y(_y) {}
-
-    std::string ToString() const {
-      std::ostringstream str;
-      str << x << ',' << y;
-      return str.str();
-    }
-
-    size_t x, y;
-  };
-
-  static void SelectStructures(const IUWTDecomposition& iuwt, IUWTMask& mask,
-                               const aocommon::UVector<float>& thresholds,
-                               size_t minScale, size_t endScale,
-                               float cleanBorder, const bool* priorMask,
-                               size_t& areaSize);
-
-  static bool IsHighestOnScale0(const IUWTDecomposition& iuwt,
-                                IUWTMask& markedMask, size_t& x, size_t& y,
-                                size_t endScale, float& highestScale0);
-
-  static void Floodfill(const IUWTDecomposition& iuwt, IUWTMask& mask,
-                        const aocommon::UVector<float>& thresholds,
-                        size_t minScale, size_t endScale,
-                        const Component& component, float cleanBorder,
-                        size_t& areaSize);
-
-  static void MaskedFloodfill(const IUWTDecomposition& iuwt, IUWTMask& mask,
-                              const aocommon::UVector<float>& thresholds,
-                              size_t minScale, size_t endScale,
-                              const Component& component, float cleanBorder,
-                              const bool* priorMask, size_t& areaSize);
-
-  static void FloodFill2D(const float* image, bool* mask, float threshold,
-                          const Component2D& component, size_t width,
-                          size_t height, size_t& areaSize);
-
-  /**
-   * Exactly like above, but now collecting the components in the
-   * area vector, instead of returning just the area size.
-   */
-  static void FloodFill2D(const float* image, bool* mask, float threshold,
-                          const Component2D& component, size_t width,
-                          size_t height, std::vector<Component2D>& area);
-
- private:
-  static bool exceedsThreshold(float val, float threshold) {
-    if (threshold >= 0.0)
-      return val > threshold;
-    else
-      return val < threshold || val > -threshold;
+  std::string ToString() const {
+    std::ostringstream str;
+    str << x << ',' << y << ", scale " << scale;
+    return str.str();
   }
-  static bool exceedsThresholdAbs(float val, float threshold) {
-    return std::fabs(val) > threshold;
-  }
+
+  size_t x;
+  size_t y;
+  int scale;
 };
-}  // namespace radler::algorithms::iuwt
+
+struct Component2D {
+  Component2D(size_t _x, size_t _y) : x(_x), y(_y) {}
+
+  std::string ToString() const {
+    std::ostringstream str;
+    str << x << ',' << y;
+    return str.str();
+  }
+
+  size_t x;
+  size_t y;
+};
+
+void SelectStructures(const IuwtDecomposition& iuwt, IuwtMask& mask,
+                      const aocommon::UVector<float>& thresholds,
+                      size_t min_scale, size_t end_scale, float clean_border,
+                      const bool* prior_mask, size_t& area_size);
+
+bool IsHighestOnScale0(const IuwtDecomposition& iuwt, IuwtMask& marked_mask,
+                       size_t& x, size_t& y, size_t end_scale,
+                       float& highest_scale0);
+
+void Floodfill(const IuwtDecomposition& iuwt, IuwtMask& mask,
+               const aocommon::UVector<float>& thresholds, size_t min_scale,
+               size_t end_scale, const Component& component, float clean_border,
+               size_t& area_size);
+
+void MaskedFloodfill(const IuwtDecomposition& iuwt, IuwtMask& mask,
+                     const aocommon::UVector<float>& thresholds,
+                     size_t min_scale, size_t end_scale,
+                     const Component& component, float clean_border,
+                     const bool* prior_mask, size_t& area_size);
+
+void FloodFill2D(const float* image, bool* mask, float threshold,
+                 const Component2D& component, size_t width, size_t height,
+                 size_t& area_size);
+
+/**
+ * Exactly like above, but now collecting the components in the
+ * area vector, instead of returning just the area size.
+ */
+void FloodFill2D(const float* image, bool* mask, float threshold,
+                 const Component2D& component, size_t width, size_t height,
+                 std::vector<Component2D>& area);
+
+}  // namespace radler::algorithms::iuwt::image_analysis
 #endif  // RADLER_ALGORITHMS_IUWT_IMAGE_ANALYSIS_H_

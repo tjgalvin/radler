@@ -33,8 +33,8 @@ BOOST_AUTO_TEST_CASE(partialSubtractImagePerformance) {
   NoiseFixture<float> f;
   size_t x = f.n / 2, y = f.n / 2;
   for (size_t repeat = 0; repeat != nRepeats; ++repeat) {
-    SimpleClean::PartialSubtractImage(f.img.data(), f.n, f.n, f.psf.data(), f.n,
-                                      f.n, x, y, 0.5, 0, f.n / 2);
+    simple_clean::PartialSubtractImage(f.img.data(), f.n, f.n, f.psf.data(),
+                                       f.n, f.n, x, y, 0.5, 0, f.n / 2);
   }
   BOOST_CHECK(true);
 }

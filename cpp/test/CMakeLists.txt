@@ -5,5 +5,5 @@ include(${PROJECT_SOURCE_DIR}/cmake/unittest.cmake)
 
 add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY)
 
-add_unittest(radler_main runtests.cc test_component_list.cc
-             test_deconvolution_table.cc test_image_set.cc test_radler.cc)
+add_unittest(radler_main runtests.cc test_component_list.cc test_image_set.cc
+             test_radler.cc test_work_table.cc)
