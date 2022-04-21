@@ -143,9 +143,9 @@ void Radler::Perform(bool& reachedMajorThreshold, size_t majorIterationNr) {
   Logger::Info << " == Deconvolving (" << majorIterationNr << ") ==\n";
 
   ImageSet residualSet(*_table, _settings.squared_joins,
-                       _settings.linkedPolarizations, _imgWidth, _imgHeight);
+                       _settings.linked_polarizations, _imgWidth, _imgHeight);
   ImageSet modelSet(*_table, _settings.squared_joins,
-                    _settings.linkedPolarizations, _imgWidth, _imgHeight);
+                    _settings.linked_polarizations, _imgWidth, _imgHeight);
 
   Logger::Debug << "Loading residual images...\n";
   residualSet.LoadAndAverage(true);

@@ -54,7 +54,7 @@ struct Settings {
    * @{
    * These settings strictly pertain to deconvolution only.
    */
-  std::set<aocommon::PolarizationEnum> linkedPolarizations;
+  std::set<aocommon::PolarizationEnum> linked_polarizations;
   struct {
     size_t max_size = 0;
     size_t max_threads = 0;
@@ -134,7 +134,7 @@ struct Settings {
    *
    * Leaving the optional value unset disables horizon masking.
    */
-  std::optional<double> horizon_mask_distance;
+  std::optional<double> horizon_mask_distance = std::nullopt;
 
   /**
    * The filename for storing the horizon mask FITS image.
