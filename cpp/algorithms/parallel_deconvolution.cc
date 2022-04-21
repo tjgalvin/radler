@@ -49,7 +49,7 @@ ComponentList ParallelDeconvolution::GetComponentList(
     const size_t w = _settings.trimmed_image_width;
     const size_t h = _settings.trimmed_image_height;
     ImageSet modelSet(table, _settings.squared_joins,
-                      _settings.linkedPolarizations, w, h);
+                      _settings.linked_polarizations, w, h);
     modelSet.LoadAndAverage(false);
     list = ComponentList(w, h, modelSet);
   }
