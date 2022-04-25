@@ -16,6 +16,7 @@ stages:
   - linting
   - build
   - test
+  - documentation
 
 # The 'IMAGE' variables allow reusing docker images between different pipelines.
 # See https://confluence.skatelescope.org/display/SE/Caching+Docker+images+using+GitLab+CI+registry
@@ -134,10 +135,9 @@ test-2204:
   image: $BASE_IMAGE_2204
   after_script:
     - mkdir coverage
-    - gcovr -j`nproc` -e 'external/.*' -e '.*/CompilerIdCXX/.*' -e '.*/test/.*' --xml coverage.xml --html-details coverage/coverage.html build/
-    - tar cfz coverage.tar.gz coverage/
+    - gcovr -j`nproc` -e 'external/.*' -e '.*/CompilerIdCXX/.*' -e '.*/test/.*' --xml coverage.xml --json coverage.json build/
   artifacts:
     paths:
-      - coverage.tar.gz
+      - coverage.json
     reports:
       cobertura: coverage.xml
