@@ -2,15 +2,43 @@
 
 #include "radler.h"
 
+#include <array>
 #include <cassert>
 
 #include <boost/test/unit_test.hpp>
+#include <boost/test/data/test_case.hpp>
 
 #include <aocommon/image.h>
 
 #include "settings.h"
 
 namespace radler {
+/**
+ * @brief Boost customization point for logging. See:
+ * https://www.boost.org/doc/libs/1_64_0/libs/test/doc/html/boost_test/test_output/test_tools_support_for_logging/testing_tool_output_disable.html
+ */
+std::ostream& boost_test_print_type(std::ostream& stream,
+                                    const AlgorithmType& algorithm_type) {
+  switch (algorithm_type) {
+    case AlgorithmType::kGenericClean:
+      stream << "Generic clean";
+      break;
+    case AlgorithmType::kMultiscale:
+      stream << "Multiscale clean";
+      break;
+    case AlgorithmType::kMoreSane:
+      stream << "More sane clean";
+      break;
+    case AlgorithmType::kIuwt:
+      stream << "Iuwt clean";
+      break;
+    case AlgorithmType::kPython:
+      stream << "Python based deconvolver";
+      break;
+  }
+  return stream;
+}
+
 namespace {
 const std::size_t kWidth = 64;
 const std::size_t kHeight = 64;
@@ -61,9 +89,18 @@ struct SettingsFixture {
   Settings settings;
 };
 
+std::array<AlgorithmType, 2> kAlgorithmTypes{
+    AlgorithmType::kGenericClean, AlgorithmType::kMultiscale,
+    /* Fails AlgorithmType::kIuwt */
+};
+
 BOOST_AUTO_TEST_SUITE(radler)
 
-BOOST_FIXTURE_TEST_CASE(centered_source, SettingsFixture) {
+BOOST_DATA_TEST_CASE_F(SettingsFixture, centered_source,
+                       boost::unit_test::data::make(kAlgorithmTypes),
+                       algorithm_type) {
+  settings.algorithm_type = algorithm_type;
+
   aocommon::Image psf_image(kWidth, kHeight);
   aocommon::Image residual_image(kWidth, kHeight);
   aocommon::Image model_image(kWidth, kHeight, 0.0);
@@ -88,7 +125,10 @@ BOOST_FIXTURE_TEST_CASE(centered_source, SettingsFixture) {
   }
 }
 
-BOOST_FIXTURE_TEST_CASE(offcentered_source, SettingsFixture) {
+BOOST_DATA_TEST_CASE_F(SettingsFixture, offcentered_source,
+                       boost::unit_test::data::make(kAlgorithmTypes),
+                       algorithm_type) {
+  settings.algorithm_type = algorithm_type;
   aocommon::Image psf_image(kWidth, kHeight);
   aocommon::Image residual_image(kWidth, kHeight);
   aocommon::Image model_image(kWidth, kHeight, 0.0);
