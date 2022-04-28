@@ -94,6 +94,22 @@ format:
   script:
     - ./scripts/run-format.sh
 
+clang-tidy:
+  extends: .needs-2004
+  stage: linting
+  script:
+    - mkdir -p build/reports
+    - cd build
+    # Generate compile_commands.json for clang-tidy.
+    - cmake -DBUILD_TESTING=ON -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE ..
+    - cd ..
+    - clang-tidy-12 -p build/ `find cpp/ -name *.cc` | scripts/clang-tidy-to-junit.py . > build/reports/linting.xml
+  allow_failure: true
+  artifacts:
+    when: always
+    paths:
+      - build/reports/linting.xml
+
 .build:
   stage: build
   script:
@@ -134,10 +150,12 @@ test-2204:
   needs: ["versioning","build-2204"]
   image: $BASE_IMAGE_2204
   after_script:
-    - mkdir coverage
-    - gcovr -j`nproc` -e 'external/.*' -e '.*/CompilerIdCXX/.*' -e '.*/test/.*' --xml coverage.xml --json coverage.json build/
+    - mkdir -p build/reports
+    - scripts/junit-merge.py build/reports/unit-tests.xml $(find build -name unittests_*.xml)
+    - gcovr -j`nproc` -e 'external/.*' -e '.*/CompilerIdCXX/.*' -e '.*/test/.*' --xml build/reports/code-coverage.xml --json coverage.json build/
   artifacts:
     paths:
       - coverage.json
+      - build/reports
     reports:
-      cobertura: coverage.xml
+      cobertura: build/reports/code-coverage.xml

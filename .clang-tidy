@@ -1,0 +1,88 @@
+---
+Checks:          'clang-diagnostic-*,clang-analyzer-*,-*,modernize-use-equals-default,modernize-use-emplace,modernize-loop-convert,modernize-use-nullptr,modernize-use-override,modernize-use-using,modernize-return-braced-init-list,modernize-deprecated-headers,modernize-make-shared,google-explicit-constructor,google-build-using-namespace,google-readability-braces-around-statements,fuchsia-header-anon-namespaces'
+WarningsAsErrors: ''
+HeaderFilterRegex: 'include/schaapcommon'
+AnalyzeTemporaryDtors: false
+FormatStyle:     none
+User:            maljaars
+CheckOptions:
+  - key:             modernize-loop-convert.MakeReverseRangeHeader
+    value:           ''
+  - key:             modernize-loop-convert.MinConfidence
+    value:           reasonable
+  - key:             modernize-replace-auto-ptr.IncludeStyle
+    value:           llvm
+  - key:             google-readability-namespace-comments.ShortNamespaceLines
+    value:           '10'
+  - key:             cert-oop54-cpp.WarnOnlyIfThisHasSuspiciousField
+    value:           '0'
+  - key:             cppcoreguidelines-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value:           '1'
+  - key:             cert-dcl16-c.NewSuffixes
+    value:           'L;LL;LU;LLU'
+  - key:             modernize-use-override.IgnoreDestructors
+    value:           'false'
+  - key:             modernize-loop-convert.MaxCopySize
+    value:           '16'
+  - key:             google-readability-namespace-comments.SpacesBeforeComments
+    value:           '2'
+  - key:             modernize-make-shared.MakeSmartPtrFunction
+    value:           'std::make_shared'
+  - key:             modernize-loop-convert.UseCxx20ReverseRanges
+    value:           'true'
+  - key:             modernize-use-override.FinalSpelling
+    value:           final
+  - key:             modernize-use-using.IgnoreMacros
+    value:           'true'
+  - key:             cppcoreguidelines-explicit-virtual-functions.IgnoreDestructors
+    value:           '1'
+  - key:             modernize-make-shared.MakeSmartPtrFunctionHeader
+    value:           '<memory>'
+  - key:             llvm-qualified-auto.AddConstToQualified
+    value:           '0'
+  - key:             modernize-loop-convert.NamingStyle
+    value:           CamelCase
+  - key:             modernize-use-emplace.ContainersWithPushBack
+    value:           '::std::vector;::std::list;::std::deque'
+  - key:             modernize-loop-convert.MakeReverseRangeFunction
+    value:           ''
+  - key:             modernize-use-override.AllowOverrideAndFinal
+    value:           'false'
+  - key:             google-readability-function-size.StatementThreshold
+    value:           '800'
+  - key:             llvm-else-after-return.WarnOnConditionVariables
+    value:           '0'
+  - key:             modernize-use-override.OverrideSpelling
+    value:           override
+  - key:             modernize-loop-convert.IncludeStyle
+    value:           llvm
+  - key:             cert-str34-c.DiagnoseSignedUnsignedCharComparisons
+    value:           '0'
+  - key:             modernize-pass-by-value.IncludeStyle
+    value:           llvm
+  - key:             modernize-use-equals-default.IgnoreMacros
+    value:           'true'
+  - key:             fuchsia-header-anon-namespaces.HeaderFileExtensions
+    value:           ';h;hh;hpp;hxx'
+  - key:             google-readability-braces-around-statements.ShortStatementLines
+    value:           '1'
+  - key:             modernize-use-emplace.IgnoreImplicitConstructors
+    value:           'false'
+  - key:             modernize-use-nullptr.NullMacros
+    value:           'NULL'
+  - key:             modernize-use-emplace.SmartPointers
+    value:           '::std::shared_ptr;::std::unique_ptr;::std::auto_ptr;::std::weak_ptr'
+  - key:             modernize-make-shared.IgnoreMacros
+    value:           'true'
+  - key:             modernize-use-emplace.TupleTypes
+    value:           '::std::pair;::std::tuple'
+  - key:             modernize-use-emplace.TupleMakeFunctions
+    value:           '::std::make_pair;::std::make_tuple'
+  - key:             modernize-make-shared.IgnoreDefaultInitialization
+    value:           'true'
+  - key:             llvm-else-after-return.WarnOnUnfixable
+    value:           '0'
+  - key:             modernize-make-shared.IncludeStyle
+    value:           llvm
+...
+
