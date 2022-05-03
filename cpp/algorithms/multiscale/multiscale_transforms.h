@@ -21,6 +21,11 @@ class MultiScaleTransforms {
   MultiScaleTransforms(size_t width, size_t height, Shape shape)
       : _width(width), _height(height), _shape(shape), _threadCount(1) {}
 
+  MultiScaleTransforms(const MultiScaleTransforms&) = default;
+  MultiScaleTransforms(MultiScaleTransforms&&) = default;
+  MultiScaleTransforms& operator=(const MultiScaleTransforms&) = default;
+  MultiScaleTransforms& operator=(MultiScaleTransforms&&) = default;
+
   void PrepareTransform(float* kernel, float scale);
   void FinishTransform(float* image, const float* kernel);
 
@@ -87,9 +92,9 @@ class MultiScaleTransforms {
                                            size_t maxN, Shape shape) {
     switch (shape) {
       default:
-      case Shape::TaperedQuadraticShape:
+      case Shape::kTaperedQuadraticShape:
         return makeTaperedQuadraticShapeFunction(scaleSizeInPixels, n);
-      case Shape::GaussianShape:
+      case Shape::kGaussianShape:
         return makeGaussianFunction(scaleSizeInPixels, n, maxN);
     }
   }

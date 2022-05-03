@@ -13,6 +13,11 @@ class SubImageLogSet {
  public:
   SubImageLogSet() : n_horizontal_(0), n_vertical_(0) {}
 
+  SubImageLogSet(const SubImageLogSet&) = default;
+  SubImageLogSet(SubImageLogSet&&) = default;
+  SubImageLogSet& operator=(const SubImageLogSet&) = default;
+  SubImageLogSet& operator=(SubImageLogSet&&) = default;
+
   void Initialize(size_t n_horizontal, size_t n_vertical) {
     std::lock_guard<std::mutex> lock(output_mutex_);
     n_horizontal_ = n_horizontal;

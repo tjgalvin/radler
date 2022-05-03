@@ -21,6 +21,12 @@ class ThreadedDeconvolutionTools {
   explicit ThreadedDeconvolutionTools(size_t threadCount);
   ~ThreadedDeconvolutionTools();
 
+  ThreadedDeconvolutionTools(const ThreadedDeconvolutionTools&) = default;
+  ThreadedDeconvolutionTools(ThreadedDeconvolutionTools&&) = default;
+  ThreadedDeconvolutionTools& operator=(const ThreadedDeconvolutionTools&) =
+      default;
+  ThreadedDeconvolutionTools& operator=(ThreadedDeconvolutionTools&&) = default;
+
   struct PeakData {
     std::optional<float> normalizedValue, unnormalizedValue;
     float rms;

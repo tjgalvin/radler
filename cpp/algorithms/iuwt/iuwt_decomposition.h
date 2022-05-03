@@ -3,9 +3,10 @@
 #ifndef RADLER_ALGORITHMS_IUWT_DECOMPOSITION_H_
 #define RADLER_ALGORITHMS_IUWT_DECOMPOSITION_H_
 
+#include <algorithm>
 #include <iostream>
-#include <string>
 #include <sstream>
+#include <string>
 
 #include <aocommon/fits/fitswriter.h>
 #include <aocommon/image.h>
@@ -16,8 +17,14 @@
 
 namespace radler::algorithms::iuwt {
 
-class IUWTDecompositionScale {
+class IuwtDecompositionScale {
  public:
+  IuwtDecompositionScale() = default;
+  IuwtDecompositionScale(const IuwtDecompositionScale&) = default;
+  IuwtDecompositionScale(IuwtDecompositionScale&&) = default;
+  IuwtDecompositionScale& operator=(const IuwtDecompositionScale&) = default;
+  IuwtDecompositionScale& operator=(IuwtDecompositionScale&&) = default;
+
   aocommon::Image& Coefficients() { return _coefficients; }
   const aocommon::Image& Coefficients() const { return _coefficients; }
   float& operator[](size_t index) { return _coefficients[index]; }
@@ -27,19 +34,24 @@ class IUWTDecompositionScale {
   aocommon::Image _coefficients;
 };
 
-class IUWTDecomposition {
+class IuwtDecomposition {
  public:
-  IUWTDecomposition(int scaleCount, size_t width, size_t height)
-      : _scales(scaleCount + 1),
-        _scaleCount(scaleCount),
+  IuwtDecomposition(int scale_count, size_t width, size_t height)
+      : _scales(scale_count + 1),
+        _scaleCount(scale_count),
         _width(width),
         _height(height) {}
 
-  IUWTDecomposition* CreateTrimmed(int newScaleCount, size_t x1, size_t y1,
+  IuwtDecomposition(const IuwtDecomposition&) = default;
+  IuwtDecomposition(IuwtDecomposition&&) = default;
+  IuwtDecomposition& operator=(const IuwtDecomposition&) = default;
+  IuwtDecomposition& operator=(IuwtDecomposition&&) = default;
+
+  IuwtDecomposition* CreateTrimmed(int new_scale_count, size_t x1, size_t y1,
                                    size_t x2, size_t y2) const {
-    std::unique_ptr<IUWTDecomposition> p(
-        new IUWTDecomposition(newScaleCount, x2 - x1, y2 - y1));
-    for (int i = 0; i != newScaleCount; ++i) {
+    std::unique_ptr<IuwtDecomposition> p(
+        new IuwtDecomposition(new_scale_count, x2 - x1, y2 - y1));
+    for (int i = 0; i != new_scale_count; ++i) {
       copySmallerPart(_scales[i].Coefficients(), p->_scales[i].Coefficients(),
                       x1, y1, x2, y2);
     }
@@ -47,9 +59,9 @@ class IUWTDecomposition {
     return p.release();
   }
 
-  void Convolve(aocommon::Image& image, int toScale) {
+  void Convolve(aocommon::Image& image, int to_scale) {
     aocommon::Image scratch(image.Width(), image.Height());
-    for (int scale = 0; scale != toScale; ++scale) {
+    for (int scale = 0; scale != to_scale; ++scale) {
       convolve(image.Data(), image.Data(), scratch.Data(), _width, _height,
                scale + 1);
     }
@@ -80,14 +92,14 @@ class IUWTDecomposition {
   }
 
   void Decompose(aocommon::StaticFor<size_t>& loop, const float* input,
-                 float* scratch, bool includeLargest) {
-    DecomposeMT(loop, input, scratch, includeLargest);
+                 float* scratch, bool include_largest) {
+    DecomposeMt(loop, input, scratch, include_largest);
   }
 
-  void DecomposeMT(aocommon::StaticFor<size_t>& loop, const float* input,
-                   float* scratch, bool includeLargest);
+  void DecomposeMt(aocommon::StaticFor<size_t>& loop, const float* input,
+                   float* scratch, bool include_largest);
 
-  void DecomposeST(const float* input, float* scratch) {
+  void DecomposeSt(const float* input, float* scratch) {
     aocommon::UVector<float> i0(input, input + _width * _height);
     aocommon::Image i1(_width, _height);
     aocommon::Image i2(_width, _height);
@@ -108,11 +120,11 @@ class IUWTDecomposition {
     _scales.back().Coefficients() = i1;
   }
 
-  void Recompose(aocommon::Image& output, bool includeLargest) {
+  void Recompose(aocommon::Image& output, bool include_largest) {
     aocommon::Image scratch1(_width, _height);
     aocommon::Image scratch2(_width, _height);
     bool isZero;
-    if (includeLargest) {
+    if (include_largest) {
       output = _scales.back().Coefficients();
       isZero = false;
     } else {
@@ -143,13 +155,13 @@ class IUWTDecomposition {
 
   size_t Height() const { return _height; }
 
-  IUWTDecompositionScale& operator[](int scale) { return _scales[scale]; }
+  IuwtDecompositionScale& operator[](int scale) { return _scales[scale]; }
 
-  const IUWTDecompositionScale& operator[](int scale) const {
+  const IuwtDecompositionScale& operator[](int scale) const {
     return _scales[scale];
   }
 
-  void ApplyMask(const IUWTMask& mask) {
+  void ApplyMask(const IuwtMask& mask) {
     for (size_t scale = 0; scale != _scaleCount; ++scale) {
       for (size_t i = 0; i != _scales[scale].Coefficients().Size(); ++i) {
         if (!mask[scale][i]) _scales[scale][i] = 0.0;
@@ -169,12 +181,12 @@ class IUWTDecomposition {
     }
   }
 
-  static int EndScale(size_t maxImageDimension) {
-    return std::max(int(log2(maxImageDimension)) - 3, 2);
+  static int EndScale(size_t max_image_dimension) {
+    return std::max(int(log2(max_image_dimension)) - 3, 2);
   }
 
-  static size_t MinImageDimension(int endScale) {
-    return (1 << (endScale + 3));
+  static size_t MinImageDimension(int end_scale) {
+    return (1 << (end_scale + 3));
   }
 
   std::string Summary() const {
@@ -338,7 +350,7 @@ class IUWTDecomposition {
   }
 
  private:
-  std::vector<IUWTDecompositionScale> _scales;
+  std::vector<IuwtDecompositionScale> _scales;
   size_t _scaleCount, _width, _height;
 };
 }  // namespace radler::algorithms::iuwt

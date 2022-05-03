@@ -13,7 +13,6 @@ add_library(${PROJECT_NAME} SHARED "")
 
 set(RADLER_FILES
     radler.cc
-    deconvolution_table.cc
     component_list.cc
     image_set.cc
     algorithms/deconvolution_algorithm.cc
@@ -34,7 +33,8 @@ set(RADLER_FILES
     math/dijkstra_splitter.cc
     math/peak_finder.cc
     math/rms_image.cc
-    utils/casa_mask_reader.cc)
+    utils/casa_mask_reader.cc
+    work_table.cc)
 
 # A number of files perform the 'core' high-performance floating point
 # operations. In these files, NaNs are avoided and thus -ffast-math is allowed.
@@ -91,8 +91,8 @@ else()
           LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
 endif()
 
-set(PUBLIC_HEADERS component_list.h deconvolution_table.h
-                   deconvolution_table_entry.h image_set.h radler.h settings.h)
+set(PUBLIC_HEADERS component_list.h work_table.h work_table_entry.h image_set.h
+                   radler.h settings.h)
 
 install_headers_with_directory("${PUBLIC_HEADERS}")
 

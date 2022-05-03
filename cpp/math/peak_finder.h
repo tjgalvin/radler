@@ -11,118 +11,108 @@
 #define USE_INTRINSICS
 #endif
 
-namespace radler::math {
+namespace radler::math::peak_finder {
 
-class PeakFinder {
- public:
-  PeakFinder() = delete;
+std::optional<float> Simple(const float* image, size_t width, size_t height,
+                            size_t& x, size_t& y,
+                            bool allow_negative_components, size_t start_y,
+                            size_t end_y, size_t horizontal_border,
+                            size_t vertical_border);
 
-  static std::optional<float> Simple(const float* image, size_t width,
-                                     size_t height, size_t& x, size_t& y,
-                                     bool allowNegativeComponents,
-                                     size_t startY, size_t endY,
-                                     size_t horizontalBorder,
-                                     size_t verticalBorder);
-
-  static std::optional<double> Simple(const double* image, size_t width,
-                                      size_t height, size_t& x, size_t& y,
-                                      bool allowNegativeComponents,
-                                      size_t startY, size_t endY,
-                                      size_t horizontalBorder,
-                                      size_t verticalBorder);
+std::optional<double> Simple(const double* image, size_t width, size_t height,
+                             size_t& x, size_t& y,
+                             bool allow_negative_components, size_t start_y,
+                             size_t end_y, size_t horizontal_border,
+                             size_t vertical_border);
 
 #if defined __AVX__ && defined USE_INTRINSICS && !defined FORCE_NON_AVX
-  template <bool AllowNegativeComponent>
-  static std::optional<float> AVX(const float* image, size_t width,
-                                  size_t height, size_t& x, size_t& y,
-                                  size_t startY, size_t endY,
-                                  size_t horizontalBorder,
-                                  size_t verticalBorder);
+template <bool AllowNegativeComponent>
+std::optional<float> Avx(const float* image, size_t width, size_t height,
+                         size_t& x, size_t& y, size_t start_y, size_t end_y,
+                         size_t horizontal_border, size_t vertical_border);
 
-  static std::optional<float> AVX(const float* image, size_t width,
-                                  size_t height, size_t& x, size_t& y,
-                                  bool allowNegativeComponents, size_t startY,
-                                  size_t endY, size_t horizontalBorder,
-                                  size_t verticalBorder) {
-    if (allowNegativeComponents)
-      return AVX<true>(image, width, height, x, y, startY, endY,
-                       horizontalBorder, verticalBorder);
-    else
-      return AVX<false>(image, width, height, x, y, startY, endY,
-                        horizontalBorder, verticalBorder);
+inline std::optional<float> Avx(const float* image, size_t width, size_t height,
+                                size_t& x, size_t& y,
+                                bool allow_negative_components, size_t start_y,
+                                size_t end_y, size_t horizontal_border,
+                                size_t vertical_border) {
+  if (allow_negative_components) {
+    return Avx<true>(image, width, height, x, y, start_y, end_y,
+                     horizontal_border, vertical_border);
+  } else {
+    return Avx<false>(image, width, height, x, y, start_y, end_y,
+                      horizontal_border, vertical_border);
   }
+}
 
-  template <bool AllowNegativeComponent>
-  static std::optional<double> AVX(const double* image, size_t width,
-                                   size_t height, size_t& x, size_t& y,
-                                   size_t startY, size_t endY,
-                                   size_t horizontalBorder,
-                                   size_t verticalBorder);
+template <bool AllowNegativeComponent>
+std::optional<double> Avx(const double* image, size_t width, size_t height,
+                          size_t& x, size_t& y, size_t start_y, size_t end_y,
+                          size_t horizontal_border, size_t vertical_border);
 
-  static std::optional<double> AVX(const double* image, size_t width,
-                                   size_t height, size_t& x, size_t& y,
-                                   bool allowNegativeComponents, size_t startY,
-                                   size_t endY, size_t horizontalBorder,
-                                   size_t verticalBorder) {
-    if (allowNegativeComponents)
-      return AVX<true>(image, width, height, x, y, startY, endY,
-                       horizontalBorder, verticalBorder);
-    else
-      return AVX<false>(image, width, height, x, y, startY, endY,
-                        horizontalBorder, verticalBorder);
+inline std::optional<double> Avx(const double* image, size_t width,
+                                 size_t height, size_t& x, size_t& y,
+                                 bool allow_negative_components, size_t start_y,
+                                 size_t end_y, size_t horizontal_border,
+                                 size_t vertical_border) {
+  if (allow_negative_components) {
+    return Avx<true>(image, width, height, x, y, start_y, end_y,
+                     horizontal_border, vertical_border);
+  } else {
+    return Avx<false>(image, width, height, x, y, start_y, end_y,
+                      horizontal_border, vertical_border);
   }
+}
 #endif
 
-  /**
-   * Find peaks with a relative border ratio.
-   */
-  template <typename NumT>
-  static std::optional<NumT> Find(const NumT* image, size_t width,
-                                  size_t height, size_t& x, size_t& y,
-                                  bool allowNegativeComponents, size_t startY,
-                                  size_t endY, float borderRatio) {
-    return Find(image, width, height, x, y, allowNegativeComponents, startY,
-                endY, round(width * borderRatio), round(height * borderRatio));
-  }
-
-  /**
-   * Find peaks with a fixed border.
-   */
-  template <typename NumT>
-  static std::optional<NumT> Find(const NumT* image, size_t width,
-                                  size_t height, size_t& x, size_t& y,
-                                  bool allowNegativeComponents, size_t startY,
-                                  size_t endY, size_t horizontalBorder,
-                                  size_t verticalBorder) {
+/**
+ * Find peaks with a fixed border.
+ */
+template <typename NumT>
+std::optional<NumT> Find(const NumT* image, size_t width, size_t height,
+                         size_t& x, size_t& y, bool allow_negative_components,
+                         size_t start_y, size_t end_y, size_t horizontal_border,
+                         size_t vertical_border) {
 #if defined __AVX__ && defined USE_INTRINSICS && !defined FORCE_NON_AVX
-    return AVX(image, width, height, x, y, allowNegativeComponents, startY,
-               endY, horizontalBorder, verticalBorder);
+  return Avx(image, width, height, x, y, allow_negative_components, start_y,
+             end_y, horizontal_border, vertical_border);
 #else
-    return Simple(image, width, height, x, y, allowNegativeComponents, startY,
-                  endY, horizontalBorder, verticalBorder);
+  return Simple(image, width, height, x, y, allow_negative_components, start_y,
+                end_y, horizontal_border, vertical_border);
 #endif
-  }
+}
 
-  static std::optional<float> FindWithMask(const float* image, size_t width,
-                                           size_t height, size_t& x, size_t& y,
-                                           bool allowNegativeComponents,
-                                           const bool* cleanMask);
+/**
+ * Find peaks with a relative border ratio.
+ */
+template <typename NumT>
+std::optional<NumT> Find(const NumT* image, size_t width, size_t height,
+                         size_t& x, size_t& y, bool allow_negative_components,
+                         size_t start_y, size_t end_y, float border_ratio) {
+  return Find(image, width, height, x, y, allow_negative_components, start_y,
+              end_y, round(width * border_ratio), round(height * border_ratio));
+}
 
-  static std::optional<float> FindWithMask(const float* image, size_t width,
-                                           size_t height, size_t& x, size_t& y,
-                                           bool allowNegativeComponents,
-                                           size_t startY, size_t endY,
-                                           const bool* cleanMask,
-                                           float borderRatio) {
-    return FindWithMask(image, width, height, x, y, allowNegativeComponents,
-                        startY, endY, cleanMask, round(width * borderRatio),
-                        round(height * borderRatio));
-  }
+std::optional<float> FindWithMask(const float* image, size_t width,
+                                  size_t height, size_t& x, size_t& y,
+                                  bool allow_negative_components,
+                                  const bool* clean_mask);
 
-  static std::optional<float> FindWithMask(
-      const float* image, size_t width, size_t height, size_t& x, size_t& y,
-      bool allowNegativeComponents, size_t startY, size_t endY,
-      const bool* cleanMask, size_t horizontalBorder, size_t verticalBorder);
-};
-}  // namespace radler::math
+std::optional<float> FindWithMask(
+    const float* image, size_t width, size_t height, size_t& x, size_t& y,
+    bool allow_negative_components, size_t start_y, size_t end_y,
+    const bool* clean_mask, size_t horizontal_border, size_t vertical_border);
+
+inline std::optional<float> FindWithMask(const float* image, size_t width,
+                                         size_t height, size_t& x, size_t& y,
+                                         bool allow_negative_components,
+                                         size_t start_y, size_t end_y,
+                                         const bool* clean_mask,
+                                         float border_ratio) {
+  return FindWithMask(image, width, height, x, y, allow_negative_components,
+                      start_y, end_y, clean_mask, round(width * border_ratio),
+                      round(height * border_ratio));
+}
+
+}  // namespace radler::math::peak_finder
 #endif

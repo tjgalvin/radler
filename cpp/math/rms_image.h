@@ -5,30 +5,23 @@
 
 #include <aocommon/image.h>
 
-namespace radler::math {
-class RMSImage {
- public:
-  static void Make(aocommon::Image& rmsOutput,
-                   const aocommon::Image& inputImage, double windowSize,
-                   long double beamMaj, long double beamMin, long double beamPA,
-                   long double pixelScaleL, long double pixelScaleM,
-                   size_t threadCount);
+namespace radler::math::rms_image {
+void Make(aocommon::Image& rms_output, const aocommon::Image& input_image,
+          double window_size, long double beam_major, long double beam_minor,
+          long double beam_pa, long double pixel_scale_l,
+          long double pixel_scale_m, size_t thread_count);
 
-  static void SlidingMinimum(aocommon::Image& output,
-                             const aocommon::Image& input, size_t windowSize,
-                             size_t threadCount);
+void SlidingMinimum(aocommon::Image& output, const aocommon::Image& input,
+                    size_t window_size, size_t thread_count);
 
-  static void SlidingMaximum(aocommon::Image& output,
-                             const aocommon::Image& input, size_t windowSize,
-                             size_t threadCount);
+void SlidingMaximum(aocommon::Image& output, const aocommon::Image& input,
+                    size_t window_size, size_t thread_count);
 
-  static void MakeWithNegativityLimit(aocommon::Image& rmsOutput,
-                                      const aocommon::Image& inputImage,
-                                      double windowSize, long double beamMaj,
-                                      long double beamMin, long double beamPA,
-                                      long double pixelScaleL,
-                                      long double pixelScaleM,
-                                      size_t threadCount);
-};
-}  // namespace radler::math
+void MakeWithNegativityLimit(aocommon::Image& rms_output,
+                             const aocommon::Image& input_image,
+                             double window_size, long double beam_major,
+                             long double beam_minor, long double beam_pa,
+                             long double pixel_scale_l,
+                             long double pixel_scale_m, size_t thread_count);
+}  // namespace radler::math::rms_image
 #endif  // RADLER_MATH_RMS_IMAGE_H_

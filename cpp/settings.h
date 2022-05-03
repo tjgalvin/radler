@@ -31,7 +31,7 @@ enum class AlgorithmType {
   kGenericClean
 };
 
-enum class MultiscaleShape { TaperedQuadraticShape, GaussianShape };
+enum class MultiscaleShape { kTaperedQuadraticShape, kGaussianShape };
 
 struct Settings {
   /**
@@ -193,7 +193,7 @@ struct Settings {
     size_t max_scales = 0;
     double convolution_padding = 1.1;
     std::vector<double> scale_list;
-    MultiscaleShape shape = MultiscaleShape::TaperedQuadraticShape;
+    MultiscaleShape shape = MultiscaleShape::kTaperedQuadraticShape;
   } multiscale;
 
   struct Generic {

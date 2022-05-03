@@ -15,9 +15,9 @@
 
 #include <schaapcommon/fitters/spectralfitter.h>
 
-#include "image_set.h"
-#include "deconvolution_table.h"
 #include "algorithms/multiscale_algorithm.h"
+#include "image_set.h"
+#include "work_table.h"
 
 namespace {
 
@@ -62,10 +62,10 @@ int main(int argc, char* argv[]) {
 
     aocommon::FitsWriter writer(imgReader);
 
-    std::unique_ptr<radler::DeconvolutionTable> table =
-        std::make_unique<radler::DeconvolutionTable>(n_channels, n_channels);
+    std::unique_ptr<radler::WorkTable> table =
+        std::make_unique<radler::WorkTable>(n_channels, n_channels);
 
-    auto e = std::make_unique<radler::DeconvolutionTableEntry>();
+    auto e = std::make_unique<radler::WorkTableEntry>();
     e->polarization = imgReader.Polarization();
     e->band_start_frequency = imgReader.Frequency();
     e->band_end_frequency = imgReader.Frequency();

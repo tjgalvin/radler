@@ -61,13 +61,13 @@ struct ImageSetFixtureBase {
   ImageSetFixtureBase() = default;
 
   void initTable(size_t n_original_channels, size_t n_deconvolution_channels) {
-    table = std::make_unique<DeconvolutionTable>(n_original_channels,
-                                                 n_deconvolution_channels);
+    table = std::make_unique<WorkTable>(n_original_channels,
+                                        n_deconvolution_channels);
   }
 
   void addToImageSet(size_t outChannel, PolarizationEnum pol,
                      size_t frequencyMHz, double imageWeight = 1.0) {
-    auto e = std::make_unique<DeconvolutionTableEntry>();
+    auto e = std::make_unique<WorkTableEntry>();
     e->original_channel_index = outChannel;
     e->polarization = pol;
     e->band_start_frequency = frequencyMHz;
@@ -91,7 +91,7 @@ struct ImageSetFixtureBase {
     BOOST_CHECK_CLOSE_FRACTION(dest[index], value, 1e-6);
   }
 
-  std::unique_ptr<DeconvolutionTable> table;
+  std::unique_ptr<WorkTable> table;
   aocommon::Image modelImage;
 };
 
@@ -114,7 +114,7 @@ BOOST_FIXTURE_TEST_CASE(constructor_1, ImageSetFixture<1>) {
   ImageSet dset(*table, kSquareJoinedChannels, kLinkedPolarizations, 2, 2);
   BOOST_CHECK_EQUAL(&dset.Table(), table.get());
   BOOST_CHECK_EQUAL(dset.NOriginalChannels(), 2u);
-  BOOST_CHECK_EQUAL(dset.PSFCount(), 1u);
+  BOOST_CHECK_EQUAL(dset.PsfCount(), 1u);
   BOOST_CHECK_EQUAL(dset.NDeconvolutionChannels(), 1u);
   BOOST_CHECK_EQUAL(dset.SquareJoinedChannels(), kSquareJoinedChannels);
   BOOST_CHECK(dset.LinkedPolarizations() == kLinkedPolarizations);
@@ -127,7 +127,7 @@ BOOST_FIXTURE_TEST_CASE(constructor_2, ImageSetFixture<2>) {
       aocommon::PolarizationEnum::StokesU, aocommon::PolarizationEnum::StokesV};
   ImageSet dset(*table, kSquareJoinedChannels, kLinkedPolarizations, 2, 2);
   BOOST_CHECK_EQUAL(dset.NOriginalChannels(), 2u);
-  BOOST_CHECK_EQUAL(dset.PSFCount(), 2u);
+  BOOST_CHECK_EQUAL(dset.PsfCount(), 2u);
   BOOST_CHECK_EQUAL(dset.NDeconvolutionChannels(), 2u);
   BOOST_CHECK_EQUAL(dset.SquareJoinedChannels(), kSquareJoinedChannels);
   BOOST_CHECK(dset.LinkedPolarizations() == kLinkedPolarizations);
@@ -411,9 +411,9 @@ BOOST_FIXTURE_TEST_CASE(deconvchannels_divisor, ImageSetFixtureBase) {
   checkLinearValue(0, 7.0, dset);
   checkSquaredValue(0, 7.0, dset);
 
-  BOOST_CHECK_EQUAL(dset.PSFIndex(0), 0u);
-  BOOST_CHECK_EQUAL(dset.PSFIndex(1), 1u);
-  BOOST_CHECK_EQUAL(dset.PSFIndex(2), 2u);
+  BOOST_CHECK_EQUAL(dset.PsfIndex(0), 0u);
+  BOOST_CHECK_EQUAL(dset.PsfIndex(1), 1u);
+  BOOST_CHECK_EQUAL(dset.PsfIndex(2), 2u);
 }
 
 BOOST_FIXTURE_TEST_CASE(psfindex, ImageSetFixtureBase) {
@@ -429,14 +429,14 @@ BOOST_FIXTURE_TEST_CASE(psfindex, ImageSetFixtureBase) {
       aocommon::Polarization::YX, aocommon::Polarization::YY};
   ImageSet dset(*table, false, kLinkedPolarizations, 2, 2);
 
-  BOOST_CHECK_EQUAL(dset.PSFIndex(0), 0u);
-  BOOST_CHECK_EQUAL(dset.PSFIndex(1), 0u);
-  BOOST_CHECK_EQUAL(dset.PSFIndex(2), 0u);
-  BOOST_CHECK_EQUAL(dset.PSFIndex(3), 0u);
-  BOOST_CHECK_EQUAL(dset.PSFIndex(4), 1u);
-  BOOST_CHECK_EQUAL(dset.PSFIndex(5), 1u);
-  BOOST_CHECK_EQUAL(dset.PSFIndex(6), 1u);
-  BOOST_CHECK_EQUAL(dset.PSFIndex(7), 1u);
+  BOOST_CHECK_EQUAL(dset.PsfIndex(0), 0u);
+  BOOST_CHECK_EQUAL(dset.PsfIndex(1), 0u);
+  BOOST_CHECK_EQUAL(dset.PsfIndex(2), 0u);
+  BOOST_CHECK_EQUAL(dset.PsfIndex(3), 0u);
+  BOOST_CHECK_EQUAL(dset.PsfIndex(4), 1u);
+  BOOST_CHECK_EQUAL(dset.PsfIndex(5), 1u);
+  BOOST_CHECK_EQUAL(dset.PsfIndex(6), 1u);
+  BOOST_CHECK_EQUAL(dset.PsfIndex(7), 1u);
 }
 
 BOOST_FIXTURE_TEST_CASE(load_and_average, ImageSetFixtureBase) {

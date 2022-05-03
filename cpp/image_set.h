@@ -12,13 +12,13 @@
 
 #include <schaapcommon/fitters/spectralfitter.h>
 
-#include "deconvolution_table.h"
+#include "work_table.h"
 
 namespace radler {
 
 class ImageSet {
  public:
-  ImageSet(const DeconvolutionTable& table, bool squared_joins,
+  ImageSet(const WorkTable& table, bool squared_joins,
            const std::set<aocommon::PolarizationEnum>& linked_polarizations,
            size_t width, size_t height);
 
@@ -33,15 +33,17 @@ class ImageSet {
   ImageSet(const ImageSet& image_set, size_t width, size_t height);
 
   ImageSet(const ImageSet&) = delete;
+  ImageSet(ImageSet&&) = delete;
   ImageSet& operator=(const ImageSet&) = delete;
+  ImageSet& operator=(ImageSet&&) = delete;
 
-  aocommon::Image Release(size_t imageIndex) {
-    return std::move(_images[imageIndex]);
+  aocommon::Image Release(size_t image_index) {
+    return std::move(images_[image_index]);
   }
 
-  void SetImage(size_t imageIndex, aocommon::Image&& data) {
+  void SetImage(size_t image_index, aocommon::Image&& data) {
     assert(data.Width() == Width() && data.Height() == Height());
-    _images[imageIndex] = std::move(data);
+    images_[image_index] = std::move(data);
   }
 
   /**
@@ -57,10 +59,10 @@ class ImageSet {
    */
   void LoadAndAverage(bool use_residual_images);
 
-  std::vector<aocommon::Image> LoadAndAveragePSFs();
+  std::vector<aocommon::Image> LoadAndAveragePsfs();
 
   void InterpolateAndStoreModel(
-      const schaapcommon::fitters::SpectralFitter& fitter, size_t threadCount);
+      const schaapcommon::fitters::SpectralFitter& fitter, size_t thread_count);
 
   void AssignAndStoreResidual();
 
@@ -92,10 +94,10 @@ class ImageSet {
    */
   void GetSquareIntegrated(aocommon::Image& dest,
                            aocommon::Image& scratch) const {
-    if (_squareJoinedChannels)
-      getSquareIntegratedWithSquaredChannels(dest);
+    if (square_joined_channels_)
+      GetSquareIntegratedWithSquaredChannels(dest);
     else
-      getSquareIntegratedWithNormalChannels(dest, scratch);
+      GetSquareIntegratedWithNormalChannels(dest, scratch);
   }
 
   /**
@@ -110,27 +112,27 @@ class ImageSet {
    * values.
    */
   void GetLinearIntegrated(aocommon::Image& dest) const {
-    if (_squareJoinedChannels)
-      getSquareIntegratedWithSquaredChannels(dest);
+    if (square_joined_channels_)
+      GetSquareIntegratedWithSquaredChannels(dest);
     else
-      getLinearIntegratedWithNormalChannels(dest);
+      GetLinearIntegratedWithNormalChannels(dest);
   }
 
-  void GetIntegratedPSF(aocommon::Image& dest,
+  void GetIntegratedPsf(aocommon::Image& dest,
                         const std::vector<aocommon::Image>& psfs);
 
   size_t NOriginalChannels() const {
-    return _deconvolutionTable.OriginalGroups().size();
+    return work_table_.OriginalGroups().size();
   }
 
-  size_t PSFCount() const { return NDeconvolutionChannels(); }
+  size_t PsfCount() const { return NDeconvolutionChannels(); }
 
   size_t NDeconvolutionChannels() const {
-    return _deconvolutionTable.DeconvolutionGroups().size();
+    return work_table_.DeconvolutionGroups().size();
   }
 
   ImageSet& operator=(float val) {
-    for (aocommon::Image& image : _images) image = val;
+    for (aocommon::Image& image : images_) image = val;
     return *this;
   }
 
@@ -143,7 +145,7 @@ class ImageSet {
    * @param index An image index.
    * @return A non-const pointer to the data area for the image.
    */
-  float* Data(size_t index) { return _images[index].Data(); }
+  float* Data(size_t index) { return images_[index].Data(); }
 
   /**
    * Exposes the images in the image set.
@@ -154,22 +156,22 @@ class ImageSet {
    * @return A const reference to the image with the given index.
    */
   const aocommon::Image& operator[](size_t index) const {
-    return _images[index];
+    return images_[index];
   }
 
-  size_t size() const { return _images.size(); }
+  size_t Size() const { return images_.size(); }
 
-  size_t PSFIndex(size_t imageIndex) const {
-    return _imageIndexToPSFIndex[imageIndex];
+  size_t PsfIndex(size_t image_index) const {
+    return image_index_to_psf_index_[image_index];
   }
 
-  const DeconvolutionTable& Table() const { return _deconvolutionTable; }
+  const WorkTable& Table() const { return work_table_; }
 
   std::unique_ptr<ImageSet> Trim(size_t x1, size_t y1, size_t x2, size_t y2,
-                                 size_t oldWidth) const {
+                                 size_t old_width) const {
     auto p = std::make_unique<ImageSet>(*this, x2 - x1, y2 - y1);
-    for (size_t i = 0; i != _images.size(); ++i) {
-      copySmallerPart(_images[i], p->_images[i], x1, y1, x2, y2, oldWidth);
+    for (size_t i = 0; i != images_.size(); ++i) {
+      CopySmallerPart(images_[i], p->images_[i], x1, y1, x2, y2, old_width);
     }
     return p;
   }
@@ -180,10 +182,10 @@ class ImageSet {
    * @param mask A mask of size (x2-x1) x (y2-y1)
    */
   std::unique_ptr<ImageSet> TrimMasked(size_t x1, size_t y1, size_t x2,
-                                       size_t y2, size_t oldWidth,
+                                       size_t y2, size_t old_width,
                                        const bool* mask) const {
-    std::unique_ptr<ImageSet> p = Trim(x1, y1, x2, y2, oldWidth);
-    for (aocommon::Image& image : p->_images) {
+    std::unique_ptr<ImageSet> p = Trim(x1, y1, x2, y2, old_width);
+    for (aocommon::Image& image : p->images_) {
       for (size_t pixel = 0; pixel != image.Size(); ++pixel) {
         if (!mask[pixel]) image[pixel] = 0.0;
       }
@@ -191,13 +193,13 @@ class ImageSet {
     return p;
   }
 
-  void CopyMasked(const ImageSet& fromImageSet, size_t toX, size_t toY,
-                  const bool* fromMask) {
-    for (size_t i = 0; i != _images.size(); ++i) {
+  void CopyMasked(const ImageSet& from_image_set, size_t to_x, size_t to_y,
+                  const bool* from_mask) {
+    for (size_t i = 0; i != images_.size(); ++i) {
       aocommon::Image::CopyMasked(
-          _images[i].Data(), toX, toY, _images[i].Width(),
-          fromImageSet._images[i].Data(), fromImageSet._images[i].Width(),
-          fromImageSet._images[i].Height(), fromMask);
+          images_[i].Data(), to_x, to_y, images_[i].Width(),
+          from_image_set.images_[i].Data(), from_image_set.images_[i].Width(),
+          from_image_set.images_[i].Height(), from_mask);
     }
   }
 
@@ -206,131 +208,130 @@ class ImageSet {
    * given position. The dimensions of @c from can be smaller or equal
    * to ones in this.
    */
-  void AddSubImage(const ImageSet& from, size_t toX, size_t toY) {
-    for (size_t i = 0; i != _images.size(); ++i) {
-      aocommon::Image::AddSubImage(_images[i].Data(), toX, toY,
-                                   _images[i].Width(), from._images[i].Data(),
-                                   from._images[i].Width(),
-                                   from._images[i].Height());
+  void AddSubImage(const ImageSet& from, size_t to_x, size_t to_y) {
+    for (size_t i = 0; i != images_.size(); ++i) {
+      aocommon::Image::AddSubImage(images_[i].Data(), to_x, to_y,
+                                   images_[i].Width(), from.images_[i].Data(),
+                                   from.images_[i].Width(),
+                                   from.images_[i].Height());
     }
   }
 
   ImageSet& operator*=(float factor) {
-    for (aocommon::Image& image : _images) image *= factor;
+    for (aocommon::Image& image : images_) image *= factor;
     return *this;
   }
 
   ImageSet& operator+=(const ImageSet& other) {
-    for (size_t i = 0; i != size(); ++i) _images[i] += other._images[i];
+    for (size_t i = 0; i != Size(); ++i) images_[i] += other.images_[i];
     return *this;
   }
 
   void FactorAdd(ImageSet& rhs, double factor) {
-    for (size_t i = 0; i != size(); ++i)
-      _images[i].AddWithFactor(rhs._images[i], factor);
+    for (size_t i = 0; i != Size(); ++i)
+      images_[i].AddWithFactor(rhs.images_[i], factor);
   }
 
-  bool SquareJoinedChannels() const { return _squareJoinedChannels; }
+  bool SquareJoinedChannels() const { return square_joined_channels_; }
 
   const std::set<aocommon::PolarizationEnum>& LinkedPolarizations() const {
-    return _linkedPolarizations;
+    return linked_polarizations_;
   }
 
-  size_t Width() const { return _images.front().Width(); }
+  size_t Width() const { return images_.front().Width(); }
 
-  size_t Height() const { return _images.front().Height(); }
+  size_t Height() const { return images_.front().Height(); }
 
   static void CalculateDeconvolutionFrequencies(
-      const DeconvolutionTable& groupTable,
-      aocommon::UVector<double>& frequencies,
+      const WorkTable& group_table, aocommon::UVector<double>& frequencies,
       aocommon::UVector<float>& weights);
 
  private:
-  void initializeIndices();
+  void InitializeIndices();
 
-  void initializePolFactor() {
-    const DeconvolutionTable::Group& firstChannelGroup =
-        _deconvolutionTable.OriginalGroups().front();
+  void InitializePolFactor() {
+    const WorkTable::Group& first_channel_group =
+        work_table_.OriginalGroups().front();
     std::set<aocommon::PolarizationEnum> pols;
     bool all_stokes_without_i = true;
-    for (const DeconvolutionTableEntry* entry : firstChannelGroup) {
-      if (_linkedPolarizations.empty() ||
-          _linkedPolarizations.count(entry->polarization) != 0) {
+    for (const WorkTableEntry* entry : first_channel_group) {
+      if (linked_polarizations_.empty() ||
+          linked_polarizations_.count(entry->polarization) != 0) {
         if (!aocommon::Polarization::IsStokes(entry->polarization) ||
             entry->polarization == aocommon::Polarization::StokesI)
           all_stokes_without_i = false;
         pols.insert(entry->polarization);
       }
     }
-    const bool isDual =
+    const bool is_dual =
         pols.size() == 2 && aocommon::Polarization::HasDualPolarization(pols);
-    const bool isFull =
+    const bool is_full =
         pols.size() == 4 &&
         (aocommon::Polarization::HasFullLinearPolarization(pols) ||
          aocommon::Polarization::HasFullCircularPolarization(pols));
     if (all_stokes_without_i)
-      _polarizationNormalizationFactor = 1.0 / pols.size();
-    else if (isDual || isFull)
-      _polarizationNormalizationFactor = 0.5;
+      polarization_normalization_factor_ = 1.0 / pols.size();
+    else if (is_dual || is_full)
+      polarization_normalization_factor_ = 0.5;
     else
-      _polarizationNormalizationFactor = 1.0;
+      polarization_normalization_factor_ = 1.0;
   }
 
-  static void copySmallerPart(const aocommon::Image& input,
+  static void CopySmallerPart(const aocommon::Image& input,
                               aocommon::Image& output, size_t x1, size_t y1,
-                              size_t x2, size_t y2, size_t oldWidth) {
-    size_t newWidth = x2 - x1;
+                              size_t x2, size_t y2, size_t old_width) {
+    size_t new_width = x2 - x1;
     for (size_t y = y1; y != y2; ++y) {
-      const float* oldPtr = &input[y * oldWidth];
-      float* newPtr = &output[(y - y1) * newWidth];
+      const float* old_ptr = &input[y * old_width];
+      float* new_ptr = &output[(y - y1) * new_width];
       for (size_t x = x1; x != x2; ++x) {
-        newPtr[x - x1] = oldPtr[x];
+        new_ptr[x - x1] = old_ptr[x];
       }
     }
   }
 
-  static void copyToLarger(aocommon::Image& to, size_t toX, size_t toY,
-                           size_t toWidth, const aocommon::Image& from,
-                           size_t fromWidth, size_t fromHeight) {
-    for (size_t y = 0; y != fromHeight; ++y) {
-      std::copy(from.Data() + y * fromWidth, from.Data() + (y + 1) * fromWidth,
-                to.Data() + toX + (toY + y) * toWidth);
+  static void CopyToLarger(aocommon::Image& to, size_t to_x, size_t to_y,
+                           size_t to_width, const aocommon::Image& from,
+                           size_t from_width, size_t from_height) {
+    for (size_t y = 0; y != from_height; ++y) {
+      std::copy(from.Data() + y * from_width,
+                from.Data() + (y + 1) * from_width,
+                to.Data() + to_x + (to_y + y) * to_width);
     }
   }
 
-  static void copyToLarger(aocommon::Image& to, size_t toX, size_t toY,
-                           size_t toWidth, const aocommon::Image& from,
-                           size_t fromWidth, size_t fromHeight,
-                           const bool* fromMask) {
-    for (size_t y = 0; y != fromHeight; ++y) {
-      for (size_t x = 0; x != fromWidth; ++x) {
-        if (fromMask[y * fromWidth + x])
-          to[toX + (toY + y) * toWidth + x] = from[y * fromWidth + x];
+  static void CopyToLarger(aocommon::Image& to, size_t to_x, size_t to_y,
+                           size_t to_width, const aocommon::Image& from,
+                           size_t from_width, size_t from_height,
+                           const bool* from_mask) {
+    for (size_t y = 0; y != from_height; ++y) {
+      for (size_t x = 0; x != from_width; ++x) {
+        if (from_mask[y * from_width + x])
+          to[to_x + (to_y + y) * to_width + x] = from[y * from_width + x];
       }
     }
   }
 
-  void getSquareIntegratedWithNormalChannels(aocommon::Image& dest,
+  void GetSquareIntegratedWithNormalChannels(aocommon::Image& dest,
                                              aocommon::Image& scratch) const;
 
-  void getSquareIntegratedWithSquaredChannels(aocommon::Image& dest) const;
+  void GetSquareIntegratedWithSquaredChannels(aocommon::Image& dest) const;
 
-  void getLinearIntegratedWithNormalChannels(aocommon::Image& dest) const;
+  void GetLinearIntegratedWithNormalChannels(aocommon::Image& dest) const;
 
-  const aocommon::Image& entryToImage(
-      const DeconvolutionTableEntry& entry) const {
-    return _images[_entryIndexToImageIndex[entry.index]];
+  const aocommon::Image& EntryToImage(const WorkTableEntry& entry) const {
+    return images_[entry_index_to_image_index_[entry.index]];
   }
 
-  std::vector<aocommon::Image> _images;
+  std::vector<aocommon::Image> images_;
   // Weight of each deconvolution channels
-  aocommon::UVector<float> _weights;
-  bool _squareJoinedChannels;
-  const DeconvolutionTable& _deconvolutionTable;
-  std::vector<size_t> _entryIndexToImageIndex;
-  aocommon::UVector<size_t> _imageIndexToPSFIndex;
-  float _polarizationNormalizationFactor;
-  std::set<aocommon::PolarizationEnum> _linkedPolarizations;
+  aocommon::UVector<float> weights_;
+  bool square_joined_channels_;
+  const WorkTable& work_table_;
+  std::vector<size_t> entry_index_to_image_index_;
+  aocommon::UVector<size_t> image_index_to_psf_index_;
+  float polarization_normalization_factor_;
+  std::set<aocommon::PolarizationEnum> linked_polarizations_;
 };
 }  // namespace radler
 #endif  // RADLER_IMAGE_SET_H_

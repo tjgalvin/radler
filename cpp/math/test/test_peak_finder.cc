@@ -10,8 +10,6 @@
 
 namespace radler {
 
-using math::PeakFinder;
-
 BOOST_AUTO_TEST_SUITE(peak_finder)
 
 const size_t nRepeats =
@@ -26,7 +24,8 @@ struct CleanTestFixture {
   CleanTestFixture(size_t n = 16) : x(size_t(-1)), y(size_t(-1)), img(n, 0) {}
   void findPeak(size_t width = 4, size_t height = 2, size_t ystart = 0,
                 size_t yend = 2) {
-    PeakFinder::AVX(img.data(), width, height, x, y, true, ystart, yend, 0, 0);
+    math::peak_finder::Avx(img.data(), width, height, x, y, true, ystart, yend,
+                           0, 0);
   }
 };
 #endif
@@ -190,7 +189,8 @@ BOOST_AUTO_TEST_CASE(findPeakPerformanceDouble) {
   NoiseFixture f;
   for (size_t repeat = 0; repeat != nRepeats; ++repeat) {
     size_t x, y;
-    PeakFinder::Find(f.img.data(), f.n, f.n, x, y, true, 0, f.n / 2, 0.0);
+    math::peak_finder::Find(f.img.data(), f.n, f.n, x, y, true, 0, f.n / 2,
+                            0.0);
   }
   BOOST_CHECK(true);
 }
@@ -199,7 +199,8 @@ BOOST_AUTO_TEST_CASE(findPeakSimplePerformanceDouble) {
   NoiseFixture f;
   for (size_t repeat = 0; repeat != nRepeats; ++repeat) {
     size_t x, y;
-    PeakFinder::Simple(f.img.data(), f.n, f.n, x, y, true, 0, f.n / 2, 0, 0);
+    math::peak_finder::Simple(f.img.data(), f.n, f.n, x, y, true, 0, f.n / 2, 0,
+                              0);
   }
   BOOST_CHECK(true);
 }
@@ -209,7 +210,8 @@ BOOST_AUTO_TEST_CASE(findPeakAVXPerformanceDouble) {
   NoiseFixture f;
   for (size_t repeat = 0; repeat != nRepeats; ++repeat) {
     size_t x, y;
-    PeakFinder::AVX(f.img.data(), f.n, f.n, x, y, true, 0, f.n / 2, 0, 0);
+    math::peak_finder::Avx(f.img.data(), f.n, f.n, x, y, true, 0, f.n / 2, 0,
+                           0);
   }
   BOOST_CHECK(true);
 }

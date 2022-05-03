@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-#ifndef RADLER_DECONVOLUTION_TABLE_H_
-#define RADLER_DECONVOLUTION_TABLE_H_
+#ifndef RADLER_WORK_TABLE_H_
+#define RADLER_WORK_TABLE_H_
 
-#include "deconvolution_table_entry.h"
+#include "work_table_entry.h"
 
 #include <functional>
 #include <memory>
@@ -11,13 +11,13 @@
 
 namespace radler {
 /**
- * The DeconvolutionTable contains DeconvolutionTableEntry's and groups entries
+ * The WorkTable contains WorkTableEntry's and groups entries
  * that have the same squaredDeconvolutionIndex.
  */
-class DeconvolutionTable {
+class WorkTable {
  public:
-  using Entries = std::vector<std::unique_ptr<DeconvolutionTableEntry>>;
-  using Group = std::vector<const DeconvolutionTableEntry*>;
+  using Entries = std::vector<std::unique_ptr<WorkTableEntry>>;
+  using Group = std::vector<const WorkTableEntry*>;
 
   /**
    * Iterator-like class which (only) supports a range-based loop over entries.
@@ -32,9 +32,12 @@ class DeconvolutionTable {
     explicit EntryIteratorLite(BaseIterator base_iterator)
         : base_iterator_(base_iterator) {}
 
-    const DeconvolutionTableEntry& operator*() const {
-      return **base_iterator_;
-    }
+    EntryIteratorLite(const EntryIteratorLite&) = default;
+    EntryIteratorLite(EntryIteratorLite&&) = default;
+    EntryIteratorLite& operator=(const EntryIteratorLite&) = default;
+    EntryIteratorLite& operator=(EntryIteratorLite&&) = default;
+
+    const WorkTableEntry& operator*() const { return **base_iterator_; }
     EntryIteratorLite& operator++() {
       ++base_iterator_;
       return *this;
@@ -51,7 +54,7 @@ class DeconvolutionTable {
   };
 
   /**
-   * @brief Constructs a new DeconvolutionTable object.
+   * @brief Constructs a new WorkTable object.
    *
    * @param n_original_groups The number of original channel groups. When adding
    * entries, their original channel index must be less than the number of
@@ -64,8 +67,14 @@ class DeconvolutionTable {
    * @param channel_index_offset The index of the first channel in the caller.
    * Must be >= 0.
    */
-  explicit DeconvolutionTable(int n_original_groups, int n_deconvolution_groups,
-                              int channel_index_offset = 0);
+  explicit WorkTable(int n_original_groups, int n_deconvolution_groups,
+                     int channel_index_offset = 0);
+
+  // TODO(AST-912) Make copy/move operations Google Style compliant.
+  WorkTable(const WorkTable&) = default;
+  WorkTable(WorkTable&&) = default;
+  WorkTable& operator=(const WorkTable&) = delete;
+  WorkTable& operator=(WorkTable&&) = delete;
 
   /**
    * @return The table entries, grouped by their original channel index.
@@ -93,15 +102,10 @@ class DeconvolutionTable {
     return original_groups_[deconvolution_groups_[deconvolution_index].front()];
   }
 
-  /**
-   * begin() and end() allow writing range-based loops over all entries.
-   * @{
-   */
-  EntryIteratorLite begin() const {
+  EntryIteratorLite Begin() const {
     return EntryIteratorLite(entries_.begin());
   }
-  EntryIteratorLite end() const { return EntryIteratorLite(entries_.end()); }
-  /** @} */
+  EntryIteratorLite End() const { return EntryIteratorLite(entries_.end()); }
 
   /**
    * @brief Adds an entry to the table.
@@ -112,12 +116,12 @@ class DeconvolutionTable {
    *
    * @param entry A new entry.
    */
-  void AddEntry(std::unique_ptr<DeconvolutionTableEntry> entry);
+  void AddEntry(std::unique_ptr<WorkTableEntry> entry);
 
   /**
    * @return A reference to the first entry.
    */
-  const DeconvolutionTableEntry& Front() const { return *entries_.front(); }
+  const WorkTableEntry& Front() const { return *entries_.front(); }
 
   /**
    * @return The number of entries in the table.
@@ -133,10 +137,10 @@ class DeconvolutionTable {
   Entries entries_;
 
   /**
-   * A user of the DeconvolutionTable may use different channel indices than
-   * the DeconvolutionTable. This offset is the difference between those
+   * A user of the WorkTable may use different channel indices than
+   * the WorkTable. This offset is the difference between those
    * indices.
-   * For example, with three channels, the DeconvolutionTable indices are always
+   * For example, with three channels, the WorkTable indices are always
    * 0, 1, and 2. When the user indices are 4, 5, and 6, this offset will be 4.
    */
   const std::size_t channel_index_offset_;
@@ -152,6 +156,16 @@ class DeconvolutionTable {
    * groups that are part of the deconvolution group.
    */
   std::vector<std::vector<int>> deconvolution_groups_;
+
+  /**
+   * begin() and end() allow writing range-based loops over all entries.
+   * @{
+   */
+  friend EntryIteratorLite begin(const WorkTable& table) {
+    return table.Begin();
+  }
+  friend EntryIteratorLite end(const WorkTable& table) { return table.End(); }
+  /** @} */
 };
 }  // namespace radler
 
