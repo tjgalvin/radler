@@ -6,6 +6,7 @@ cmake_minimum_required(VERSION 3.8)
 # option to On. See, e.g., the wsclean CMake file for an example.
 option(COMPILE_AS_EXTERNAL_PROJECT OFF)
 option(PORTABLE "Generate portable code" OFF)
+option(BUILD_PYTHON_BINDINGS "Build python bindings" OFF)
 
 set(RADLER_VERSION 0.0.0)
 project(radler VERSION ${RADLER_VERSION})
@@ -154,6 +155,10 @@ set(RADLER_TARGET_LIBS
 # Source directories
 add_subdirectory(cpp)
 
+if(BUILD_PYTHON_BINDINGS)
+  add_subdirectory(python)
+endif()
+
 # Compile tests
 if(NOT ${COMPILE_AS_EXTERNAL_PROJECT} AND ${BUILD_TESTING})
   include(CTest)
@@ -164,6 +169,10 @@ if(NOT ${COMPILE_AS_EXTERNAL_PROJECT} AND ${BUILD_TESTING})
   add_subdirectory(cpp/test)
   add_subdirectory(cpp/algorithms/test)
   add_subdirectory(cpp/math/test)
+
+  if(BUILD_PYTHON_BINDINGS)
+    add_subdirectory(python/test)
+  endif()
 
   # demo targets are excluded from a default build
   add_subdirectory(cpp/demo)
