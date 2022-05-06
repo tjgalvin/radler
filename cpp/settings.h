@@ -42,7 +42,7 @@ struct Settings {
   size_t trimmed_image_width = 0;
   size_t trimmed_image_height = 0;
   size_t channels_out = 1;
-  struct {
+  struct PixelScale {
     double x = 0.0;
     double y = 0.0;
   } pixel_scale;
@@ -55,7 +55,8 @@ struct Settings {
    * These settings strictly pertain to deconvolution only.
    */
   std::set<aocommon::PolarizationEnum> linked_polarizations;
-  struct {
+
+  struct Parallel {
     size_t max_size = 0;
     size_t max_threads = 0;
   } parallel;

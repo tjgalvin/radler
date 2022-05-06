@@ -115,12 +115,13 @@ clang-tidy:
   script:
     - cmake --version
     - mkdir build && cd build
-    - cmake -DBUILD_TESTING=ON -DCMAKE_INSTALL_PREFIX=.. -DCMAKE_CXX_FLAGS="-coverage" -DCMAKE_EXE_LINKER_FLAGS="-coverage" ..
+    - cmake -DBUILD_TESTING=ON -DBUILD_PYTHON_BINDINGS=ON -DCMAKE_INSTALL_PREFIX=.. -DCMAKE_CXX_FLAGS="-coverage" -DCMAKE_EXE_LINKER_FLAGS="-coverage" ..
     - make -j`nproc`
     - make install
   artifacts:
     paths:
       - build
+      - lib
 
 build-2004:
   extends: [".needs-2004",".build"]
@@ -137,6 +138,11 @@ build-2204:
     # Re-running 'make' is more verbose and prevents rebuilds in ctest.
     - make -j`nproc`
     - ctest -j`nproc` --output-on-failure -T test
+    # Check whether the python radler modules can be found from the home directory after updating the PYTHONPATH
+    - PYVERSION=`python3 --version | grep -P -o ".*\s\K\d+\.\d+(?=\.\d+)"`
+    - export PYTHONPATH=${CI_PROJECT_DIR}/lib/python${PYVERSION}/dist-packages
+    - python3 -c "import site; print(site.getsitepackages()[0])"
+    - cd && python3 -c "import radler"
 
 test-2004:
   extends: .test
