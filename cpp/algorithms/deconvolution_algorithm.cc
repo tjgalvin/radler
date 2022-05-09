@@ -29,15 +29,4 @@ void DeconvolutionAlgorithm::PerformSpectralFit(float* values, size_t x,
   spectral_fitter_.FitAndEvaluate(values, x, y, fitting_scratch_);
 }
 
-void ResizeImage(float* dest, size_t new_width, size_t new_height,
-                 const float* source, size_t width, size_t height) {
-  size_t srcStartX = (width - new_width) / 2,
-         srcStartY = (height - new_height) / 2;
-  for (size_t y = 0; y != new_height; ++y) {
-    float* destPtr = dest + y * new_width;
-    const float* srcPtr = source + (y + srcStartY) * width + srcStartX;
-    std::copy_n(srcPtr, new_width, destPtr);
-  }
-}
-
 }  // namespace radler::algorithms
