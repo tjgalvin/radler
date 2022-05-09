@@ -35,8 +35,9 @@ class Radler {
    * @param[in/out] residual_image Residual image.
    * @param[in/out] model_image Model image.
    *
-   * Please bear in mind to keep the input images alive in the caller, since
-   * Radler internally only references these images.
+   * Please bear in mind to keep the data buffer in the input images alive in
+   * the caller, since Radler internally points to this data buffer during calls
+   * to \c Perform.
    */
   Radler(const Settings& settings, const aocommon::Image& psf_image,
          aocommon::Image& residual_image, aocommon::Image& model_image,

@@ -5,6 +5,7 @@
 namespace py = pybind11;
 
 void init_settings(py::module&);
+void init_radler(py::module&);
 
 PYBIND11_MODULE(radler, m) {
   m.doc() = R"pbdoc(
@@ -12,4 +13,5 @@ PYBIND11_MODULE(radler, m) {
    Radler (https://git.astron.nl/RD/radler).
   )pbdoc";
   init_settings(m);
+  init_radler(m);
 }
