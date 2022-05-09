@@ -139,6 +139,29 @@ else()
 endif()
 target_include_directories(schaapcommon SYSTEM PUBLIC ${AOCOMMON_INCLUDE_DIR})
 
+# When building the python bindings, set the rpath to the install directory, so
+# that importing the python module doesn't require to set the LD_LIBRARY_PATH
+# manually.
+if(NOT ${COMPILE_AS_EXTERNAL_PROJECT} AND ${BUILD_PYTHON_BINDINGS})
+  # Include GNUInstallDirs for CMAKE_INSTALL_FULL_LIBDIR include(GNUInstallDirs)
+  include(GNUInstallDirs)
+  # Use, i.e. don't skip the full RPATH for the build tree.
+  set(CMAKE_SKIP_BUILD_RPATH FALSE)
+  # When building, don't use the install RPATH already (but later on when
+  # installing).
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+  # Add the automatically determined parts of the RPATH which point to
+  # directories outside the build tree to the install RPATH.
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+  # The RPATH to be used when installing, but only if it's not a system
+  # directory.
+  list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES
+       "${CMAKE_INSTALL_FULL_LIBDIR}" isSystemDir)
+  if("${isSystemDir}" STREQUAL "-1")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_FULL_LIBDIR}")
+  endif("${isSystemDir}" STREQUAL "-1")
+endif()
+
 set(RADLER_TARGET_INCLUDE_DIRS
     ${AOCOMMON_INCLUDE_DIR}
     ${Boost_INCLUDE_DIRS}
