@@ -147,8 +147,5 @@ class DeconvolutionAlgorithm {
   schaapcommon::fitters::SpectralFitter spectral_fitter_;
 };
 
-void ResizeImage(float* dest, size_t new_width, size_t new_height,
-                 const float* source, size_t width, size_t height);
-
 }  // namespace radler::algorithms
 #endif  // RADLER_ALGORITHMS_DECONVOLUTION_ALGORITHM_H_
