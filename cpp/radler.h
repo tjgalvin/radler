@@ -27,7 +27,7 @@ class ParallelDeconvolution;
 class Radler {
  public:
   Radler(const Settings& settings, std::unique_ptr<WorkTable> table,
-         double beam_size, size_t thread_count);
+         double beam_size);
 
   /**
    * @brief Constructor for single channel, single polarization deconvolution.
@@ -43,8 +43,7 @@ class Radler {
          aocommon::Image& residual_image, aocommon::Image& model_image,
          double beam_size,
          aocommon::PolarizationEnum polarization =
-             aocommon::PolarizationEnum::StokesI,
-         size_t thread_count = 1);
+             aocommon::PolarizationEnum::StokesI);
 
   ~Radler();
 
@@ -77,8 +76,7 @@ class Radler {
   Radler(const Settings& settings, double beam_size);
 
   // Initializes the deconvolution algorithm
-  void InitializeDeconvolutionAlgorithm(std::unique_ptr<WorkTable> table,
-                                        size_t thread_count);
+  void InitializeDeconvolutionAlgorithm(std::unique_ptr<WorkTable> table);
 
   void ReadMask(const WorkTable& group_table);
 

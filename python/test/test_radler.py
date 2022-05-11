@@ -73,19 +73,12 @@ def test_num_threads(settings):
     residual = get_residual(1.0, 0, 0)
     model = np.zeros((HEIGHT, WIDTH), dtype=np.float32)
 
-    rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i, 1)
-
-    # Try a call with negative number of threads
-    with pytest.raises(TypeError):
-        rd.Radler(
-            settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i, -1
-        )
-
-    # Try a call with num threads == 0
+    settings.thread_count = 0
     with pytest.raises(RuntimeError):
-        rd.Radler(
-            settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i, 0
-        )
+        rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
+
+    settings.thread_count = 1
+    rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
 
 
 @pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
@@ -99,27 +92,21 @@ def test_input_dtype(settings):
 
     psf = psf.astype(np.float64)
     with pytest.raises(TypeError):
-        rd.Radler(
-            settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i, 1
-        )
+        rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
     psf = psf.astype(np.float32)
-    rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i, 1)
+    rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
 
     residual = residual.astype(np.float16)
     with pytest.raises(TypeError):
-        rd.Radler(
-            settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i, 1
-        )
+        rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
     residual = residual.astype(np.float32)
-    rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i, 1)
+    rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
 
     model = model.astype(np.int)
     with pytest.raises(TypeError):
-        rd.Radler(
-            settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i, 1
-        )
+        rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
     model = model.astype(np.float32)
-    rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i, 1)
+    rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
 
 
 @pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
@@ -172,7 +159,7 @@ def test_point_source(
     iteration_number = 0
 
     radler_object = rd.Radler(
-        settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i, 1
+        settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i
     )
     reached_threshold = radler_object.perform(reached_threshold, iteration_number)
 

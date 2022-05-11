@@ -37,15 +37,14 @@ using aocommon::units::FluxDensity;
 namespace radler {
 
 Radler::Radler(const Settings& settings, std::unique_ptr<WorkTable> table,
-               double beam_size, size_t thread_count)
+               double beam_size)
     : Radler(settings, beam_size) {
-  InitializeDeconvolutionAlgorithm(std::move(table), thread_count);
+  InitializeDeconvolutionAlgorithm(std::move(table));
 }
 
 Radler::Radler(const Settings& settings, const aocommon::Image& psf_image,
                aocommon::Image& residual_image, aocommon::Image& model_image,
-               double beam_size, aocommon::PolarizationEnum polarization,
-               size_t thread_count)
+               double beam_size, aocommon::PolarizationEnum polarization)
     : Radler(settings, beam_size) {
   if (psf_image.Width() != settings.trimmed_image_width ||
       psf_image.Height() != settings.trimmed_image_height) {
@@ -78,7 +77,7 @@ Radler::Radler(const Settings& settings, const aocommon::Image& psf_image,
   e->model_accessor =
       std::make_unique<radler::utils::LoadAndStoreImageAccessor>(model_image);
   table->AddEntry(std::move(e));
-  InitializeDeconvolutionAlgorithm(std::move(table), thread_count);
+  InitializeDeconvolutionAlgorithm(std::move(table));
 }
 
 Radler::Radler(const Settings& settings, double beam_size)
@@ -258,8 +257,8 @@ void Radler::Perform(bool& reached_major_threshold,
       settings_.thread_count);
 }
 
-void Radler::InitializeDeconvolutionAlgorithm(std::unique_ptr<WorkTable> table,
-                                              size_t thread_count) {
+void Radler::InitializeDeconvolutionAlgorithm(
+    std::unique_ptr<WorkTable> table) {
   auto_mask_is_finished_ = false;
   auto_mask_.clear();
   FreeDeconvolutionAlgorithms();
@@ -308,7 +307,7 @@ void Radler::InitializeDeconvolutionAlgorithm(std::unique_ptr<WorkTable> table,
   algorithm->SetCleanBorderRatio(settings_.border_ratio);
   algorithm->SetAllowNegativeComponents(settings_.allow_negative_components);
   algorithm->SetStopOnNegativeComponents(settings_.stop_on_negative_components);
-  algorithm->SetThreadCount(thread_count);
+  algorithm->SetThreadCount(settings_.thread_count);
   algorithm->SetSpectralFittingMode(settings_.spectral_fitting.mode,
                                     settings_.spectral_fitting.terms);
 
