@@ -166,7 +166,6 @@ def test_point_source(
 
     psf = get_psf()
     residual = get_residual(scale, source_shift[0], source_shift[1])
-    print(residual.flatten())
     model = np.zeros((HEIGHT, WIDTH), dtype=np.float32)
 
     reached_threshold = False

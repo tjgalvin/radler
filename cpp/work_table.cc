@@ -8,7 +8,7 @@
 namespace radler {
 
 WorkTable::WorkTable(int n_original_groups, int n_deconvolution_groups,
-                     int channel_index_offset)
+                     std::size_t channel_index_offset)
     : entries_(),
       channel_index_offset_(channel_index_offset),
       original_groups_(std::max(n_original_groups, 1)),

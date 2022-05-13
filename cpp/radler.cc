@@ -7,7 +7,6 @@
 
 #include <aocommon/fits/fitsreader.h>
 #include <aocommon/image.h>
-#include <aocommon/imageaccessor.h>
 #include <aocommon/imagecoordinates.h>
 #include <aocommon/logger.h>
 #include <aocommon/units/fluxdensity.h>
@@ -25,6 +24,8 @@
 #include "image_set.h"
 #include "math/rms_image.h"
 #include "utils/casa_mask_reader.h"
+#include "utils/load_image_accessor.h"
+#include "utils/load_and_store_image_accessor.h"
 
 using aocommon::FitsReader;
 using aocommon::FitsWriter;
@@ -32,85 +33,6 @@ using aocommon::Image;
 using aocommon::ImageCoordinates;
 using aocommon::Logger;
 using aocommon::units::FluxDensity;
-
-namespace {
-/**
- * @brief Class providing load (only) access from a stored aocommon::Image data
- * buffer to an aocommon::Image object.
- *
- * This class stores a raw (float) pointer to the image data buffer along with
- * its size (the product of the \c width_ and \c height_ members). As a result,
- * the lifetime of the data buffer in the input image should exceed the lifetime
- * of this class.
- *
- * Storing the image as a raw pointer with an associated \c width
- * and \c height, rather than a reference to a non-owning \c aocommon::Image
- * works around the issue that the meta-data (Size, Width, Height) of the
- * provided aocommon::Image gets destructed when going out of scope, even if the
- * underlying data buffer is left untouched. This situation occurs, for
- * instance, in the python bindings.
- */
-class LoadOnlyImageAccessor final : public aocommon::ImageAccessor {
- public:
-  LoadOnlyImageAccessor(const aocommon::Image& image)
-      : data_(image.Data()), width_(image.Width()), height_(image.Height()) {}
-
-  LoadOnlyImageAccessor(const LoadOnlyImageAccessor&) = delete;
-  LoadOnlyImageAccessor(LoadOnlyImageAccessor&&) = delete;
-  LoadOnlyImageAccessor& operator=(const LoadOnlyImageAccessor&) = delete;
-  LoadOnlyImageAccessor& operator=(LoadOnlyImageAccessor&&) = delete;
-
-  ~LoadOnlyImageAccessor() override = default;
-
-  void Load(Image& image) const override {
-    std::copy_n(data_, width_ * height_, image.Data());
-  }
-
-  void Store(const Image&) override {
-    throw std::logic_error("Unexpected LoadOnlyImageAccessor::Store() call");
-  }
-
- private:
-  const float* data_;
-  size_t width_;
-  size_t height_;
-};
-
-/**
- * @brief Class providing load and store access from a stored aocommon::Image
- * data buffer to an aocommon::Image object.
- *
- * This class stores a raw (float) pointer to the image data buffer, implying
- * that the lifetime of the data buffer in the input image should exceed the
- * lifetime of this class.
- */
-class LoadAndStoreImageAccessor final : public aocommon::ImageAccessor {
- public:
-  LoadAndStoreImageAccessor(aocommon::Image& image)
-      : data_(image.Data()), width_(image.Width()), height_(image.Height()) {}
-
-  LoadAndStoreImageAccessor(const LoadAndStoreImageAccessor&) = delete;
-  LoadAndStoreImageAccessor(LoadAndStoreImageAccessor&&) = delete;
-  LoadAndStoreImageAccessor& operator=(const LoadAndStoreImageAccessor&) =
-      delete;
-  LoadAndStoreImageAccessor& operator=(LoadAndStoreImageAccessor&&) = delete;
-
-  ~LoadAndStoreImageAccessor() override = default;
-
-  void Load(Image& image) const override {
-    std::copy_n(data_, width_ * height_, image.Data());
-  }
-
-  void Store(const Image& image) override {
-    std::copy_n(image.Data(), width_ * height_, data_);
-  }
-
- private:
-  float* data_;
-  size_t width_;
-  size_t height_;
-};
-}  // namespace
 
 namespace radler {
 
@@ -148,10 +70,13 @@ Radler::Radler(const Settings& settings, const aocommon::Image& psf_image,
   auto e = std::make_unique<WorkTableEntry>();
   e->polarization = polarization;
   e->image_weight = 1.0;  //
-  e->psf_accessor = std::make_unique<LoadOnlyImageAccessor>(psf_image);
+  e->psf_accessor =
+      std::make_unique<radler::utils::LoadOnlyImageAccessor>(psf_image);
   e->residual_accessor =
-      std::make_unique<LoadAndStoreImageAccessor>(residual_image);
-  e->model_accessor = std::make_unique<LoadAndStoreImageAccessor>(model_image);
+      std::make_unique<radler::utils::LoadAndStoreImageAccessor>(
+          residual_image);
+  e->model_accessor =
+      std::make_unique<radler::utils::LoadAndStoreImageAccessor>(model_image);
   table->AddEntry(std::move(e));
   InitializeDeconvolutionAlgorithm(std::move(table), thread_count);
 }
