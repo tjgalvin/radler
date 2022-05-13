@@ -15,45 +15,44 @@ void init_radler(py::module& m) {
                              "Radio Astronomical Library Deconvolver core "
                              "class for controlling and excuting the "
                              "deconvolution of radio astronmical images.")
-      .def(
-          py::init([](const radler::Settings& settings, py::array_t<float>& psf,
-                      py::array_t<float>& residual, py::array_t<float>& model,
-                      double beam_size, aocommon::PolarizationEnum polarization,
-                      size_t thread_count) {
-            if (thread_count == 0) {
-              throw std::runtime_error("Number of threads should be > 0.");
-            }
+      .def(py::init([](const radler::Settings& settings,
+                       py::array_t<float>& psf, py::array_t<float>& residual,
+                       py::array_t<float>& model, double beam_size,
+                       aocommon::PolarizationEnum polarization) {
+             if (settings.thread_count == 0) {
+               throw std::runtime_error("Number of threads should be > 0.");
+             }
 
-            const size_t n_dim = 2;
-            if (psf.ndim() != n_dim || residual.ndim() != n_dim ||
-                model.ndim() != n_dim) {
-              throw std::runtime_error(
-                  "Provided arrays should have dimension 2.");
-            }
+             const size_t n_dim = 2;
+             if (psf.ndim() != n_dim || residual.ndim() != n_dim ||
+                 model.ndim() != n_dim) {
+               throw std::runtime_error(
+                   "Provided arrays should have dimension 2.");
+             }
 
-            const size_t width = static_cast<size_t>(psf.shape(1));
-            const size_t height = static_cast<size_t>(psf.shape(0));
+             const size_t width = static_cast<size_t>(psf.shape(1));
+             const size_t height = static_cast<size_t>(psf.shape(0));
 
-            if (static_cast<size_t>(residual.shape(1)) != width ||
-                static_cast<size_t>(model.shape(1)) != width) {
-              throw std::runtime_error("Mismatch in input width.");
-            }
+             if (static_cast<size_t>(residual.shape(1)) != width ||
+                 static_cast<size_t>(model.shape(1)) != width) {
+               throw std::runtime_error("Mismatch in input width.");
+             }
 
-            if (static_cast<size_t>(residual.shape(0)) != height ||
-                static_cast<size_t>(model.shape(0)) != height) {
-              throw std::runtime_error("Mismatch in input height.");
-            }
+             if (static_cast<size_t>(residual.shape(0)) != height ||
+                 static_cast<size_t>(model.shape(0)) != height) {
+               throw std::runtime_error("Mismatch in input height.");
+             }
 
-            aocommon::Image psf_image(psf.mutable_data(), width, height);
-            aocommon::Image residual_image(residual.mutable_data(), width,
-                                           height);
-            aocommon::Image model_image(model.mutable_data(), width, height);
+             aocommon::Image psf_image(psf.mutable_data(), width, height);
+             aocommon::Image residual_image(residual.mutable_data(), width,
+                                            height);
+             aocommon::Image model_image(model.mutable_data(), width, height);
 
-            return std::make_unique<radler::Radler>(
-                settings, psf_image, residual_image, model_image, beam_size,
-                polarization, thread_count);
-          }),
-          R"pbdoc(
+             return std::make_unique<radler::Radler>(
+                 settings, psf_image, residual_image, model_image, beam_size,
+                 polarization);
+           }),
+           R"pbdoc(
         Constructor expecting a radler::Settings object along with a psf, residual,
         and model image as a 2D numpy array of dtype=np.float32. The residual and the model image are updated
         in-place in Radler.perform() calls.
@@ -79,14 +78,11 @@ void init_radler(py::module& m) {
             baseline, and used as initial value when fitting the (accurate) beam.
         polarization: radler.Polarization, optional
             Polarization of the input images. Default rd.Polarization.stokes_i.
-        thread_count: (unsigned) int, optional
-            Number of threads to use during deconvolution. Defaults to 1.
        )pbdoc",
-          py::arg("settings"), py::arg("psf").noconvert(),
-          py::arg("residual").noconvert(), py::arg("model").noconvert(),
-          py::arg("beam_size"),
-          py::arg("polarization") = aocommon::PolarizationEnum::StokesI,
-          py::arg("thread_count").noconvert() = 1)
+           py::arg("settings"), py::arg("psf").noconvert(),
+           py::arg("residual").noconvert(), py::arg("model").noconvert(),
+           py::arg("beam_size"),
+           py::arg("polarization") = aocommon::PolarizationEnum::StokesI)
       // Perform needs a lambda-expression, as the boolean input is an
       // immutable type.
       .def(
