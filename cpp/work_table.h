@@ -68,7 +68,7 @@ class WorkTable {
    * Must be >= 0.
    */
   explicit WorkTable(int n_original_groups, int n_deconvolution_groups,
-                     int channel_index_offset = 0);
+                     std::size_t channel_index_offset = 0);
 
   // TODO(AST-912) Make copy/move operations Google Style compliant.
   WorkTable(const WorkTable&) = default;

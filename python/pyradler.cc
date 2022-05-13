@@ -8,8 +8,6 @@
 #include <aocommon/image.h>
 #include <aocommon/logger.h>
 
-#include <iostream>
-
 namespace py = pybind11;
 
 void init_radler(py::module& m) {

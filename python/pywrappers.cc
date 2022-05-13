@@ -5,6 +5,7 @@
 namespace py = pybind11;
 
 void init_settings(py::module&);
+void init_work_table(py::module&);
 void init_radler(py::module&);
 
 PYBIND11_MODULE(radler, m) {
@@ -12,6 +13,11 @@ PYBIND11_MODULE(radler, m) {
    Python wrappers for the C++-based Radio Astronomical Deconvolution Library
    Radler (https://git.astron.nl/RD/radler).
   )pbdoc";
+  // Following can't be ordered alphabetically, since
+  // custom types only can be used in the interface after being
+  // registered. The Radler constructor, for instance, requires
+  // the Settings (and WorkTable) wrappers to be registered.
   init_settings(m);
+  init_work_table(m);
   init_radler(m);
 }
