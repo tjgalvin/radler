@@ -2,6 +2,7 @@
 
 import radler as rd
 import pytest
+from pytest_lazyfixture import lazy_fixture
 import numpy as np
 
 
@@ -64,7 +65,7 @@ def get_residual(scale: float, shift_x: int, shift_y: int):
     return residual
 
 
-@pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
+@pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
 def test_num_threads(settings):
     """
     Check that only positive, non-zero number of threads are accepted.
@@ -81,7 +82,7 @@ def test_num_threads(settings):
     rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
 
 
-@pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
+@pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
 def test_input_dtype(settings):
     """
     Check that Radler constructor only accepts numpy arrays of dtype=np.float32
@@ -109,7 +110,7 @@ def test_input_dtype(settings):
     rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
 
 
-@pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
+@pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
 def test_default_args(settings):
     """
     Test calling the radler.Radler constructor without providing the polarization
@@ -122,7 +123,7 @@ def test_default_args(settings):
     rd.Radler(settings, psf, residual, model, BEAM_SIZE)
 
 
-@pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
+@pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
 @pytest.mark.parametrize(
     "algorithm", [rd.AlgorithmType.generic_clean, rd.AlgorithmType.multiscale]
 )
