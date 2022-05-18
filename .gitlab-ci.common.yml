@@ -164,4 +164,7 @@ test-2204:
       - coverage.json
       - build/reports
     reports:
-      cobertura: build/reports/code-coverage.xml
+      junit: build/reports/unit-tests.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: build/reports/code-coverage.xml
