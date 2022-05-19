@@ -23,7 +23,8 @@ void init_work_table(py::module& m) {
         It contains WorkTableEntries and groups entries sharing the same
         squared deconvolution index.
         )pbdoc")
-      .def(py::init([](int n_original_groups, int n_deconvolution_groups,
+      .def(py::init([](std::size_t n_original_groups,
+                       std::size_t n_deconvolution_groups,
                        std::size_t channel_index_offset) {
              return std::make_unique<radler::WorkTable>(n_original_groups,
                                                         n_deconvolution_groups,
@@ -35,15 +36,15 @@ void init_work_table(py::module& m) {
           Parameters
           ---------
           n_original_groups: int
-              The number of original channel groups. When adding
-              entries, their original channel index must be less than the number of
-              original groups. If the value is zero or less, one group is used.
+              The number of original channel groups. When adding entries, their
+              original channel index must be less than the number of original
+              groups. Must be >= 0. If the value is zero, one group is used.
           n_deconvolution_groups: int
              The number of deconvolution groups.
              A deconvolution group consist of one or more channel groups,
              which are then joinedly deconvolved.
-             If the value is zero or less, or larger than the number of original groups,
-             all channels are deconvolved separately.
+             Must be >= 0. If the value is zero or larger than the number of
+             original groups, all channels are deconvolved separately.
           channel_index_offset: int, optional
              The index of the first channel in the caller.
              Must be >= 0.

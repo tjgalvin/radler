@@ -30,6 +30,17 @@ def test_work_table_entry():
     assert entry.original_interval_index == 1
 
 
+def test_zero_groups():
+    """
+    Check WorkTable constructor with zero original / deconvolution groups.
+    """
+
+    n_original_groups = 0
+    n_deconvolution_groups = 0
+    work_table = rd.WorkTable(n_original_groups, n_deconvolution_groups)
+    assert work_table.original_groups == [[]]
+    assert work_table.deconvolution_groups == [[0]]
+
 def test_negative_original_groups():
     """
     Check WorkTable constructor for negative number
@@ -38,11 +49,8 @@ def test_negative_original_groups():
 
     n_original_groups = -2
     n_deconvolution_groups = 1
-    work_table = rd.WorkTable(n_original_groups, n_deconvolution_groups)
-
-    assert len(work_table.original_groups) == 1
-    assert not any(work_table.original_groups)
-
+    with pytest.raises(TypeError):
+        work_table = rd.WorkTable(n_original_groups, n_deconvolution_groups)
 
 def test_negative_deconvolution_groups():
     """
@@ -52,16 +60,8 @@ def test_negative_deconvolution_groups():
 
     n_original_groups = 10
     n_deconvolution_groups = -1
-
-    work_table = rd.WorkTable(n_original_groups, n_deconvolution_groups)
-    assert len(work_table.deconvolution_groups) == n_original_groups
-
-    if n_original_groups > 1:
-        n_sub_groups = 1  # since n_deconvolution_groups < 0
-        for (i, sub_table) in enumerate(work_table.deconvolution_groups):
-            ref_list = list(range(i * n_sub_groups, (i + 1) * n_sub_groups))
-            assert sub_table == ref_list
-
+    with pytest.raises(TypeError):
+        work_table = rd.WorkTable(n_original_groups, n_deconvolution_groups)
 
 @pytest.mark.parametrize(
     "n_original_groups,n_deconvolution_groups", [(4, 12), (12, 4)],

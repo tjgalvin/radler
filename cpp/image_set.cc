@@ -55,9 +55,9 @@ ImageSet::ImageSet(const ImageSet& image_set, size_t width, size_t height)
 void ImageSet::InitializeIndices() {
   entry_index_to_image_index_.reserve(work_table_.Size());
   size_t image_index = 0;
-  for (const std::vector<int>& group : work_table_.DeconvolutionGroups()) {
+  for (const std::vector<size_t>& group : work_table_.DeconvolutionGroups()) {
     const size_t deconvolution_channel_start_index = image_index;
-    for (const int original_index : group) {
+    for (const size_t original_index : group) {
       image_index = deconvolution_channel_start_index;
 
       for ([[maybe_unused]] const WorkTableEntry* entry :
@@ -97,9 +97,9 @@ void ImageSet::LoadAndAverage(bool use_residual_image) {
 
   aocommon::UVector<double> averaged_weights(images_.size(), 0.0);
   size_t image_index = 0;
-  for (const std::vector<int>& group : work_table_.DeconvolutionGroups()) {
+  for (const std::vector<size_t>& group : work_table_.DeconvolutionGroups()) {
     const size_t deconvolution_channel_start_index = image_index;
-    for (const int original_index : group) {
+    for (const size_t original_index : group) {
       // The next loop iterates over the polarizations. The logic in the next
       // loop makes sure that images of the same polarizations and that belong
       // to the same deconvolution channel are averaged together.
@@ -235,9 +235,9 @@ void ImageSet::AssignAndStoreResidual() {
                << NOriginalChannels() << " channels...\n";
 
   size_t image_index = 0;
-  for (const std::vector<int>& group : work_table_.DeconvolutionGroups()) {
+  for (const std::vector<size_t>& group : work_table_.DeconvolutionGroups()) {
     const size_t deconvolution_channel_start_index = image_index;
-    for (const int original_index : group) {
+    for (const size_t original_index : group) {
       image_index = deconvolution_channel_start_index;
 
       for (const WorkTableEntry* entry :

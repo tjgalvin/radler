@@ -58,16 +58,16 @@ class WorkTable {
    *
    * @param n_original_groups The number of original channel groups. When adding
    * entries, their original channel index must be less than the number of
-   * original groups. If the value is zero or less, one group is used.
+   * original groups. If the value is zero, one group is used.
    * @param n_deconvolution_groups The number of deconvolution groups.
    * A deconvolution group consist of one or more channel groups, which are then
    * joinedly deconvolved.
-   * If the value is zero or less, or larger than the number of original groups,
+   * If the value is zero, or larger than the number of original groups,
    * all channels are deconvolved separately.
    * @param channel_index_offset The index of the first channel in the caller.
-   * Must be >= 0.
    */
-  explicit WorkTable(int n_original_groups, int n_deconvolution_groups,
+  explicit WorkTable(std::size_t n_original_groups,
+                     std::size_t n_deconvolution_groups,
                      std::size_t channel_index_offset = 0);
 
   // TODO(AST-912) Make copy/move operations Google Style compliant.
@@ -85,7 +85,7 @@ class WorkTable {
   /**
    * @return The original group indices for each deconvolution group.
    */
-  const std::vector<std::vector<int>>& DeconvolutionGroups() const {
+  const std::vector<std::vector<std::size_t>>& DeconvolutionGroups() const {
     return deconvolution_groups_;
   }
 
@@ -155,7 +155,7 @@ class WorkTable {
    * are deconvolved together. Each entry contains the indices of the original
    * groups that are part of the deconvolution group.
    */
-  std::vector<std::vector<int>> deconvolution_groups_;
+  std::vector<std::vector<std::size_t>> deconvolution_groups_;
 
   /**
    * begin() and end() allow writing range-based loops over all entries.
