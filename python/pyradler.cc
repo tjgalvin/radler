@@ -8,13 +8,51 @@
 #include <aocommon/image.h>
 #include <aocommon/logger.h>
 
+#include "work_table.h"
+
 namespace py = pybind11;
 
 void init_radler(py::module& m) {
   py::class_<radler::Radler>(m, "Radler",
-                             "Radio Astronomical Library Deconvolver core "
+                             "Radio Astronomical Deconvolution Library core "
                              "class for controlling and excuting the "
                              "deconvolution of radio astronmical images.")
+      .def(py::init([](const radler::Settings& settings,
+                       radler::WorkTable& work_table, double beam_size) {
+             if (settings.thread_count == 0) {
+               throw std::runtime_error("Number of threads should be > 0.");
+             }
+             return std::make_unique<radler::Radler>(
+                 settings,
+                 std::make_unique<radler::WorkTable>(std::move(work_table)),
+                 beam_size);
+           }),
+           R"pbdoc(
+        Constructs a Radler object from a radler.Settings object and a
+        radler.WorkTable object.
+        Residual and model images in the WorkTable entries are updated in-place
+        during Radler.perform() calls.
+        Note that the provided WorkTable is moved to the Radler object, hence
+        becomes invalid for the Python client after this call.
+
+        Internally, views on the provided images are used. Hence, keep the
+        images (numpy arrays) that are attached to the WorkTable alive during
+        the lifetime of the instantiated Radler object.
+
+        Parameters
+        ----------
+        settings: radler.Settings
+            Settings object.
+        work_table: radler.WorkTable
+            Table containing the work instructions for radler.
+            Since this WorkTable is moved to the Radler object, it becomes
+            invalid for the Python client after this call.
+        beam_size: double
+            Beam size in [rad]. The beam size is typically calculated from the
+            longest baseline, and used as initial value when fitting the
+            (accurate) beam.
+        )pbdoc",
+           py::arg("settings"), py::arg("work_table"), py::arg("beam_size"))
       .def(py::init([](const radler::Settings& settings,
                        py::array_t<float>& psf, py::array_t<float>& residual,
                        py::array_t<float>& model, double beam_size,

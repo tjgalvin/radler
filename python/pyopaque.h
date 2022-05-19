@@ -6,5 +6,5 @@
 
 // Enables pass-by-reference of stl vectors, see
 // https://pybind11.readthedocs.io/en/stable/advanced/cast/stl.html?highlight=PYBIND11_MAKE_OPAQUE#making-opaque-types
-PYBIND11_MAKE_OPAQUE(std::vector<float>);
-PYBIND11_MAKE_OPAQUE(std::vector<double>);
+PYBIND11_MAKE_OPAQUE(std::vector<float>)
+PYBIND11_MAKE_OPAQUE(std::vector<double>)

@@ -12,6 +12,24 @@ BEAM_SIZE = 0.0
 PIXEL_SCALE = 1.0 / 60.0 * (np.pi / 180.0)
 MINOR_ITERATION_COUNT = 1000
 
+def radler_perform(radler_object: rd.Radler, minor_iteration_count: int):
+    reached_threshold = False
+    iteration_number = 0
+    reached_threshold = radler_object.perform(reached_threshold, iteration_number)
+    assert reached_threshold == False
+    assert radler_object.iteration_number <= minor_iteration_count
+
+def check_model_image_point_source(
+    model: np.ndarray, scale: float, shift_x: int, shift_y: int
+):
+    source_pixel_x = int(WIDTH // 2 + shift_x)
+    source_pixel_y = int(HEIGHT // 2 + shift_y)
+
+    model_ref = np.zeros((HEIGHT, WIDTH), dtype=np.float32)
+    # Set reference point pixel
+    model_ref[source_pixel_y, source_pixel_x] = scale
+    np.testing.assert_allclose(model, model_ref, atol=2e-6)
+
 
 @pytest.fixture
 def get_settings():
@@ -156,26 +174,170 @@ def test_point_source(
     residual = get_residual(scale, source_shift[0], source_shift[1])
     model = np.zeros((HEIGHT, WIDTH), dtype=np.float32)
 
-    reached_threshold = False
-    iteration_number = 0
-
     radler_object = rd.Radler(
         settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i
     )
-    reached_threshold = radler_object.perform(reached_threshold, iteration_number)
 
-    assert radler_object.iteration_number <= settings.minor_iteration_count
+    radler_perform(radler_object, settings.minor_iteration_count)
 
     np.testing.assert_allclose(
         residual, np.zeros((WIDTH, HEIGHT), dtype=np.float32), atol=2e-6
     )
 
-    source_pixel_width = int(WIDTH // 2 + source_shift[0])
-    source_pixel_height = int(HEIGHT // 2 + source_shift[1])
+    check_model_image_point_source(model, scale, source_shift[0], source_shift[1])
 
-    # Test value of source pixel
-    assert abs((model[source_pixel_height, source_pixel_width]) - scale) < 1e-6
-    # Mask center pixel
-    height_mask = ~np.isin(np.arange(model.shape[0]), source_pixel_height)
-    width_mask = ~np.isin(np.arange(model.shape[1]), source_pixel_width)
-    np.testing.assert_allclose(model[height_mask, width_mask], 0.0, atol=1e-6)
+
+@pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
+@pytest.mark.parametrize(
+    "algorithm", [rd.AlgorithmType.generic_clean, rd.AlgorithmType.multiscale]
+)
+@pytest.mark.parametrize("scale", [2.5])
+@pytest.mark.parametrize("source_shift", [(-9, 15)])
+def test_radler_one_entry_worktable(settings, algorithm, scale, source_shift):
+    """
+    Check Radler when a one entry work table is provided.
+    """
+    settings.algorithm_type = algorithm
+
+    psf = get_psf()
+    residual = get_residual(scale, source_shift[0], source_shift[1])
+    model = np.zeros((HEIGHT, WIDTH), dtype=np.float32)
+
+    entry = rd.WorkTableEntry()
+    entry.psf = psf
+    entry.residual = residual
+    entry.model = model
+    entry.original_channel_index = 0
+    entry.index = 0
+    entry.image_weight = 1.0
+
+    work_table = rd.WorkTable(1, 1)
+    work_table.add_entry(entry)
+
+    radler_object = rd.Radler(settings, work_table, BEAM_SIZE)
+
+    radler_perform(radler_object, settings.minor_iteration_count)
+
+    np.testing.assert_allclose(
+        residual, np.zeros((WIDTH, HEIGHT), dtype=np.float32), atol=2e-6
+    )
+
+    check_model_image_point_source(model, scale, source_shift[0], source_shift[1])
+
+
+@pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
+@pytest.mark.parametrize(
+    "algorithm", [rd.AlgorithmType.generic_clean, rd.AlgorithmType.multiscale]
+)
+def test_radler_ndeconvolution_is_noriginal(settings, algorithm):
+    """
+    Test radler by providing a WorkTable with the number of deconvolution groups equal
+    to number of original groups.
+    """
+    settings.algorithm_type = algorithm
+
+    scales = [2.5, 4.0]
+    shifts = [(0, 0), (-9, 23)]
+
+    psf = get_psf()
+    residuals = [
+        get_residual(scales[0], shifts[0][0], shifts[0][1]),
+        get_residual(scales[1], shifts[1][0], shifts[1][1]),
+    ]
+    models = [
+        np.zeros((HEIGHT, WIDTH), dtype=np.float32),
+        np.zeros((HEIGHT, WIDTH), dtype=np.float32),
+    ]
+
+    work_table = rd.WorkTable(2, 2)
+    for i in range(2):
+        entry = rd.WorkTableEntry()
+        entry.psf = psf
+        entry.residual = residuals[i]
+        entry.model = models[i]
+        entry.original_channel_index = i
+        entry.index = i
+        entry.image_weight = 1.0
+        work_table.add_entry(entry)
+
+    radler_object = rd.Radler(settings, work_table, BEAM_SIZE)
+
+    radler_perform(radler_object, settings.minor_iteration_count)
+
+    for residual in residuals:
+        np.testing.assert_allclose(
+            residual, np.zeros((WIDTH, HEIGHT), dtype=np.float32), atol=2e-6
+        )
+
+    for (i, model) in enumerate(models):
+        check_model_image_point_source(model, scales[i], shifts[i][0], shifts[i][1])
+
+
+@pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
+@pytest.mark.parametrize(
+    "algorithm", [rd.AlgorithmType.generic_clean, rd.AlgorithmType.multiscale]
+)
+def test_radler_ndeconvolution_lt_noriginal(settings, algorithm):
+    """
+    Test radler by providing a WorkTable with two original groups and
+    one deconvolution group. Output should be two identical
+    model images, containing the (weighted) point source values.
+    """
+    settings.algorithm_type = algorithm
+    settings.spectral_fitting.mode = rd.SpectralFittingMode.polynomial
+    # Linear polynomial fit
+    settings.spectral_fitting.terms = 2
+
+    scales = [2.5, 4.0]
+    shifts = [(0, 0), (-9, 23)]
+    weights = [0.5, 4.2]
+
+    psf = get_psf()
+    residuals = [
+        get_residual(scales[0], shifts[0][0], shifts[0][1]),
+        get_residual(scales[1], shifts[1][0], shifts[1][1]),
+    ]
+    models = [
+        np.zeros((HEIGHT, WIDTH), dtype=np.float32),
+        np.zeros((HEIGHT, WIDTH), dtype=np.float32),
+    ]
+
+    work_table = rd.WorkTable(2, 1)
+    for i in range(2):
+        entry = rd.WorkTableEntry()
+        entry.psf = psf
+        entry.residual = residuals[i]
+        entry.model = models[i]
+        entry.original_channel_index = i
+        entry.band_start_frequency = (2.0 + float(i)) * 1e6
+        entry.band_end_frequency = (3.0 + float(i)) * 1e6
+        entry.index = i
+        entry.image_weight = weights[i]
+        work_table.add_entry(entry)
+
+    radler_object = rd.Radler(settings, work_table, BEAM_SIZE)
+
+    radler_perform(radler_object, settings.minor_iteration_count)
+
+    for residual in residuals:
+        np.testing.assert_allclose(
+            residual, np.zeros((WIDTH, HEIGHT), dtype=np.float32), atol=2e-6
+        )
+
+    # Model images should be identical
+    np.testing.assert_allclose(models[0], models[1], atol=1e-6)
+
+    # Expand scales into diagonal array to ease the computation
+    scale_array = np.diag(scales)
+    model_image_ref = np.zeros((HEIGHT, WIDTH), dtype=np.float32)
+    for i, shift in enumerate(shifts):
+        source_pixel_x = int(WIDTH // 2 + shift[0])
+        source_pixel_y = int(HEIGHT // 2 + shift[1])
+        weighted_pixel_value = np.sum(np.asarray(weights) * scale_array[i, :]) / np.sum(
+            np.asarray(weights)
+        )
+        model_image_ref[source_pixel_y, source_pixel_x] = weighted_pixel_value
+
+    # Model image values at point source locations should be the weighted average
+    # of the input point sources
+    np.testing.assert_allclose(models[0], model_image_ref, atol=2e-6)
