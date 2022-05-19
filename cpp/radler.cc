@@ -444,12 +444,4 @@ void Radler::ReadMask(const WorkTable& group_table) {
   if (has_mask) parallel_deconvolution_->SetCleanMask(clean_mask_.data());
 }
 
-void RemoveNansInPsf(float* psf, size_t width, size_t height) {
-  float* end = psf + width * height;
-  while (psf != end) {
-    if (!std::isfinite(*psf)) *psf = 0.0;
-    ++psf;
-  }
-}
-
 }  // namespace radler

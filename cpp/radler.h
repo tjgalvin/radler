@@ -99,7 +99,5 @@ class Radler {
   double beam_size_;
 };
 
-void RemoveNansInPsf(float* psf, size_t width, size_t height);
-
 }  // namespace radler
 #endif
