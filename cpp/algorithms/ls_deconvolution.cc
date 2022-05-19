@@ -20,8 +20,8 @@ struct LsDeconvolutionData {
   aocommon::UVector<std::pair<size_t, size_t>> maskPositions;
   size_t width, height;
   double regularization;
-  const double* dirty;
-  const double* psf;
+  const float* dirty;
+  const float* psf;
 
   static int fitting_func(const gsl_vector* xvec, void* data, gsl_vector* f) {
     const LsDeconvolutionData& lsData =
@@ -158,12 +158,12 @@ void LsDeconvolution::getMaskPositions(
   }
 }
 
-void LsDeconvolution::linearFit(double* dataImage, double* modelImage,
-                                const double* psfImage, size_t width,
+void LsDeconvolution::linearFit(float* dataImage, float* modelImage,
+                                const aocommon::Image& psfImage, size_t width,
                                 size_t height,
                                 bool& /*reachedMajorThreshold*/) {
   aocommon::UVector<std::pair<size_t, size_t>> maskPositions;
-  getMaskPositions(maskPositions, _cleanMask, width, height);
+  getMaskPositions(maskPositions, clean_mask_, width, height);
   Logger::Info << "Running LSDeconvolution with " << maskPositions.size()
                << " parameters.\n";
 
@@ -236,13 +236,13 @@ void LsDeconvolution::linearFit(double* dataImage, double* modelImage,
   gsl_matrix_free(cov);
 }
 
-void LsDeconvolution::nonLinearFit(double* dataImage, double* modelImage,
-                                   const double* psfImage, size_t width,
-                                   size_t height,
+void LsDeconvolution::nonLinearFit(float* dataImage, float* modelImage,
+                                   const aocommon::Image& psfImage,
+                                   size_t width, size_t height,
                                    bool& /*reachedMajorThreshold*/) {
-  if (this->_cleanMask == 0) throw std::runtime_error("No mask available");
+  if (clean_mask_ == nullptr) throw std::runtime_error("No mask available");
 
-  getMaskPositions(_data->maskPositions, _cleanMask, width, height);
+  getMaskPositions(_data->maskPositions, clean_mask_, width, height);
   size_t parameterCount = _data->maskPositions.size(),
          dataCount = width * height + 1;
   Logger::Info << "Running LSDeconvolution with " << parameterCount
@@ -251,7 +251,7 @@ void LsDeconvolution::nonLinearFit(double* dataImage, double* modelImage,
   const gsl_multifit_fdfsolver_type* T = gsl_multifit_fdfsolver_lmsder;
   _data->solver = gsl_multifit_fdfsolver_alloc(T, dataCount, parameterCount);
   _data->dirty = dataImage;
-  _data->psf = psfImage;
+  _data->psf = psfImage.Data();
   _data->width = width;
   _data->height = height;
   _data->parent = this;

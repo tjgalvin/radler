@@ -12,7 +12,7 @@
 #include "algorithms/deconvolution_algorithm.h"
 
 // TODO: LSDeconvolution algorithm is currently in
-// a somewhat experimental stage and is not even compiled.
+// a somewhat experimental stage
 
 namespace radler::algorithms {
 struct LsDeconvolutionData;  // Defined in ls_deconvolution.cc.
@@ -24,18 +24,17 @@ class LsDeconvolution final : public DeconvolutionAlgorithm {
 
   LsDeconvolution(const LsDeconvolution& source);
 
-  // TODO(AST-912) Make copy/move operations Google Style compliant.
-  LsDeconvolution(const LsDeconvolution&) = default;
-  LsDeconvolution(LsDeconvolution&&) = delete;
-  LsDeconvolution& operator=(const LsDeconvolution&) = delete;
-  LsDeconvolution& operator=(LsDeconvolution&&) = delete;
-
   float ExecuteMajorIteration(ImageSet& data_image, ImageSet& model_image,
                               const std::vector<aocommon::Image>& psf_images,
-                              bool& reached_major_threshold) final {
-    ExecuteMajorIteration(data_image[0], model_image[0], psf_images[0],
-                          data_image.Width(), data_image.Height(),
-                          reached_major_threshold);
+                              bool& reached_major_threshold) override {
+    if (data_image.NDeconvolutionChannels() != 1 ||
+        data_image.LinkedPolarizations().size() > 1)
+      throw std::runtime_error(
+          "LS deconvolution can only do single-channel, single-polarization "
+          "deconvolution");
+    ExecuteMajorIteration(data_image.Data(0), model_image.Data(0),
+                          psf_images[0], data_image.Width(),
+                          data_image.Height(), reached_major_threshold);
     return 0.0;
   }
 
@@ -43,8 +42,8 @@ class LsDeconvolution final : public DeconvolutionAlgorithm {
     return std::make_unique<LsDeconvolution>(*this);
   }
 
-  void ExecuteMajorIteration(double* data_image, double* model_image,
-                             const double* psf_image, size_t width,
+  void ExecuteMajorIteration(float* data_image, float* model_image,
+                             const aocommon::Image& psf_image, size_t width,
                              size_t height, bool& reached_major_threshold) {
     nonLinearFit(data_image, model_image, psf_image, width, height,
                  reached_major_threshold);
@@ -55,13 +54,13 @@ class LsDeconvolution final : public DeconvolutionAlgorithm {
       aocommon::UVector<std::pair<size_t, size_t>>& maskPositions,
       const bool* mask, size_t width, size_t height);
 
-  void linearFit(double* data_image, double* model_image,
-                 const double* psfImage, size_t width, size_t height,
-                 bool& reachedMajorThreshold);
+  void linearFit(float* data_image, float* model_image,
+                 const aocommon::Image& psf_image, size_t width, size_t height,
+                 bool& reached_major_threshold);
 
-  void nonLinearFit(double* data_image, double* model_image,
-                    const double* psfImage, size_t width, size_t height,
-                    bool& reachedMajorThreshold);
+  void nonLinearFit(float* data_image, float* model_image,
+                    const aocommon::Image& psf_image, size_t width,
+                    size_t height, bool& reached_major_threshold);
 
   std::unique_ptr<LsDeconvolutionData> _data;
 };
