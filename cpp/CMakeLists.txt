@@ -18,7 +18,7 @@ set(RADLER_FILES
     algorithms/deconvolution_algorithm.cc
     algorithms/generic_clean.cc
     algorithms/iuwt_deconvolution_algorithm.cc
-    # algorithms/ls_deconvolution.cc // TODO: Complete or remove this class.
+    algorithms/ls_deconvolution.cc
     algorithms/more_sane.cc
     algorithms/multiscale_algorithm.cc
     algorithms/parallel_deconvolution.cc
