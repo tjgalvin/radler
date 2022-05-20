@@ -3,7 +3,7 @@ project(pyradler)
 
 # Create the binding library pyradler is a temporary alias for the radler target
 pybind11_add_module(pyradler pyradler.cc pysettings.cc pywork_table.cc
-                    pywrappers.cc)
+                    pycomponent_list.cc pywrappers.cc)
 
 target_include_directories(${PROJECT_NAME}
                            PRIVATE "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/cpp>")

@@ -7,6 +7,7 @@ namespace py = pybind11;
 void init_settings(py::module&);
 void init_work_table(py::module&);
 void init_radler(py::module&);
+void init_component_list(py::module&);
 
 PYBIND11_MODULE(radler, m) {
   m.doc() = R"pbdoc(
@@ -20,4 +21,5 @@ PYBIND11_MODULE(radler, m) {
   init_settings(m);
   init_work_table(m);
   init_radler(m);
+  init_component_list(m);
 }

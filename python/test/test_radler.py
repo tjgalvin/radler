@@ -4,6 +4,7 @@ import radler as rd
 import pytest
 from pytest_lazyfixture import lazy_fixture
 import numpy as np
+import os.path
 
 
 WIDTH = 64
@@ -90,7 +91,7 @@ def test_num_threads(settings):
     """
     psf = get_psf()
     residual = get_residual(1.0, 0, 0)
-    model = np.zeros((HEIGHT, WIDTH), dtype=np.float32)
+    model = np.zeros_like(residual)
 
     settings.thread_count = 0
     with pytest.raises(RuntimeError):
@@ -107,7 +108,7 @@ def test_input_dtype(settings):
     """
     psf = get_psf()
     residual = get_residual(1.0, 0, 0)
-    model = np.zeros((HEIGHT, WIDTH), dtype=np.float32)
+    model = np.zeros_like(residual)
 
     psf = psf.astype(np.float64)
     with pytest.raises(TypeError):
@@ -136,7 +137,7 @@ def test_default_args(settings):
     """
     psf = get_psf()
     residual = get_residual(1.0, 0, 0)
-    model = np.zeros((HEIGHT, WIDTH), dtype=np.float32)
+    model = np.zeros_like(residual)
 
     rd.Radler(settings, psf, residual, model, BEAM_SIZE)
 
@@ -172,7 +173,7 @@ def test_point_source(
 
     psf = get_psf()
     residual = get_residual(scale, source_shift[0], source_shift[1])
-    model = np.zeros((HEIGHT, WIDTH), dtype=np.float32)
+    model = np.zeros_like(residual)
 
     radler_object = rd.Radler(
         settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i
@@ -181,13 +182,58 @@ def test_point_source(
     radler_perform(radler_object, settings.minor_iteration_count)
 
     np.testing.assert_allclose(
-        residual, np.zeros((WIDTH, HEIGHT), dtype=np.float32), atol=2e-6
+        residual, np.zeros_like(residual), atol=2e-6
     )
 
     check_model_image_point_source(model, scale, source_shift[0], source_shift[1])
 
 
-@pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
+@pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
+def test_write_component_list(settings):
+    """
+    Check writing of component list
+    """
+    SOURCES_FILENAME = "test_write_sources.txt"
+    SHORT_MINOR_ITERATION_COUNT = 42
+    PHASE_CENTRE_RA = 0.3
+    PHASE_CENTRE_DEC = 0.4
+
+    settings.save_source_list = True
+    settings.minor_iteration_count = SHORT_MINOR_ITERATION_COUNT
+    settings.algorithm_type = rd.AlgorithmType.generic_clean
+
+    psf = get_psf()
+    residual = get_residual(1, 0, 0)
+    residual = np.ones_like(residual)  # Will take maximum iterations
+    model = np.zeros_like(residual)
+
+    radler_object = rd.Radler(
+        settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i
+    )
+
+    radler_perform(radler_object, settings.minor_iteration_count)
+
+    component_list = radler_object.component_list
+
+    assert component_list.n_scales == 1
+    assert component_list.component_count(0) == settings.minor_iteration_count
+
+    component_list.write_sources(radler_object,
+                                 SOURCES_FILENAME,
+                                 settings.pixel_scale.x,
+                                 settings.pixel_scale.y,
+                                 PHASE_CENTRE_RA,
+                                 PHASE_CENTRE_DEC)
+
+    assert os.path.isfile(SOURCES_FILENAME)
+
+    with open(SOURCES_FILENAME, "r") as f:
+        assert len(f.readlines()) == SHORT_MINOR_ITERATION_COUNT + 1
+
+    os.remove(SOURCES_FILENAME)
+
+
+@pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
 @pytest.mark.parametrize(
     "algorithm", [rd.AlgorithmType.generic_clean, rd.AlgorithmType.multiscale]
 )
@@ -201,7 +247,7 @@ def test_radler_one_entry_worktable(settings, algorithm, scale, source_shift):
 
     psf = get_psf()
     residual = get_residual(scale, source_shift[0], source_shift[1])
-    model = np.zeros((HEIGHT, WIDTH), dtype=np.float32)
+    model = np.zeros_like(residual)
 
     entry = rd.WorkTableEntry()
     entry.psf = psf
@@ -219,13 +265,13 @@ def test_radler_one_entry_worktable(settings, algorithm, scale, source_shift):
     radler_perform(radler_object, settings.minor_iteration_count)
 
     np.testing.assert_allclose(
-        residual, np.zeros((WIDTH, HEIGHT), dtype=np.float32), atol=2e-6
+        residual, np.zeros_like(residual), atol=2e-6
     )
 
     check_model_image_point_source(model, scale, source_shift[0], source_shift[1])
 
 
-@pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
+@pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
 @pytest.mark.parametrize(
     "algorithm", [rd.AlgorithmType.generic_clean, rd.AlgorithmType.multiscale]
 )
@@ -245,8 +291,8 @@ def test_radler_ndeconvolution_is_noriginal(settings, algorithm):
         get_residual(scales[1], shifts[1][0], shifts[1][1]),
     ]
     models = [
-        np.zeros((HEIGHT, WIDTH), dtype=np.float32),
-        np.zeros((HEIGHT, WIDTH), dtype=np.float32),
+        np.zeros_like(residuals[0]),
+        np.zeros_like(residuals[1]),
     ]
 
     work_table = rd.WorkTable(2, 2)
@@ -266,14 +312,14 @@ def test_radler_ndeconvolution_is_noriginal(settings, algorithm):
 
     for residual in residuals:
         np.testing.assert_allclose(
-            residual, np.zeros((WIDTH, HEIGHT), dtype=np.float32), atol=2e-6
+            residual, np.zeros_like(residual), atol=2e-6
         )
 
     for (i, model) in enumerate(models):
         check_model_image_point_source(model, scales[i], shifts[i][0], shifts[i][1])
 
 
-@pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
+@pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
 @pytest.mark.parametrize(
     "algorithm", [rd.AlgorithmType.generic_clean, rd.AlgorithmType.multiscale]
 )
@@ -298,8 +344,8 @@ def test_radler_ndeconvolution_lt_noriginal(settings, algorithm):
         get_residual(scales[1], shifts[1][0], shifts[1][1]),
     ]
     models = [
-        np.zeros((HEIGHT, WIDTH), dtype=np.float32),
-        np.zeros((HEIGHT, WIDTH), dtype=np.float32),
+        np.zeros_like(residuals[0]),
+        np.zeros_like(residuals[1]),
     ]
 
     work_table = rd.WorkTable(2, 1)
@@ -321,7 +367,7 @@ def test_radler_ndeconvolution_lt_noriginal(settings, algorithm):
 
     for residual in residuals:
         np.testing.assert_allclose(
-            residual, np.zeros((WIDTH, HEIGHT), dtype=np.float32), atol=2e-6
+            residual, np.zeros_like(residual), atol=2e-6
         )
 
     # Model images should be identical
@@ -329,7 +375,7 @@ def test_radler_ndeconvolution_lt_noriginal(settings, algorithm):
 
     # Expand scales into diagonal array to ease the computation
     scale_array = np.diag(scales)
-    model_image_ref = np.zeros((HEIGHT, WIDTH), dtype=np.float32)
+    model_image_ref = np.zeros_like(residual)
     for i, shift in enumerate(shifts):
         source_pixel_x = int(WIDTH // 2 + shift[0])
         source_pixel_y = int(HEIGHT // 2 + shift[1])
