@@ -153,5 +153,9 @@ void init_radler(py::module& m) {
       .def_property_readonly("iteration_number",
                              &radler::Radler::IterationNumber, R"pbdoc(
         Return minor loop iteration number of the underlying DeconvolutionAlgorithm.
+       )pbdoc")
+      .def_property_readonly("component_list",
+                             &radler::Radler::GetComponentList, R"pbdoc(
+        Return the component list (only stored when specified in settings).
        )pbdoc");
 }
