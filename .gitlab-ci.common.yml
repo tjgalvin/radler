@@ -104,7 +104,6 @@ clang-tidy:
     - cmake -DBUILD_TESTING=ON -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE ..
     - cd ..
     - clang-tidy-12 -p build/ `find cpp/ -name *.cc` | scripts/clang-tidy-to-junit.py . > build/reports/linting.xml
-  allow_failure: true
   artifacts:
     when: always
     paths:
