@@ -4,6 +4,7 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/iostream.h>
 
 #include <aocommon/image.h>
 #include <aocommon/logger.h>
@@ -127,6 +128,8 @@ void init_radler(py::module& m) {
           "perform",
           [](radler::Radler& self, bool reached_major_threshold,
              size_t major_iteration_number) {
+            py::scoped_ostream_redirect stream(
+                std::cout, py::module_::import("sys").attr("stdout"));
             if (reached_major_threshold) {
               aocommon::Logger::Info << "Major threshold already reached.\n";
             } else {
