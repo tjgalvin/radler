@@ -48,6 +48,10 @@ class ParallelDeconvolution {
 
   bool IsInitialized() const { return !algorithms_.empty(); }
 
+  /**
+   * Set the multiscale auto-masking mode. This method requires that the class
+   * is initialized with the multiscale algorithm.
+   */
   void SetAutoMaskMode(bool track_per_scale_masks, bool use_per_scale_masks);
 
   void SetCleanMask(const bool* mask);

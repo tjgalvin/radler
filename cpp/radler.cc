@@ -211,12 +211,14 @@ void Radler::Perform(bool& reached_major_threshold,
   } else {
     if (settings_.auto_mask_sigma && auto_mask_is_finished_) {
       if (auto_mask_.empty()) {
-        auto_mask_.resize(image_width_ * image_height_);
+        // Generate the auto-mask from the model image(s)
+        auto_mask_.assign(image_width_ * image_height_, false);
         for (size_t image_index = 0; image_index != model_set.Size();
              ++image_index) {
           const aocommon::Image& image = model_set[image_index];
           for (size_t i = 0; i != image_width_ * image_height_; ++i) {
-            auto_mask_[i] = (image[i] == 0.0) ? false : true;
+            if (std::isfinite(image[i]) && image[i] != 0.0)
+              auto_mask_[i] = true;
           }
         }
       }

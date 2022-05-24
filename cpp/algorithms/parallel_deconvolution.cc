@@ -389,7 +389,7 @@ void ParallelDeconvolution::ExecuteParallelRun(
   aocommon::ParallelFor<size_t> loop(settings_.parallel.max_threads);
   ImageSet resultModel(model_image, model_image.Width(), model_image.Height());
   resultModel = 0.0;
-  loop.Run(0, algorithms_.size(), [&](size_t index, size_t) {
+  loop.Run(0, algorithms_.size(), [&](size_t index) {
     logs_.Activate(index);
     RunSubImage(subImages[index], data_image, model_image, resultModel,
                 psf_images, 0.0, true, mutex);
