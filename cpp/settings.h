@@ -183,10 +183,6 @@ struct Settings {
     std::vector<double> sigma_levels;
   } more_sane;
 
-  struct Iuwt {
-    bool snr_test = false;
-  } iuwt;
-
   struct Multiscale {
     bool fast_sub_minor_loop = true;
     double sub_minor_loop_gain = 0.2;

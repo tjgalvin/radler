@@ -18,20 +18,13 @@ namespace radler::algorithms {
 
 class IuwtDeconvolution final : public DeconvolutionAlgorithm {
  public:
-  explicit IuwtDeconvolution(bool use_snr_test) : use_snr_test_(use_snr_test) {}
-
-  IuwtDeconvolution(const IuwtDeconvolution&) = default;
-  IuwtDeconvolution(IuwtDeconvolution&&) = default;
-  IuwtDeconvolution& operator=(const IuwtDeconvolution&) = default;
-  IuwtDeconvolution& operator=(IuwtDeconvolution&&) = default;
-
   float ExecuteMajorIteration(ImageSet& data_image, ImageSet& model_image,
                               const std::vector<aocommon::Image>& psf_images,
                               bool& reached_major_threshold) final {
     IuwtDeconvolutionAlgorithm algorithm(
         data_image.Width(), data_image.Height(), minor_loop_gain_,
         major_loop_gain_, clean_border_ratio_, allow_negative_components_,
-        clean_mask_, threshold_, use_snr_test_);
+        clean_mask_, threshold_);
     float val = algorithm.PerformMajorIteration(
         iteration_number_, MaxIterations(), model_image, data_image, psf_images,
         reached_major_threshold);
@@ -42,9 +35,6 @@ class IuwtDeconvolution final : public DeconvolutionAlgorithm {
   std::unique_ptr<DeconvolutionAlgorithm> Clone() const final {
     return std::make_unique<IuwtDeconvolution>(*this);
   }
-
- private:
-  const bool use_snr_test_;
 };
 }  // namespace radler::algorithms
 #endif  // RADLER_ALGORITHMS_IUWT_DECONVOLUTION_H_

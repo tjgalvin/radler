@@ -286,8 +286,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
                                                          settings_.prefix_name);
       break;
     case AlgorithmType::kIuwt: {
-      algorithm = std::make_unique<algorithms::IuwtDeconvolution>(
-          settings_.iuwt.snr_test);
+      algorithm = std::make_unique<algorithms::IuwtDeconvolution>();
       break;
     }
     case AlgorithmType::kMultiscale: {

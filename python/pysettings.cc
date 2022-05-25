@@ -184,7 +184,6 @@ void init_settings(py::module& m) {
       .def_readwrite("algorithm_type", &radler::Settings::algorithm_type)
       .def_readwrite("generic", &radler::Settings::generic)
       .def_readwrite("multiscale", &radler::Settings::multiscale)
-      .def_readwrite("iuwt", &radler::Settings::iuwt)
       .def_readwrite("more_sane", &radler::Settings::more_sane)
       .def_readwrite("python", &radler::Settings::python, R"pbdoc(
         In case the deconvolution algorithm is set to rd.AlgorithmType.python,
@@ -207,9 +206,6 @@ void init_settings(py::module& m) {
                      &radler::Settings::Multiscale::convolution_padding)
       .def_readwrite("scale_list", &radler::Settings::Multiscale::scale_list)
       .def_readwrite("shape", &radler::Settings::Multiscale::shape);
-
-  py::class_<radler::Settings::Iuwt>(settings, "Iuwt")
-      .def_readwrite("snr_test", &radler::Settings::Iuwt::snr_test);
 
   py::class_<radler::Settings::MoreSane>(settings, "MoreSane")
       .def_readwrite("location", &radler::Settings::MoreSane::location)

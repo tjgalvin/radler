@@ -11,7 +11,6 @@ def test_layout():
     nested_structs_ref = set(
         [
             "Generic",
-            "Iuwt",
             "LocalRms",
             "MoreSane",
             "Multiscale",
@@ -24,7 +23,7 @@ def test_layout():
     nested_structs = set(filter(lambda x: re.match("^[A-Z]{1}", x), dir(settings)))
     assert nested_structs == nested_structs_ref
 
-    n_properties_ref = 35
+    n_properties_ref = 34
     properties = set(filter(lambda x: re.match("^[a-z]+", x), dir(settings)))
     assert len(properties) == n_properties_ref
 
@@ -79,7 +78,7 @@ def test_default():
     assert settings.more_sane.sigma_levels == rd.VectorDouble([])
 
     # Iuwt
-    assert settings.iuwt.snr_test == False
+    # ... no options
 
     # Multiscale
     assert settings.multiscale.fast_sub_minor_loop == True
