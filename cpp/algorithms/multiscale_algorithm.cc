@@ -485,7 +485,7 @@ void MultiScaleAlgorithm::ConvolvePsfs(std::unique_ptr<Image[]>& convolved_psfs,
       } else {
         expTerm = std::log2(scaleEntry.scale / firstAutoScaleSize);
       }
-      scaleEntry.bias_factor = std::pow(settings_.scale_bias, -expTerm) * 1.0;
+      scaleEntry.bias_factor = std::pow(settings_.scale_bias, -expTerm);
 
       // I tried this, but wasn't perfect:
       // minor_loop_gain_ * scale_infos_[0].kernel_peak /
