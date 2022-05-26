@@ -55,7 +55,7 @@ void init_work_table(py::module& m) {
                              &radler::WorkTable::OriginalGroups)
       .def_property_readonly("deconvolution_groups",
                              &radler::WorkTable::DeconvolutionGroups)
-      .def_property_readonly("size", &radler::WorkTable::Size)
+      .def("__len__", &radler::WorkTable::Size)
       .def_property_readonly("channel_index_offset",
                              &radler::WorkTable::GetChannelIndexOffset)
       .def(

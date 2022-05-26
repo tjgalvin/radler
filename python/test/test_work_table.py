@@ -169,13 +169,13 @@ def test_add_entries():
     with pytest.raises(AttributeError):
         model_read = entries[1].model
 
-    assert work_table.size == 0
+    assert len(work_table) == 0
     for (i, entry) in enumerate(entries):
         entry.image_weight = i
         entry.original_channel_index = i % 2
         entry.band_end_frequency = float(i + 1) * 1e6
         work_table.add_entry(entry)
-    assert work_table.size == len(entries)
+    assert len(work_table) == len(entries)
 
     assert len(work_table.original_groups) == len(entries)
     assert len(work_table.original_groups[0]) == 2
