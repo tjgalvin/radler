@@ -48,8 +48,7 @@ int main(int argc, char* argv[]) {
   } else {
     aocommon::FitsReader imgReader(argv[1]);
     aocommon::FitsReader psfReader(argv[2]);
-    const double beamScale =
-        imgReader.BeamMajorAxisRad() / imgReader.PixelSizeX();
+    const double beamScale = imgReader.BeamMajorAxisRad();
     const size_t width = imgReader.ImageWidth();
     const size_t height = imgReader.ImageHeight();
     const size_t n_channels = 1;
