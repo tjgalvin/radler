@@ -261,7 +261,7 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
       } else if (clean_mask_) {
         subLoop.SetMask(clean_mask_);
       }
-      subLoop.SetSpectralFitter(&Fitter());
+      subLoop.SetParentAlgorithm(this);
 
       subLoop.Run(individualConvolvedImages, twiceConvolvedPSFs);
 

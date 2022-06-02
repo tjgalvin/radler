@@ -80,7 +80,7 @@ float GenericClean::ExecuteMajorIteration(
     subMinorLoop.SetGain(MinorLoopGain());
     subMinorLoop.SetAllowNegativeComponents(AllowNegativeComponents());
     subMinorLoop.SetStopOnNegativeComponent(StopOnNegativeComponents());
-    subMinorLoop.SetSpectralFitter(&Fitter());
+    subMinorLoop.SetParentAlgorithm(this);
     if (!rms_factor_image_.Empty()) {
       subMinorLoop.SetRmsFactorImage(rms_factor_image_);
     }
@@ -118,7 +118,7 @@ float GenericClean::ExecuteMajorIteration(
 
     aocommon::UVector<float> peakValues(dirty_set.Size());
 
-    while (maxValue && fabs(*maxValue) > firstThreshold &&
+    while (maxValue && std::fabs(*maxValue) > firstThreshold &&
            iteration_number_ < max_iterations_ &&
            !(maxValue < 0.0f && stop_on_negative_component_)) {
       if (iteration_number_ <= 10 ||

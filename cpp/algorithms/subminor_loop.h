@@ -115,7 +115,7 @@ class SubMinorLoop {
         _allowNegativeComponents(true),
         _stopOnNegativeComponent(false),
         _mask(nullptr),
-        _fitter(nullptr),
+        _parentAlgorithm(nullptr),
         _subMinorModel(width, height),
         _fluxCleaned(0.0),
         _logReceiver(log_receiver),
@@ -156,8 +156,8 @@ class SubMinorLoop {
     _stopOnNegativeComponent = stop_on_negative_component;
   }
 
-  void SetSpectralFitter(const schaapcommon::fitters::SpectralFitter* fitter) {
-    _fitter = fitter;
+  void SetParentAlgorithm(DeconvolutionAlgorithm* parent_algorithm) {
+    _parentAlgorithm = parent_algorithm;
   }
 
   void SetCleanBorders(size_t horizontal_border, size_t vertical_border) {
@@ -210,7 +210,10 @@ class SubMinorLoop {
   size_t _currentIteration, _maxIterations;
   bool _allowNegativeComponents, _stopOnNegativeComponent;
   const bool* _mask;
-  const schaapcommon::fitters::SpectralFitter* _fitter;
+  /**
+   * The parent algorithm is used to perform spectral fitting.
+   */
+  DeconvolutionAlgorithm* _parentAlgorithm;
   SubMinorModel _subMinorModel;
   float _fluxCleaned;
   aocommon::Image _rmsFactorImage;

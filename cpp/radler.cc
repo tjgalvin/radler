@@ -309,8 +309,10 @@ void Radler::InitializeDeconvolutionAlgorithm(
   algorithm->SetAllowNegativeComponents(settings_.allow_negative_components);
   algorithm->SetStopOnNegativeComponents(settings_.stop_on_negative_components);
   algorithm->SetThreadCount(settings_.thread_count);
+  const size_t n_polarizations = table_->OriginalGroups().front().size();
   algorithm->SetSpectralFittingMode(settings_.spectral_fitting.mode,
-                                    settings_.spectral_fitting.terms);
+                                    settings_.spectral_fitting.terms,
+                                    n_polarizations);
 
   ImageSet::CalculateDeconvolutionFrequencies(*table_, channel_frequencies_,
                                               channel_weights_);

@@ -4,6 +4,8 @@
 
 #include <schaapcommon/fft/convolution.h>
 
+#include "algorithms/deconvolution_algorithm.h"
+
 using aocommon::Image;
 
 namespace radler::algorithms {
@@ -53,7 +55,6 @@ std::optional<float> SubMinorLoop::Run(
   float maxValue;
   size_t maxComponent = _subMinorModel.GetMaxComponent(
       scratch, maxValue, _allowNegativeComponents);
-  std::vector<float> fittingScratch;
 
   while (std::fabs(maxValue) > _threshold &&
          _currentIteration < _maxIterations &&
@@ -69,9 +70,7 @@ std::optional<float> SubMinorLoop::Run(
     const size_t x = _subMinorModel.X(maxComponent),
                  y = _subMinorModel.Y(maxComponent);
 
-    if (_fitter) {
-      _fitter->FitAndEvaluate(componentValues.data(), x, y, fittingScratch);
-    }
+    _parentAlgorithm->PerformSpectralFit(componentValues.data(), x, y);
 
     for (size_t imgIndex = 0; imgIndex != _subMinorModel.Model().Size();
          ++imgIndex) {

@@ -97,8 +97,9 @@ class DeconvolutionAlgorithm {
   }
 
   void SetSpectralFittingMode(schaapcommon::fitters::SpectralFittingMode mode,
-                              size_t nTerms) {
-    spectral_fitter_.SetMode(mode, nTerms);
+                              size_t n_terms, size_t n_polarizations) {
+    spectral_fitter_.SetMode(mode, n_terms);
+    n_polarizations_ = n_polarizations;
   }
 
   void SetSpectrallyForcedImages(std::vector<aocommon::Image>&& images) {
@@ -120,13 +121,21 @@ class DeconvolutionAlgorithm {
   }
   const aocommon::Image& RMSFactorImage() const { return rms_factor_image_; }
 
+  /**
+   * Fit an array of values to a curve, and replace those values
+   * with the curve values. The position parameters are used when
+   * constraint fitting is used. Different polarizations are fitted
+   * independently.
+   * @param values is an array the size of the ImageSet (so npolarizations x
+   * nchannels).
+   */
+  void PerformSpectralFit(float* values, size_t x, size_t y);
+
  protected:
   DeconvolutionAlgorithm();
 
   DeconvolutionAlgorithm(const DeconvolutionAlgorithm&) = default;
   DeconvolutionAlgorithm& operator=(const DeconvolutionAlgorithm&) = default;
-
-  void PerformSpectralFit(float* values, size_t x, size_t y) const;
 
   float threshold_;
   float major_iteration_threshold_;
@@ -140,11 +149,12 @@ class DeconvolutionAlgorithm {
   bool stop_on_negative_component_;
   const bool* clean_mask_;
   aocommon::Image rms_factor_image_;
-  mutable std::vector<float> fitting_scratch_;
+  std::vector<float> fitting_scratch_;
 
   aocommon::LogReceiver* log_receiver_;
 
   schaapcommon::fitters::SpectralFitter spectral_fitter_;
+  size_t n_polarizations_ = 1;
 };
 
 }  // namespace radler::algorithms
