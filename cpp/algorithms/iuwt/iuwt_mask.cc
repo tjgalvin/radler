@@ -2,7 +2,7 @@
 
 #include "algorithms/iuwt/iuwt_mask.h"
 
-#include <boost/numeric/conversion/bounds.hpp>
+#include <limits>
 
 #include "algorithms/iuwt/iuwt_decomposition.h"
 
@@ -13,7 +13,7 @@ std::string IuwtMask::Summary(const IuwtDecomposition& iuwt) const {
   str << "IUWTMask with " << _masks.size()
       << " scale masks (iuwt: " << iuwt.Summary() << ")\n";
   for (size_t i = 0; i != _masks.size(); ++i) {
-    double maxVal = boost::numeric::bounds<double>::lowest();
+    double maxVal = std::numeric_limits<double>::lowest();
     double minVal = std::numeric_limits<double>::max();
     size_t count = 0;
     for (size_t j = 0; j != _masks[i].size(); ++j) {
@@ -23,7 +23,7 @@ std::string IuwtMask::Summary(const IuwtDecomposition& iuwt) const {
         if (iuwt[i][j] < minVal) minVal = iuwt[i][j];
       }
     }
-    if (maxVal == boost::numeric::bounds<double>::lowest()) {
+    if (maxVal == std::numeric_limits<double>::lowest()) {
       maxVal = std::numeric_limits<double>::quiet_NaN();
       minVal = std::numeric_limits<double>::quiet_NaN();
     }

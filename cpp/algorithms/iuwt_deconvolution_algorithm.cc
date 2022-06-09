@@ -4,9 +4,8 @@
 
 #include <algorithm>
 #include <iostream>
+#include <limits>
 #include <memory>
-
-#include <boost/numeric/conversion/bounds.hpp>
 
 #include <aocommon/image.h>
 #include <aocommon/system.h>
@@ -127,7 +126,7 @@ float IuwtDeconvolutionAlgorithm::GetMaxAbsWithoutMask(const Image& data,
   x = width;
   y = height;
 
-  float maxVal = boost::numeric::bounds<float>::lowest();
+  float maxVal = std::numeric_limits<float>::lowest();
   for (size_t yi = minY; yi != maxY; ++yi) {
     const float* dataPtr = data.Data() + yi * width;
     for (size_t xi = minX; xi != maxX; ++xi) {
@@ -154,7 +153,7 @@ float IuwtDeconvolutionAlgorithm::GetMaxAbsWithMask(const Image& data,
   x = width;
   y = height;
 
-  float maxVal = boost::numeric::bounds<float>::lowest();
+  float maxVal = std::numeric_limits<float>::lowest();
   for (size_t yi = minY; yi != maxY; ++yi) {
     const float* dataPtr = data.Data() + yi * width;
     const bool* maskPtr = mask_ + yi * width;

@@ -6,8 +6,6 @@
 
 #include <fstream>
 
-#include <boost/filesystem/operations.hpp>
-
 #include <aocommon/radeccoord.h>
 #include <aocommon/uvector.h>
 
