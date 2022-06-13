@@ -1,0 +1,13 @@
+// Copyright (C) 2022 ASTRON (Netherlands Institute for Radio Astronomy)
+// SPDX-License-Identifier: LGPL-3.0-only
+
+#ifndef RADLER_TEST_CONFIG_H_
+#define RADLER_TEST_CONFIG_H_
+
+#include <string>
+
+// The configuration of the MWA VELA Measurement set used in the tests.
+inline const std::string VELA_DIRTY_IMAGE_PATH = "@VELA_DIRTY_IMAGE_PATH@";
+inline const std::string VELA_PSF_PATH = "@VELA_PSF_PATH@";
+
+#endif

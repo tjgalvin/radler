@@ -8,9 +8,11 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/test/data/test_case.hpp>
 
+#include <aocommon/fits/fitsreader.h>
 #include <aocommon/image.h>
 
 #include "settings.h"
+#include "test_config.h"
 
 namespace radler {
 /**
@@ -156,6 +158,56 @@ BOOST_DATA_TEST_CASE_F(SettingsFixture, offcentered_source,
       BOOST_CHECK_SMALL(model_image[i], 2.0e-6f);
     }
   }
+}
+
+BOOST_AUTO_TEST_CASE(diffuse_source) {
+  aocommon::FitsReader imgReader(VELA_DIRTY_IMAGE_PATH);
+  aocommon::FitsReader psfReader(VELA_PSF_PATH);
+
+  aocommon::Image psf_image(psfReader.ImageWidth(), psfReader.ImageHeight());
+  aocommon::Image residual_image(imgReader.ImageWidth(),
+                                 imgReader.ImageHeight());
+  aocommon::Image model_image(imgReader.ImageWidth(), imgReader.ImageHeight(),
+                              0.0);
+
+  imgReader.Read(residual_image.Data());
+  psfReader.Read(psf_image.Data());
+
+  const double max_dirty_image = residual_image.Max();
+  const double rms_dirty_image = residual_image.RMS();
+
+  Settings settings;
+  settings.algorithm_type = AlgorithmType::kMultiscale;
+  settings.threshold = 1.0e-8;
+  settings.major_iteration_count = 30;
+  settings.pixel_scale.x = imgReader.PixelSizeX();
+  settings.pixel_scale.y = imgReader.PixelSizeY();
+  settings.trimmed_image_width = imgReader.ImageWidth();
+  settings.trimmed_image_height = imgReader.ImageHeight();
+  settings.minor_iteration_count = 300;
+  settings.minor_loop_gain = 0.8;
+  settings.auto_mask_sigma = 4;
+
+  const double beamScale = imgReader.BeamMajorAxisRad();
+
+  Radler radler(settings, psf_image, residual_image, model_image, beamScale);
+
+  bool reached_threshold = false;
+  const int major_iteration_count = 0;
+  radler.Perform(reached_threshold, major_iteration_count);
+
+  BOOST_REQUIRE(radler.IterationNumber() <= settings.minor_iteration_count);
+
+  const double max_residual = residual_image.Max();
+  const double rms_residual = residual_image.RMS();
+
+  // Checks that RMS value in residual image went down at least by 25%. A
+  // reduction is expected as we remove the peaks from the dirty image.
+  BOOST_REQUIRE(rms_residual < 0.75 * rms_dirty_image);
+
+  // Checks that the components in the dirty image are reduced in the first
+  // iteration. We expect thehighest peak to be reduced by 90% in this case.
+  BOOST_REQUIRE(max_residual < 0.1 * max_dirty_image);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

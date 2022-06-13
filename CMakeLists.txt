@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
 cmake_minimum_required(VERSION 3.8)
+include(ExternalProject)
 
 # When Radler is compiled as an ExternalProject inside another project, set this
 # option to On. See, e.g., the wsclean CMake file for an example.
@@ -189,9 +190,18 @@ if(NOT ${COMPILE_AS_EXTERNAL_PROJECT} AND ${BUILD_TESTING})
     Boost
     COMPONENTS unit_test_framework
     REQUIRED)
+
+  # Set up a test_data directory in the cpp/test directory.
+  set(DATA_DIR ${CMAKE_BINARY_DIR}/cpp/test/test_data)
+  file(MAKE_DIRECTORY ${DATA_DIR})
+
   add_subdirectory(cpp/test)
   add_subdirectory(cpp/algorithms/test)
   add_subdirectory(cpp/math/test)
+  # ------------------------------------------------------------------------------
+  # Generate test_config.h header
+  configure_file(${CMAKE_SOURCE_DIR}/cmake/config/test_config.h.in
+                 ${CMAKE_BINARY_DIR}/test_config.h)
 
   if(BUILD_PYTHON_BINDINGS)
     add_subdirectory(python/test)
