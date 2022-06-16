@@ -8,7 +8,7 @@ add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY)
 
 ExternalProject_Add(
   download_test_data
-  URL https://www.astron.nl/citt/ci_data/radler/mwa-vela.tar.bz2
+  URL https://support.astron.nl/software/ci_data/radler/mwa-vela.tar.bz2
   URL_HASH
     SHA256=96fae8f905e5a810e74cc373d31738d207eb5a79df02417bdb3cf61e6a34f5a7
   SOURCE_DIR ${DATA_DIR}
