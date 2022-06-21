@@ -8,6 +8,7 @@ include(ExternalProject)
 option(COMPILE_AS_EXTERNAL_PROJECT OFF)
 option(PORTABLE "Generate portable code" OFF)
 option(BUILD_PYTHON_BINDINGS "Build python bindings" OFF)
+option(BUILD_DOCUMENTATION "Build documentation" OFF)
 
 set(RADLER_VERSION 0.0.0)
 project(radler VERSION ${RADLER_VERSION})
@@ -21,6 +22,10 @@ endif()
 
 if(POLICY CMP0076)
   cmake_policy(SET CMP0076 NEW)
+endif()
+if(POLICY CMP0115)
+  # Prevent warning about extensions, specifically about Doxyfile
+  cmake_policy(SET CMP0115 NEW)
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -209,4 +214,8 @@ if(NOT ${COMPILE_AS_EXTERNAL_PROJECT} AND ${BUILD_TESTING})
 
   # demo targets are excluded from a default build
   add_subdirectory(cpp/demo)
+endif()
+
+if(BUILD_DOCUMENTATION)
+  add_subdirectory(doc)
 endif()

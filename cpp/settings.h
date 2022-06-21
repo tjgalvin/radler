@@ -167,12 +167,12 @@ struct Settings {
    * @brief Sigma value for automatically creating and applying mask images.
    *
    * If set, Radler performs these steps:
-   * # Radler starts cleaning towards a threshold of the given sigma value.
-   * # Once the sigma level is reached, Radler generates a mask using the
-   * positions and (when using multi-scale cleaning) scale of each component.
-   * # Cleaning then continues until the final threshold value, as set using the
-   * @ref threshold or @ref auto_threshold_sigma values. During this final
-   * deconvolution stage, the generated mask constrains the cleaning.
+   * - Radler starts cleaning towards a threshold of the given sigma value.
+   * - Once the sigma level is reached, Radler generates a mask using the
+   *   positions and (when using multi-scale cleaning) scale of each component.
+   * - Cleaning then continues until the final threshold value, as set using the
+   *   @ref threshold or @ref auto_threshold_sigma values. During this final
+   *   deconvolution stage, the generated mask constrains the cleaning.
    *
    * If unset, automatic masking is not used.
    */

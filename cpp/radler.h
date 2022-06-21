@@ -32,8 +32,8 @@ class Radler {
   /**
    * @brief Constructor for single channel, single polarization deconvolution.
    * @param[in] psf_image PSF image.
-   * @param[in/out] residual_image Residual image.
-   * @param[in/out] model_image Model image.
+   * @param[in,out] residual_image Residual image.
+   * @param[in,out] model_image Model image.
    *
    * Please bear in mind to keep the data buffer in the input images alive in
    * the caller, since Radler internally points to this data buffer during calls

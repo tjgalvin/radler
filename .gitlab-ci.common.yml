@@ -167,3 +167,17 @@ test-2204:
       coverage_report:
         coverage_format: cobertura
         path: build/reports/code-coverage.xml
+
+build-doc-2204:
+  extends: .needs-2204
+  stage: build
+  image: $BASE_IMAGE_2204
+  script:
+    - RADLER_PATH=$PWD
+    - mkdir build && cd build
+    - cmake -DBUILD_PYTHON_BINDINGS=ON -DBUILD_DOCUMENTATION=ON $RADLER_PATH -G Ninja
+    - ninja
+    - ninja doc
+  artifacts:
+    paths:
+    - build/doc/html
