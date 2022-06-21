@@ -7,6 +7,7 @@
 
 #include <functional>
 #include <memory>
+#include <ostream>
 #include <vector>
 
 namespace radler {
@@ -166,6 +167,25 @@ class WorkTable {
   }
   friend EntryIteratorLite end(const WorkTable& table) { return table.End(); }
   /** @} */
+
+  friend std::ostream& operator<<(std::ostream& output,
+                                  const WorkTable& work_table) {
+    output << "=== IMAGING TABLE ==="
+           << "\nOriginal groups       " << work_table.original_groups_.size()
+           << "\nDeconvolution groups  "
+           << work_table.deconvolution_groups_.size()
+           << "\nChannel index         " << work_table.channel_index_offset_
+           << '\n';
+
+    if (!work_table.entries_.empty()) {
+      output << "   # Pol Ch Interval Weight Freq(MHz)\n";
+
+      for (const auto& entry : work_table.entries_) {
+        output << *entry;
+      }
+    }
+    return output;
+  }
 };
 }  // namespace radler
 

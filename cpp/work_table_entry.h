@@ -3,7 +3,9 @@
 #ifndef RADLER_WORK_TABLE_ENTRY_H_
 #define RADLER_WORK_TABLE_ENTRY_H_
 
+#include <iomanip>
 #include <memory>
+#include <ostream>
 #include <vector>
 
 #include <aocommon/imageaccessor.h>
@@ -61,6 +63,18 @@ struct WorkTableEntry {
    * Image accessor for the residual image for this entry.
    */
   std::unique_ptr<aocommon::ImageAccessor> residual_accessor;
+
+  friend std::ostream& operator<<(std::ostream& output,
+                                  const WorkTableEntry& entry) {
+    return output << "  " << std::setw(2) << entry.index << " " << std::setw(3)
+                  << aocommon::Polarization::TypeToShortString(
+                         entry.polarization)
+                  << " " << std::setw(2) << entry.original_channel_index << " "
+                  << std::setw(8) << entry.original_interval_index << " "
+                  << std::setw(6) << entry.image_weight << " "
+                  << round(entry.band_end_frequency * 1e-6) << "-"
+                  << round(entry.band_end_frequency * 1e-6) << '\n';
+  }
 };
 }  // namespace radler
 #endif

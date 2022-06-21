@@ -90,5 +90,44 @@ BOOST_AUTO_TEST_CASE(add_entries) {
   BOOST_TEST(table.Size() == entries.size());
 }
 
+BOOST_AUTO_TEST_CASE(print_empty) {
+  WorkTable table(0, 0);
+
+  std::stringstream output;
+  output << table;
+  BOOST_CHECK_EQUAL(output.str(),
+                    R"(=== IMAGING TABLE ===
+Original groups       1
+Deconvolution groups  1
+Channel index         0
+)");
+}
+
+BOOST_AUTO_TEST_CASE(print_not_empty) {
+  WorkTable table(3, 1);
+  table.AddEntry(std::make_unique<WorkTableEntry>(
+      WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
+                     aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234}));
+  table.AddEntry(std::make_unique<WorkTableEntry>(
+      WorkTableEntry{1, 1'000'000.0, 2'000'000.0,
+                     aocommon::PolarizationEnum::StokesI, 1, 8, 1.01}));
+  table.AddEntry(std::make_unique<WorkTableEntry>(
+      WorkTableEntry{1, 100'000'000.0, 200'000'000.0,
+                     aocommon::PolarizationEnum::StokesU, 0, 16, 1.1}));
+
+  std::stringstream output;
+  output << table;
+  BOOST_CHECK_EQUAL(output.str(),
+                    R"(=== IMAGING TABLE ===
+Original groups       3
+Deconvolution groups  1
+Channel index         0
+   # Pol Ch Interval Weight Freq(MHz)
+   0   Q  0        4  1.234 10-10
+   1   I  1        8   1.01 2-2
+   2   U  0       16    1.1 200-200
+)");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 }  // namespace radler

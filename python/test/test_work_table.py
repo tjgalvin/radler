@@ -186,3 +186,42 @@ def test_add_entries():
     for (i, entry) in enumerate(work_table):
         assert entry.image_weight == i
         assert entry.central_frequency == (0.5 * float(i + 1) * 1e6)
+
+
+def test_str(capsys):
+    """
+    Check the WorkTable.__str__().
+
+    Both str(WorkTable) and print(WorkTable) use the __str__ member function
+    and are tested to validate they work as intended.
+    """
+
+    work_table = rd.WorkTable(0, 0)
+    assert (
+        work_table.__str__()
+        == """=== IMAGING TABLE ===
+Original groups       1
+Deconvolution groups  1
+Channel index         0
+"""
+    )
+    assert (
+        str(work_table)
+        == """=== IMAGING TABLE ===
+Original groups       1
+Deconvolution groups  1
+Channel index         0
+"""
+    )
+
+    print(work_table)
+    captured = capsys.readouterr()
+    assert (
+        captured.out
+        == """=== IMAGING TABLE ===
+Original groups       1
+Deconvolution groups  1
+Channel index         0
+
+"""
+    )
