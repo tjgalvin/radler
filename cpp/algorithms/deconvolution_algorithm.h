@@ -106,10 +106,9 @@ class DeconvolutionAlgorithm {
     spectral_fitter_.SetForcedImages(std::move(images));
   }
 
-  void InitializeFrequencies(const aocommon::UVector<double>& frequencies,
-                             const aocommon::UVector<float>& weights) {
-    spectral_fitter_.SetFrequencies(frequencies.data(), weights.data(),
-                                    frequencies.size());
+  void InitializeFrequencies(std::vector<double>&& frequencies,
+                             std::vector<float>&& weights) {
+    spectral_fitter_.SetFrequencies(std::move(frequencies), std::move(weights));
   }
 
   const schaapcommon::fitters::SpectralFitter& Fitter() const {

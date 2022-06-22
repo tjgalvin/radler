@@ -243,8 +243,8 @@ class ImageSet {
   size_t Height() const { return images_.front().Height(); }
 
   static void CalculateDeconvolutionFrequencies(
-      const WorkTable& group_table, aocommon::UVector<double>& frequencies,
-      aocommon::UVector<float>& weights);
+      const WorkTable& group_table, std::vector<double>& frequencies,
+      std::vector<float>& weights);
 
  private:
   void InitializeIndices();
@@ -325,7 +325,7 @@ class ImageSet {
 
   std::vector<aocommon::Image> images_;
   // Weight of each deconvolution channels
-  aocommon::UVector<float> weights_;
+  std::vector<float> weights_;
   bool square_joined_channels_;
   const WorkTable& work_table_;
   std::vector<size_t> entry_index_to_image_index_;

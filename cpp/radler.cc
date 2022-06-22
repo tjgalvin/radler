@@ -314,9 +314,14 @@ void Radler::InitializeDeconvolutionAlgorithm(
                                     settings_.spectral_fitting.terms,
                                     n_polarizations);
 
-  ImageSet::CalculateDeconvolutionFrequencies(*table_, channel_frequencies_,
-                                              channel_weights_);
-  algorithm->InitializeFrequencies(channel_frequencies_, channel_weights_);
+  {
+    std::vector<double> channel_frequencies;
+    std::vector<float> channel_weights;
+    ImageSet::CalculateDeconvolutionFrequencies(*table_, channel_frequencies,
+                                                channel_weights);
+    algorithm->InitializeFrequencies(std::move(channel_frequencies),
+                                     std::move(channel_weights));
+  }
   parallel_deconvolution_->SetAlgorithm(std::move(algorithm));
 
   if (!settings_.spectral_fitting.forced_filename.empty()) {

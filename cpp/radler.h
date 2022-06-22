@@ -89,8 +89,6 @@ class Radler {
   aocommon::UVector<bool> clean_mask_;
 
   bool auto_mask_is_finished_;
-  aocommon::UVector<double> channel_frequencies_;
-  aocommon::UVector<float> channel_weights_;
   size_t image_width_;
   size_t image_height_;
   double pixel_scale_x_;

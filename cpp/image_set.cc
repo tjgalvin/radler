@@ -44,7 +44,7 @@ ImageSet::ImageSet(
 
   InitializePolFactor();
   InitializeIndices();
-  aocommon::UVector<double> frequencies;
+  std::vector<double> frequencies;
   CalculateDeconvolutionFrequencies(table, frequencies, weights_);
 }
 
@@ -400,8 +400,8 @@ void ImageSet::GetLinearIntegratedWithNormalChannels(Image& dest) const {
 }
 
 void ImageSet::CalculateDeconvolutionFrequencies(
-    const WorkTable& group_table, aocommon::UVector<double>& frequencies,
-    aocommon::UVector<float>& weights) {
+    const WorkTable& group_table, std::vector<double>& frequencies,
+    std::vector<float>& weights) {
   const size_t n_input_channels = group_table.OriginalGroups().size();
   const size_t n_deconvolution_channels =
       group_table.DeconvolutionGroups().size();
