@@ -131,8 +131,8 @@ find_package(Casacore REQUIRED COMPONENTS fits casa ms tables measures)
 find_package(CFITSIO REQUIRED)
 
 # Python3
+find_package(PythonInterp REQUIRED) # Call before finding PythonLibs!
 find_package(PythonLibs 3 REQUIRED)
-find_package(PythonInterp REQUIRED)
 message(STATUS "Using python version ${PYTHON_VERSION_STRING}")
 
 if(COMPILE_AS_EXTERNAL_PROJECT)

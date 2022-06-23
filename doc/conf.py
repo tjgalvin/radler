@@ -12,9 +12,20 @@
 #
 import os
 import sys
+import glob
 
 # Make sure that it refers to the shared object file from current build
-sys.path.insert(0, os.environ["RADLER_SO_PATH"])
+if 'READTHEDOCS' in os.environ:
+    sys.path.insert(0, os.path.abspath("../build/python"))
+else:
+    sys.path.insert(0, os.environ["RADLER_SO_PATH"])
+
+# Give informative error on not finding radler, rather than giving this
+# information only in the generated HTML documentation
+try:
+    import radler
+except ModuleNotFoundError:
+    raise RuntimeError(f'Radler not found at {sys.path[0]}')
 
 # -- Project information -----------------------------------------------------
 
@@ -55,6 +66,11 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 html_theme = "sphinx_rtd_theme"
 
 html_static_path = ["_static"]
+
+# Breathe Configuration
+# When using CMake, the 'doc' target already sets breathe_projects.
+if 'READTHEDOCS' in os.environ:
+    breathe_projects = { "Radler": "../build/doc/doxygen/xml" }
 
 # Breathe Configuration
 breathe_default_project = "Radler"

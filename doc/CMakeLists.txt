@@ -12,15 +12,11 @@ set(DOXYFILE_GENERATED ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
 # Replace variables inside @@ with the current values
 configure_file(${DOXYFILE_IN} ${DOXYFILE_GENERATED} @ONLY)
 
-# This will be the main output of our command
-set(DOXYGEN_INDEX_FILE "${DOXYGEN_OUTPUT_DIR}/xml/index.xml")
-
-add_custom_command(
-  OUTPUT ${DOXYGEN_INDEX_FILE}
+add_custom_target(
+  doxygen_xml
   COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_GENERATED}
   WORKING_DIRECTORY ${DOXYGEN_OUTPUT_DIR}
-  MAIN_DEPENDENCY Doxyfile
-  COMMENT "Generating doxygen documentation")
+  COMMENT "Generating documentation with Doxygen")
 
 set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR})
 set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/html)
@@ -40,4 +36,4 @@ add_custom_target(
   -Dbreathe_projects.Radler=${DOXYGEN_OUTPUT_DIR}/xml
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   COMMENT "Generating documentation with Sphinx"
-  DEPENDS ${DOXYGEN_INDEX_FILE} pyradler)
+  DEPENDS doxygen_xml pyradler)

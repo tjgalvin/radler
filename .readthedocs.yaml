@@ -1,0 +1,40 @@
+# Copyright (C) 2022 ASTRON (Netherlands Institute for Radio Astronomy)
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html
+
+version: 2
+
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.9"
+  # Use development packages from docker/ubuntu_22_04_base
+  apt_packages:
+    - casacore-dev
+    - cmake
+    - doxygen
+    - g++
+    - libboost-all-dev
+    - libcfitsio-dev
+    - libfftw3-dev
+    - libgsl-dev
+    - libhdf5-dev
+    - libpython3-dev
+    - ninja-build
+    - python3-pip
+    - wcslib-dev
+  jobs:
+    # Build the .so with the python bindings, including docstrings.
+    pre_build:
+      - mkdir build
+      - cmake -DBUILD_PYTHON_BINDINGS=ON -DBUILD_DOCUMENTATION=ON -G Ninja -S . -B build
+      - cd build && ninja && ninja doxygen_xml
+
+sphinx:
+   configuration: doc/conf.py
+
+python:
+   install:
+     - requirements: doc/requirements.txt
