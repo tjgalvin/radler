@@ -95,10 +95,10 @@ def test_num_threads(settings):
 
     settings.thread_count = 0
     with pytest.raises(RuntimeError):
-        rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
+        rd.Radler(settings, psf, residual, model, BEAM_SIZE)
 
     settings.thread_count = 1
-    rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
+    rd.Radler(settings, psf, residual, model, BEAM_SIZE)
 
 
 @pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
@@ -112,28 +112,71 @@ def test_input_dtype(settings):
 
     psf = psf.astype(np.float64)
     with pytest.raises(TypeError):
-        rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
+        rd.Radler(settings, psf, residual, model, BEAM_SIZE)
     psf = psf.astype(np.float32)
-    rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
+    rd.Radler(settings, psf, residual, model, BEAM_SIZE)
 
     residual = residual.astype(np.float16)
     with pytest.raises(TypeError):
-        rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
+        rd.Radler(settings, psf, residual, model, BEAM_SIZE)
     residual = residual.astype(np.float32)
-    rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
+    rd.Radler(settings, psf, residual, model, BEAM_SIZE)
 
     model = model.astype(np.int)
     with pytest.raises(TypeError):
-        rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
+        rd.Radler(settings, psf, residual, model, BEAM_SIZE)
     model = model.astype(np.float32)
-    rd.Radler(settings, psf, residual, model, BEAM_SIZE, rd.Polarization.stokes_i)
+    rd.Radler(settings, psf, residual, model, BEAM_SIZE)
+
+@pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
+def test_matching_arrays(settings):
+    """
+    Check that Radler constructor only accepts valid numpy arrays that match.
+    """
+    valid_images = np.zeros((3, HEIGHT, WIDTH), dtype=np.float32)
+    valid_frequencies = np.zeros((valid_images.shape[0], 2), dtype=np.float64)
+    valid_weights = np.zeros((valid_images.shape[0]), dtype=np.float64)
+    rd.Radler(settings, valid_images, valid_images, valid_images, BEAM_SIZE,
+              frequencies=valid_frequencies, weights=valid_weights)
+
+    single_dimension_image = np.zeros((42), dtype=np.float32)
+    with pytest.raises(RuntimeError):
+        rd.Radler(settings, single_dimension_image, single_dimension_image,
+                  single_dimension_image, BEAM_SIZE)
+
+    single_dimension_frequency = np.zeros((5), dtype=np.float64)
+    with pytest.raises(RuntimeError):
+        rd.Radler(settings, valid_images, valid_images, valid_images, BEAM_SIZE,
+                  frequencies=single_dimension_frequency)
+
+    multi_dimension_weight = np.zeros((3, 3), dtype=np.float64)
+    with pytest.raises(RuntimeError):
+        rd.Radler(settings, valid_images, valid_images, valid_images, BEAM_SIZE,
+                  weights=multi_dimension_weight)
+
+    nonmatching_images = np.zeros((3, WIDTH+42, HEIGHT+42), dtype=np.float32)
+    with pytest.raises(RuntimeError):
+        rd.Radler(settings, valid_images, valid_images, nonmatching_images, BEAM_SIZE)
+    with pytest.raises(RuntimeError):
+        rd.Radler(settings, valid_images, nonmatching_images, valid_images, BEAM_SIZE)
+    with pytest.raises(RuntimeError):
+        rd.Radler(settings, nonmatching_images, valid_images, valid_images, BEAM_SIZE)
+
+    nonmatching_frequencies = np.zeros((42, 2), dtype=np.float64)
+    with pytest.raises(RuntimeError):
+        rd.Radler(settings, nonmatching_images, valid_images, valid_images,
+                  BEAM_SIZE, frequencies=nonmatching_frequencies)
+
+    nonmatching_weights = np.zeros((42), dtype=np.float64)
+    with pytest.raises(RuntimeError):
+        rd.Radler(settings, nonmatching_images, valid_images, valid_images,
+                  BEAM_SIZE, weights=nonmatching_weights)
 
 
 @pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
 def test_default_args(settings):
     """
-    Test calling the radler.Radler constructor without providing the polarization
-    and the thread count arguments.
+    Test calling the Radler constructor without providing optional arguments.
     """
     psf = get_psf()
     residual = get_residual(1.0, 0, 0)
@@ -239,7 +282,7 @@ def test_write_component_list(settings):
 )
 @pytest.mark.parametrize("scale", [2.5])
 @pytest.mark.parametrize("source_shift", [(-9, 15)])
-def test_radler_one_entry_worktable(settings, algorithm, scale, source_shift):
+def test_one_entry_worktable(settings, algorithm, scale, source_shift):
     """
     Check Radler when a one entry work table is provided.
     """
@@ -271,11 +314,11 @@ def test_radler_one_entry_worktable(settings, algorithm, scale, source_shift):
     check_model_image_point_source(model, scale, source_shift[0], source_shift[1])
 
 
-@pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
+@pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
 @pytest.mark.parametrize(
     "algorithm", [rd.AlgorithmType.generic_clean, rd.AlgorithmType.multiscale]
 )
-def test_radler_ndeconvolution_is_noriginal(settings, algorithm):
+def test_ndeconvolution_is_noriginal(settings, algorithm):
     """
     Test radler by providing a WorkTable with the number of deconvolution groups equal
     to number of original groups.
@@ -318,12 +361,46 @@ def test_radler_ndeconvolution_is_noriginal(settings, algorithm):
     for (i, model) in enumerate(models):
         check_model_image_point_source(model, scales[i], shifts[i][0], shifts[i][1])
 
+@pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
+@pytest.mark.parametrize(
+    "algorithm", [rd.AlgorithmType.generic_clean, rd.AlgorithmType.multiscale]
+)
+def test_image_cube_non_joined(settings, algorithm):
+    """
+    Test radler by providing numpy arrays with three dimensions.
+    The pybind11 bindings should generate a similar worktable as
+    test_ndeconvolution_is_noriginal, and Radler should produce the same result.
+    """
+    settings.algorithm_type = algorithm
+
+    scales = [2.5, 4.0]
+    shifts = [(0, 0), (-9, 23)]
+
+    psfs = np.resize(get_psf(), (2, HEIGHT, WIDTH))
+    residuals = np.array([
+        get_residual(scales[0], shifts[0][0], shifts[0][1]),
+        get_residual(scales[1], shifts[1][0], shifts[1][1]),
+    ])
+    models = np.zeros_like(residuals)
+
+    # Do not supply n_deconvolution_groups and frequencies to Radler, so we test
+    # that the default values are correct.
+    radler_object = rd.Radler(settings, psfs, residuals, models, BEAM_SIZE)
+
+    radler_perform(radler_object, settings.minor_iteration_count)
+
+    for i in 0, 1:
+        np.testing.assert_allclose(
+            residuals[i,:,:], np.zeros((WIDTH, HEIGHT), dtype=np.float32), atol=2e-6
+        )
+        check_model_image_point_source(models[i,:,:], scales[i], shifts[i][0], shifts[i][1])
+
 
 @pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
 @pytest.mark.parametrize(
     "algorithm", [rd.AlgorithmType.generic_clean, rd.AlgorithmType.multiscale]
 )
-def test_radler_ndeconvolution_lt_noriginal(settings, algorithm):
+def test_ndeconvolution_lt_noriginal(settings, algorithm):
     """
     Test radler by providing a WorkTable with two original groups and
     one deconvolution group. Output should be two identical
@@ -336,7 +413,8 @@ def test_radler_ndeconvolution_lt_noriginal(settings, algorithm):
 
     scales = [2.5, 4.0]
     shifts = [(0, 0), (-9, 23)]
-    weights = [0.5, 4.2]
+    weights = np.asarray([0.5, 4.2])
+    frequencies = [[2.0e6, 3.0e6], [3.0e6, 4.0e6]]
 
     psf = get_psf()
     residuals = [
@@ -355,8 +433,8 @@ def test_radler_ndeconvolution_lt_noriginal(settings, algorithm):
         entry.residual = residuals[i]
         entry.model = models[i]
         entry.original_channel_index = i
-        entry.band_start_frequency = (2.0 + float(i)) * 1e6
-        entry.band_end_frequency = (3.0 + float(i)) * 1e6
+        entry.band_start_frequency = frequencies[i][0]
+        entry.band_end_frequency = frequencies[i][1]
         entry.index = i
         entry.image_weight = weights[i]
         work_table.add_entry(entry)
@@ -379,11 +457,61 @@ def test_radler_ndeconvolution_lt_noriginal(settings, algorithm):
     for i, shift in enumerate(shifts):
         source_pixel_x = int(WIDTH // 2 + shift[0])
         source_pixel_y = int(HEIGHT // 2 + shift[1])
-        weighted_pixel_value = np.sum(np.asarray(weights) * scale_array[i, :]) / np.sum(
-            np.asarray(weights)
-        )
+        weighted_pixel_value = np.sum(weights * scale_array[i, :]) / np.sum(weights)
         model_image_ref[source_pixel_y, source_pixel_x] = weighted_pixel_value
 
     # Model image values at point source locations should be the weighted average
     # of the input point sources
     np.testing.assert_allclose(models[0], model_image_ref, atol=2e-6)
+
+
+@pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
+@pytest.mark.parametrize(
+    "algorithm", [rd.AlgorithmType.generic_clean, rd.AlgorithmType.multiscale]
+)
+def test_image_cube_joined(settings, algorithm):
+    """
+    Test radler by providing numpy arrays with three dimensions.
+    The pybind11 bindings should generate a similar worktable as
+    test_ndeconvolution_lt_noriginal, and Radler should produce the same result.
+    """
+    settings.algorithm_type = algorithm
+    settings.spectral_fitting.mode = rd.SpectralFittingMode.polynomial
+    # Linear polynomial fit
+    settings.spectral_fitting.terms = 2
+
+    scales = [2.5, 4.0]
+    shifts = [(0, 0), (-9, 23)]
+    weights = np.asarray([0.5, 4.2])
+    frequencies = np.asarray([[2.0e6, 3.0e6], [3.0e6, 4.0e6]])
+
+    psfs = np.resize(get_psf(), (2, HEIGHT, WIDTH))
+    residuals = np.array([
+        get_residual(scales[0], shifts[0][0], shifts[0][1]),
+        get_residual(scales[1], shifts[1][0], shifts[1][1]),
+    ])
+    models = np.zeros_like(residuals)
+
+    radler_object = rd.Radler(settings, psfs, residuals, models, BEAM_SIZE,
+                              1, frequencies, weights)
+
+    radler_perform(radler_object, settings.minor_iteration_count)
+
+    np.testing.assert_allclose(residuals, np.zeros_like(residuals), atol=2e-6)
+
+    # Model images should be identical
+    np.testing.assert_allclose(models[0,:,:], models[1,:,:], atol=1e-6)
+
+    # Expand scales into diagonal array to ease the computation
+    scale_array = np.diag(scales)
+    model_image_ref = np.zeros((WIDTH, HEIGHT), dtype=np.float32)
+    for i in range(2):
+        source_pixel_x = int(WIDTH // 2 + shifts[i][0])
+        source_pixel_y = int(HEIGHT // 2 + shifts[i][1])
+        weighted_pixel_value = (np.sum(weights * scale_array[i, :])
+            / np.sum(weights))
+        model_image_ref[source_pixel_y, source_pixel_x] = weighted_pixel_value
+
+    # Model image values at point source locations should be the weighted average
+    # of the input point sources
+    np.testing.assert_allclose(models[0,:,:], model_image_ref, atol=2e-6)

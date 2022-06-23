@@ -23,7 +23,7 @@ def test_layout():
     nested_structs = set(filter(lambda x: re.match("^[A-Z]{1}", x), dir(settings)))
     assert nested_structs == nested_structs_ref
 
-    n_properties_ref = 34
+    n_properties_ref = 33
     properties = set(filter(lambda x: re.match("^[a-z]+", x), dir(settings)))
     assert len(properties) == n_properties_ref
 
@@ -66,7 +66,6 @@ def test_default():
     assert settings.spectral_fitting.mode == rd.SpectralFittingMode.no_fitting
     assert settings.spectral_fitting.terms == 0
     assert settings.spectral_fitting.forced_filename == ""
-    assert settings.deconvolution_channel_count == 0
     assert settings.algorithm_type == rd.AlgorithmType.generic_clean
 
     # Python

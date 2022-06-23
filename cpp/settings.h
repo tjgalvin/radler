@@ -324,13 +324,6 @@ struct Settings {
     std::string forced_filename;
   } spectral_fitting;
 
-  /**
-   * The number of channels used during deconvolution. This can be used to
-   * image with more channels than used during deconvolution. Before
-   * deconvolution, channels are averaged, and after deconvolution they are
-   * interpolated. If it is 0, all channels should be used.
-   */
-  size_t deconvolution_channel_count = 0;
   /** @} */
 
   /**

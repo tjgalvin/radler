@@ -10,6 +10,8 @@
 #include <aocommon/logger.h>
 
 #include "work_table.h"
+#include "utils/load_image_accessor.h"
+#include "utils/load_and_store_image_accessor.h"
 
 namespace py = pybind11;
 
@@ -54,74 +56,148 @@ void init_radler(py::module& m) {
             (accurate) beam.
         )pbdoc",
            py::arg("settings"), py::arg("work_table"), py::arg("beam_size"))
-      .def(py::init([](const radler::Settings& settings,
-                       py::array_t<float>& psf, py::array_t<float>& residual,
-                       py::array_t<float>& model, double beam_size,
-                       aocommon::PolarizationEnum polarization) {
-             if (settings.thread_count == 0) {
-               throw std::runtime_error("Number of threads should be > 0.");
-             }
+      .def(
+          py::init([](const radler::Settings& settings, py::array_t<float>& psf,
+                      py::array_t<float>& residual, py::array_t<float>& model,
+                      double beam_size, size_t n_deconvolution_groups,
+                      py::array_t<double>& frequencies,
+                      py::array_t<double>& weights,
+                      aocommon::PolarizationEnum polarization) {
+            if (settings.thread_count == 0) {
+              throw std::runtime_error("Number of threads should be > 0.");
+            }
 
-             const size_t n_dim = 2;
-             if (psf.ndim() != n_dim || residual.ndim() != n_dim ||
-                 model.ndim() != n_dim) {
-               throw std::runtime_error(
-                   "Provided arrays should have dimension 2.");
-             }
+            if (psf.ndim() != residual.ndim() || psf.ndim() != model.ndim()) {
+              throw std::runtime_error(
+                  "Provided arrays should have equal dimension count.");
+            }
 
-             const size_t width = static_cast<size_t>(psf.shape(1));
-             const size_t height = static_cast<size_t>(psf.shape(0));
+            for (pybind11::ssize_t d = 0; d < psf.ndim(); ++d) {
+              if (residual.shape(d) != psf.shape(d) ||
+                  model.shape(d) != psf.shape(d)) {
+                throw std::runtime_error(
+                    "Provided arrays should have equal shape.");
+              }
+            }
 
-             if (static_cast<size_t>(residual.shape(1)) != width ||
-                 static_cast<size_t>(model.shape(1)) != width) {
-               throw std::runtime_error("Mismatch in input width.");
-             }
+            if (psf.ndim() != 2 && psf.ndim() != 3) {
+              throw std::runtime_error(
+                  "Provided arrays should have 2 or 3 dimensions.");
+            }
 
-             if (static_cast<size_t>(residual.shape(0)) != height ||
-                 static_cast<size_t>(model.shape(0)) != height) {
-               throw std::runtime_error("Mismatch in input height.");
-             }
+            const pybind11::ssize_t height = psf.shape(psf.ndim() - 2);
+            const pybind11::ssize_t width = psf.shape(psf.ndim() - 1);
+            const pybind11::ssize_t n_images =
+                (psf.ndim() == 2) ? 1 : psf.shape(0);
 
-             aocommon::Image psf_image(psf.mutable_data(), width, height);
-             aocommon::Image residual_image(residual.mutable_data(), width,
-                                            height);
-             aocommon::Image model_image(model.mutable_data(), width, height);
+            if (frequencies.size() > 0 &&
+                (frequencies.ndim() != 2 || frequencies.shape(0) != n_images ||
+                 frequencies.shape(1) != 2)) {
+              throw std::runtime_error(
+                  "Provided frequencies should have shape (n_images, 2).");
+            }
 
-             return std::make_unique<radler::Radler>(
-                 settings, psf_image, residual_image, model_image, beam_size,
-                 polarization);
-           }),
-           R"pbdoc(
-        Constructor expecting a radler::Settings object along with a psf, residual,
-        and model image as a 2D numpy array of dtype=np.float32. The residual and the model image are updated
-        in-place in Radler.perform() calls.
+            if (weights.size() > 0 &&
+                (weights.ndim() != 1 || weights.shape(0) != n_images)) {
+              throw std::runtime_error(
+                  "Provided weights should have shape (n_images).");
+            }
 
-        Internally, views on the provided images are used. Hence, keep the images (numpy arrays) alive during
-        the lifetime of the instantiated Radler object.
+            // Create a WorkTable with an entry for each image.
+            auto table = std::make_unique<radler::WorkTable>(
+                n_images, n_deconvolution_groups);
+            for (pybind11::ssize_t i = 0; i < n_images; ++i) {
+              // This loop supports both 2-D arrays with a single image,
+              // and 3-D arrays with multiple images.
+              float* psf_data =
+                  (i == 0) ? psf.mutable_data() : psf.mutable_data(i, 0, 0);
+              float* residual_data = (i == 0) ? residual.mutable_data()
+                                              : residual.mutable_data(i, 0, 0);
+              float* model_data =
+                  (i == 0) ? model.mutable_data() : model.mutable_data(i, 0, 0);
+
+              aocommon::Image psf_image(psf_data, width, height);
+              aocommon::Image residual_image(residual_data, width, height);
+              aocommon::Image model_image(model_data, width, height);
+
+              auto entry = std::make_unique<radler::WorkTableEntry>();
+              if (frequencies.size() > 0) {
+                auto unchecked = frequencies.unchecked<2>();
+                entry->band_start_frequency = unchecked(i, 0);
+                entry->band_end_frequency = unchecked(i, 1);
+              }
+              entry->polarization = polarization;
+              entry->original_channel_index = i;
+              entry->image_weight =
+                  (weights.size() > 0) ? weights.unchecked<1>()(i) : 1.0;
+              entry->psf_accessor =
+                  std::make_unique<radler::utils::LoadOnlyImageAccessor>(
+                      psf_image);
+              entry->residual_accessor =
+                  std::make_unique<radler::utils::LoadAndStoreImageAccessor>(
+                      residual_image);
+              entry->model_accessor =
+                  std::make_unique<radler::utils::LoadAndStoreImageAccessor>(
+                      model_image);
+              table->AddEntry(std::move(entry));
+            }
+            return std::make_unique<radler::Radler>(settings, std::move(table),
+                                                    beam_size);
+          }),
+          R"pbdoc(
+        Constructor expecting a radler::Settings object along with psf,
+        residual, and model images as a numpy array of dtype=np.float32.
+        The numpy arrays can be 2-D arrays containing a single image or 3-D
+        arrays that contain images for different frequency bands.
+        All arrays should have equal shapes.
+
+        The residual and model images are updated in-place in Radler.perform() calls.
+
+        Internally, views on the provided images are used. Hence, keep the images
+        (numpy arrays) alive during the lifetime of the instantiated Radler object.
 
         Parameters
         ----------
         settings: radler.Settings
             Settings object
-        psf: np.2darray
-            2D numpy array of the PSF of type np.float32.
+        psf: np.array
+            2-D or 3-D numpy array of the PSF of type np.float32.
             Its lifetime should exceed the lifetime of the Radler object.
-        residual: np.2darray
-            2D numpy array of the residual image of type np.float32.
+        residual: np.array
+            2-D or 3-D numpy array of the residual image of type np.float32.
             Its lifetime should exceed the lifetime of the Radler object.
-        model: np.2darray
-            2D numpy array of the model image of type np.float32.
+        model: np.array
+            2-D or 3-D numpy array of the model image of type np.float32.
             Its lifetime should exceed the lifetime of the Radler object.
         beam_size: double
             Beam size in [rad]. The beam size is typically calculated from the longest
             baseline, and used as initial value when fitting the (accurate) beam.
+        n_deconvolution_groups: int, optional
+            The number of deconvolution groups. If it is less than the number of
+            images, Radler joinedly deconvolves images by averaging them before
+            deconvolution and interpolating them after deconvolution.
+            If the value is zero, or larger than the number of images,
+            Radler deconvolves all images separately.
+        frequencies: np.array, optional
+            2-D array with the start and end frequencies for each image.
+            You may only omit this argument when Radler deconvolves all images
+            separately.
+            If Radler does need the frequencies, perform() will throw an error.
+        weights: np.array, optional
+            1-D array with the relative weight of each image. Radler uses these
+            weights when joinedly deconvolving images.
         polarization: radler.Polarization, optional
             Polarization of the input images. Default rd.Polarization.stokes_i.
        )pbdoc",
-           py::arg("settings"), py::arg("psf").noconvert(),
-           py::arg("residual").noconvert(), py::arg("model").noconvert(),
-           py::arg("beam_size"),
-           py::arg("polarization") = aocommon::PolarizationEnum::StokesI)
+          // noconvert() is necessary for psf, residual and model, since
+          // (lists of) images can be large. It is not necessary for
+          // frequencies and weights, since those lists are small.
+          py::arg("settings"), py::arg("psf").noconvert(),
+          py::arg("residual").noconvert(), py::arg("model").noconvert(),
+          py::arg("beam_size"), py::arg("n_deconvolution_groups") = 0,
+          py::arg("frequencies") = py::array_t<double>(),
+          py::arg("weights") = py::array_t<double>(),
+          py::arg("polarization") = aocommon::PolarizationEnum::StokesI)
       // Perform needs a lambda-expression, as the boolean input is an
       // immutable type.
       .def(

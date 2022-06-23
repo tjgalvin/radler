@@ -175,13 +175,6 @@ void init_settings(py::module& m) {
        )pbdoc")
       .def_readwrite("local_rms", &radler::Settings::local_rms)
       .def_readwrite("spectral_fitting", &radler::Settings::spectral_fitting)
-      .def_readwrite("deconvolution_channel_count",
-                     &radler::Settings::deconvolution_channel_count, R"pbdoc(
-        The number of channels used during deconvolution. This can be used to
-        image with more channels than deconvolution. Before deconvolution,
-        channels are averaged, and after deconvolution they are interpolated.
-        If it is 0, all channels should be used.
-       )pbdoc")
       .def_readwrite("algorithm_type", &radler::Settings::algorithm_type)
       .def_readwrite("generic", &radler::Settings::generic)
       .def_readwrite("multiscale", &radler::Settings::multiscale)

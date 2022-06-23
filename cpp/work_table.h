@@ -60,9 +60,11 @@ class WorkTable {
    * @param n_original_groups The number of original channel groups. When adding
    * entries, their original channel index must be less than the number of
    * original groups. If the value is zero, one group is used.
-   * @param n_deconvolution_groups The number of deconvolution groups.
-   * A deconvolution group consist of one or more channel groups, which are then
-   * joinedly deconvolved.
+   * @param n_deconvolution_groups The number of deconvolution groups, which is
+   * the number of channels used during deconvolution.
+   * A deconvolution group consist of one or more original channel groups, which
+   * are then joinedly deconvolved by averaging them before deconvolution and
+   * interpolating them after deconvolution.
    * If the value is zero, or larger than the number of original groups,
    * all channels are deconvolved separately.
    * @param channel_index_offset The index of the first channel in the caller.
