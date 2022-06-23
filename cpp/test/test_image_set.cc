@@ -70,8 +70,8 @@ struct ImageSetFixtureBase {
     auto e = std::make_unique<WorkTableEntry>();
     e->original_channel_index = outChannel;
     e->polarization = pol;
-    e->band_start_frequency = frequencyMHz;
-    e->band_end_frequency = frequencyMHz;
+    e->band_start_frequency = frequencyMHz * 1.0e6;
+    e->band_end_frequency = frequencyMHz * 1.0e6;
     e->image_weight = imageWeight;
     e->psf_accessor = std::make_unique<DummyImageAccessor>();
     e->model_accessor = std::make_unique<LoadOnlyImageAccessor>(modelImage);

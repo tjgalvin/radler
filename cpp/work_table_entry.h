@@ -72,7 +72,7 @@ struct WorkTableEntry {
                   << " " << std::setw(2) << entry.original_channel_index << " "
                   << std::setw(8) << entry.original_interval_index << " "
                   << std::setw(6) << entry.image_weight << " "
-                  << round(entry.band_end_frequency * 1e-6) << "-"
+                  << round(entry.band_start_frequency * 1e-6) << "-"
                   << round(entry.band_end_frequency * 1e-6) << '\n';
   }
 };

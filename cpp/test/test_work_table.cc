@@ -123,9 +123,9 @@ Original groups       3
 Deconvolution groups  1
 Channel index         0
    # Pol Ch Interval Weight Freq(MHz)
-   0   Q  0        4  1.234 10-10
-   1   I  1        8   1.01 2-2
-   2   U  0       16    1.1 200-200
+   0   Q  0        4  1.234 5-10
+   1   I  1        8   1.01 1-2
+   2   U  0       16    1.1 100-200
 )");
 }
 
