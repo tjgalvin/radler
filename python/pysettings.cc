@@ -15,6 +15,7 @@
 #include <schaapcommon/fitters/spectralfitter.h>
 
 #include "pyopaque.h"
+#include "docstrings/settings_docstrings.h"
 
 namespace py = pybind11;
 
@@ -25,155 +26,105 @@ void init_settings(py::module& m) {
   py::bind_vector<std::vector<double>>(m, "VectorDouble");
 
   py::enum_<radler::AlgorithmType>(m, "AlgorithmType",
-                                   "Type of deconvolution algorithm to use")
+                                   DOC(radler_AlgorithmType))
       .value("generic_clean", radler::AlgorithmType::kGenericClean,
-             R"pbdoc(
-        Generic (Hogbom) clean.
-       )pbdoc")
+             DOC(radler_AlgorithmType_kGenericClean))
       .value("multiscale", radler::AlgorithmType::kMultiscale,
-             R"pbdoc(
-        Multiscale clean, see https://wsclean.readthedocs.io/en/latest/multiscale_cleaning.html.
-       )pbdoc")
+             DOC(radler_AlgorithmType_kMultiscale))
       .value("iuwt", radler::AlgorithmType::kIuwt,
-             R"pbdoc(
-        IUWT (isotropic undecimated wavelet transform) deconvolution algorithm.
-        See https://wsclean.readthedocs.io/en/latest/iuwt_compressed_sensing.html.
-       )pbdoc")
+             DOC(radler_AlgorithmType_kIuwt))
       .value("more_sane", radler::AlgorithmType::kMoreSane,
-             R"pbdoc(
-        More sane deconvolution algorithm, see https://wsclean.readthedocs.io/en/latest/moresane_deconvolution.html.
-        Requires PyMORESANE (https://github.com/ratt-ru/PyMORESANE).
-       )pbdoc")
+             DOC(radler_AlgorithmType_kMoreSane))
       .value("python", radler::AlgorithmType::kPython,
-             R"pbdoc(
-        Use a deconvolution script that is defined in Python, available since WSClean version 3.0. See
-        https://wsclean.readthedocs.io/en/latest/changelogs/v3.0.html?highlight=python#wsclean-version-3-0
-       )pbdoc");
+             DOC(radler_AlgorithmType_kPython));
 
-  py::enum_<radler::LocalRmsMethod>(
-      m, "LocalRmsMethod",
-      "The value of this enum describes how the RMS map should be used")
+  py::enum_<radler::LocalRmsMethod>(m, "LocalRmsMethod",
+                                    DOC(radler_LocalRmsMethod))
       .value("none", radler::LocalRmsMethod::kNone,
-             R"pbdoc(
-        No local RMS.
-       )pbdoc")
-      .value("rms_window", radler::LocalRmsMethod::kRmsWindow, R"pbdoc(
-        Use spatially varying RMS image.
-       )pbdoc")
+             DOC(radler_LocalRmsMethod_kNone))
+      .value("rms_window", radler::LocalRmsMethod::kRmsWindow,
+             DOC(radler_LocalRmsMethod_kRmsWindow))
       .value("rms_and_minimum_window",
              radler::LocalRmsMethod::kRmsAndMinimumWindow,
-             R"pbdoc(
-        Use spatially varying RMS image with min. Computed as max(window rms, 0.3 x window min)).
-       )pbdoc");
+             DOC(radler_LocalRmsMethod_kRmsAndMinimumWindow));
 
-  py::enum_<radler::MultiscaleShape>(
-      m, "MultiscaleShape",
-      "Sets the shape function used during multi-scale clean.")
+  py::enum_<radler::MultiscaleShape>(m, "MultiscaleShape",
+                                     DOC(radler_MultiscaleShape))
       .value("tapered_quadratic",
-             radler::MultiscaleShape::kTaperedQuadraticShape, R"pbdoc(
-        A tapered quadratic shape function will be used during multi-scale cleaning.
-       )pbdoc")
-      .value("gaussian", radler::MultiscaleShape::kGaussianShape, R"pbdoc(
-        A Gaussian shape function will be used during multi-scale cleaning.
-       )pbdoc");
+             radler::MultiscaleShape::kTaperedQuadraticShape,
+             DOC(radler_MultiscaleShape_kTaperedQuadraticShape))
+      .value("gaussian", radler::MultiscaleShape::kGaussianShape,
+             DOC(radler_MultiscaleShape_kGaussianShape));
 
-  py::class_<radler::Settings> settings(
-      m, "Settings",
-      "Class to collect and set (Radler) deconvolution related settings.");
+  py::class_<radler::Settings> settings(m, "Settings", DOC(radler_Settings));
 
   settings.def(py::init<>())
       .def_readwrite("trimmed_image_width",
-                     &radler::Settings::trimmed_image_width)
+                     &radler::Settings::trimmed_image_width,
+                     DOC(radler_Settings_trimmed_image_width))
       .def_readwrite("trimmed_image_height",
-                     &radler::Settings::trimmed_image_height)
-      .def_readwrite("channels_out", &radler::Settings::channels_out)
-      .def_readwrite("pixel_scale", &radler::Settings::pixel_scale)
-      .def_readwrite("thread_count", &radler::Settings::thread_count)
-      .def_readwrite("prefix_name", &radler::Settings::prefix_name)
+                     &radler::Settings::trimmed_image_height,
+                     DOC(radler_Settings_trimmed_image_height))
+      .def_readwrite("channels_out", &radler::Settings::channels_out,
+                     DOC(radler_Settings_channels_out))
+      .def_readwrite("pixel_scale", &radler::Settings::pixel_scale,
+                     DOC(radler_Settings_PixelScale))
+      .def_readwrite("thread_count", &radler::Settings::thread_count,
+                     DOC(radler_Settings_thread_count))
+      .def_readwrite("prefix_name", &radler::Settings::prefix_name,
+                     DOC(radler_Settings_prefix_name))
       .def_readwrite("linked_polarizations",
-                     &radler::Settings::linked_polarizations)
-      .def_readwrite("parallel", &radler::Settings::parallel)
-      .def_readwrite("threshold", &radler::Settings::threshold, R"pbdoc(
-        The threshold (in Jy) defines when to stop cleaning. Radler will continue
-        cleaning until the peak residual flux is below the given threshold.
-        The default value is 0.0, which means the threshold is not used.
-       )pbdoc")
+                     &radler::Settings::linked_polarizations,
+                     DOC(radler_Settings_linked_polarizations))
+      .def_readwrite("parallel", &radler::Settings::parallel,
+                     DOC(radler_Settings_parallel))
+      .def_readwrite("threshold", &radler::Settings::threshold,
+                     DOC(radler_Settings_threshold))
       .def_readwrite("minor_loop_gain", &radler::Settings::minor_loop_gain,
-                     R"pbdoc(
-        Gain value for minor loop iterations.
-       )pbdoc")
+                     DOC(radler_Settings_minor_loop_gain))
       .def_readwrite("major_loop_gain", &radler::Settings::major_loop_gain,
-                     R"pbdoc(
-        Gain value for major loop iterations.
-
-        This setting specifies when Radler pauses performing minor iterations, so
-        that a major prediction-imaging round can be performed by the client.
-        Before returning, the peak flux is decreased by the given factor. A value
-        of 1.0 implies that minor iterations will continue until the final stopping
-        criteria have been reached. The value should be larger than 0.0.
-       )pbdoc")
+                     DOC(radler_Settings_major_loop_gain))
       .def_readwrite("auto_threshold_sigma",
-                     &radler::Settings::auto_threshold_sigma, R"pbdoc(
-        Sigma value for automatically setting the cleaning threshold.
-
-        If set, Radler will calculate the standard deviation of the residual image
-        before the start of every major deconvolution iteration, and continue
-        deconvolving until the peak flux density is below this sigma value times
-        the noise standard deviation. The standard deviation is calculated using
-        the medium absolute deviation, which is a robust estimator that is not very
-        sensitive to source structure still present in the image.
-
-        If unset, automatic thresholding is not used.
-       )pbdoc")
+                     &radler::Settings::auto_threshold_sigma,
+                     DOC(radler_Settings_auto_threshold_sigma))
       .def_readwrite("auto_mask_sigma", &radler::Settings::auto_mask_sigma,
-                     R"pbdoc(
-        Sigma value for automatically creating and applying mask images.
-
-        If set, Radler performs these steps:
-
-        - Radler starts cleaning towards a threshold of the given sigma value.
-        - Once the sigma level is reached, Radler generates a mask using the
-          positions and (when using multi-scale cleaning) scale of each component.
-        - Cleaning then continues until the final threshold value, as set using the
-          threshold or auto_threshold_sigma values. During this final
-          deconvolution stage, the generated mask constrains the cleaning.
-
-        If unset, automatic masking is not used.
-       )pbdoc")
-      .def_readwrite("save_source_list", &radler::Settings::save_source_list)
+                     DOC(radler_Settings_auto_mask_sigma))
+      .def_readwrite("save_source_list", &radler::Settings::save_source_list,
+                     DOC(radler_Settings_save_source_list))
       .def_readwrite("minor_iteration_count",
-                     &radler::Settings::minor_iteration_count)
+                     &radler::Settings::minor_iteration_count,
+                     DOC(radler_Settings_minor_iteration_count))
       .def_readwrite("major_iteration_count",
-                     &radler::Settings::major_iteration_count)
+                     &radler::Settings::major_iteration_count,
+                     DOC(radler_Settings_major_iteration_count))
       .def_readwrite("allow_negative_components",
-                     &radler::Settings::allow_negative_components)
+                     &radler::Settings::allow_negative_components,
+                     DOC(radler_Settings_allow_negative_components))
       .def_readwrite("stop_on_negative_components",
-                     &radler::Settings::stop_on_negative_components)
-      .def_readwrite("squared_joins", &radler::Settings::squared_joins)
+                     &radler::Settings::stop_on_negative_components,
+                     DOC(radler_Settings_stop_on_negative_components))
+      .def_readwrite("squared_joins", &radler::Settings::squared_joins,
+                     DOC(radler_Settings_squared_joins))
       .def_readwrite("spectral_correction_frequency",
-                     &radler::Settings::spectral_correction_frequency)
+                     &radler::Settings::spectral_correction_frequency,
+                     DOC(radler_Settings_spectral_correction_frequency))
       .def_readwrite("spectral_correction",
-                     &radler::Settings::spectral_correction)
-      .def_readwrite("border_ratio", &radler::Settings::border_ratio)
-      .def_readwrite("fits_mask", &radler::Settings::fits_mask)
-      .def_readwrite("casa_mask", &radler::Settings::casa_mask)
+                     &radler::Settings::spectral_correction,
+                     DOC(radler_Settings_spectral_correction))
+      .def_readwrite("border_ratio", &radler::Settings::border_ratio,
+                     DOC(radler_Settings_border_ratio))
+      .def_readwrite("fits_mask", &radler::Settings::fits_mask,
+                     DOC(radler_Settings_fits_mask))
+      .def_readwrite("casa_mask", &radler::Settings::casa_mask,
+                     DOC(radler_Settings_casa_mask))
       .def_readwrite("horizon_mask_distance",
-                     &radler::Settings::horizon_mask_distance, R"pbdoc(
-        The horizon mask distance allows masking out emission beyond the horizon.
-        The value is a floating point value in radians.
-
-        All emission that is within the given distance of the horizon or beyond
-        will be masked. A value of zero will therefore restrict deconvolution to be
-        inside the horizon. Larger values will restrict deconvolution further.
-
-        Leaving the optional value unset disables horizon masking.
-       )pbdoc")
+                     &radler::Settings::horizon_mask_distance,
+                     DOC(radler_Settings_horizon_mask_distance))
       .def_readwrite("horizon_mask_filename",
-                     &radler::Settings::horizon_mask_filename, R"pbdoc(
-        The filename for storing the horizon mask FITS image.
-        If unset/empty, Radler uses: prefix_name + "-horizon-mask.fits"
-       )pbdoc")
-      .def_readwrite("local_rms", &radler::Settings::local_rms)
+                     &radler::Settings::horizon_mask_filename,
+                     DOC(radler_Settings_horizon_mask_filename))
+      .def_readwrite("local_rms", &radler::Settings::local_rms,
+                     DOC(radler_LocalRmsMethod))
       .def_readwrite("spectral_fitting", &radler::Settings::spectral_fitting)
       .def_readwrite("algorithm_type", &radler::Settings::algorithm_type)
       .def_readwrite("generic", &radler::Settings::generic)
@@ -185,48 +136,72 @@ void init_settings(py::module& m) {
         the python deconvolution implementation.
        )pbdoc");
 
-  py::class_<radler::Settings::Generic>(settings, "Generic")
+  py::class_<radler::Settings::Generic>(settings, "Generic",
+                                        DOC(radler_Settings_Generic))
       .def_readwrite("use_sub_minor_optimization",
-                     &radler::Settings::Generic::use_sub_minor_optimization);
+                     &radler::Settings::Generic::use_sub_minor_optimization,
+                     DOC(radler_Settings_Multiscale_fast_sub_minor_loop));
 
-  py::class_<radler::Settings::Multiscale>(settings, "Multiscale")
+  py::class_<radler::Settings::Multiscale>(settings, "Multiscale",
+                                           DOC(radler_Settings_Multiscale))
       .def_readwrite("fast_sub_minor_loop",
-                     &radler::Settings::Multiscale::fast_sub_minor_loop)
+                     &radler::Settings::Multiscale::fast_sub_minor_loop,
+                     DOC(radler_Settings_Multiscale_fast_sub_minor_loop))
       .def_readwrite("sub_minor_loop_gain",
-                     &radler::Settings::Multiscale::sub_minor_loop_gain)
-      .def_readwrite("scale_bias", &radler::Settings::Multiscale::scale_bias)
-      .def_readwrite("max_scales", &radler::Settings::Multiscale::max_scales)
+                     &radler::Settings::Multiscale::sub_minor_loop_gain,
+                     DOC(radler_Settings_Multiscale_sub_minor_loop_gain))
+      .def_readwrite("scale_bias", &radler::Settings::Multiscale::scale_bias,
+                     DOC(radler_Settings_Multiscale_scale_bias))
+      .def_readwrite("max_scales", &radler::Settings::Multiscale::max_scales,
+                     DOC(radler_Settings_Multiscale_max_scales))
       .def_readwrite("convolution_padding",
-                     &radler::Settings::Multiscale::convolution_padding)
-      .def_readwrite("scale_list", &radler::Settings::Multiscale::scale_list)
-      .def_readwrite("shape", &radler::Settings::Multiscale::shape);
+                     &radler::Settings::Multiscale::convolution_padding,
+                     DOC(radler_Settings_Multiscale_convolution_padding))
+      .def_readwrite("scale_list", &radler::Settings::Multiscale::scale_list,
+                     DOC(radler_Settings_Multiscale_scale_list))
+      .def_readwrite("shape", &radler::Settings::Multiscale::shape,
+                     DOC(radler_Settings_Multiscale_shape));
 
   py::class_<radler::Settings::MoreSane>(settings, "MoreSane")
       .def_readwrite("location", &radler::Settings::MoreSane::location)
       .def_readwrite("arguments", &radler::Settings::MoreSane::arguments)
       .def_readwrite("sigma_levels", &radler::Settings::MoreSane::sigma_levels);
 
-  py::class_<radler::Settings::Python>(settings, "Python")
-      .def_readwrite("filename", &radler::Settings::Python::filename);
+  py::class_<radler::Settings::Python>(settings, "Python",
+                                       DOC(radler_Settings_Python))
+      .def_readwrite("filename", &radler::Settings::Python::filename,
+                     DOC(radler_Settings_Python_filename));
 
-  py::class_<radler::Settings::Parallel>(settings, "Parallel")
-      .def_readwrite("max_size", &radler::Settings::Parallel::max_size)
-      .def_readwrite("max_threads", &radler::Settings::Parallel::max_threads);
+  py::class_<radler::Settings::Parallel>(settings, "Parallel",
+                                         DOC(radler_Settings_Parallel))
+      .def_readwrite("max_size", &radler::Settings::Parallel::max_size,
+                     DOC(radler_Settings_Parallel_max_size))
+      .def_readwrite("max_threads", &radler::Settings::Parallel::max_threads,
+                     DOC(radler_Settings_Parallel_max_threads));
 
-  py::class_<radler::Settings::PixelScale>(settings, "PixelScale")
+  py::class_<radler::Settings::PixelScale>(settings, "PixelScale",
+                                           DOC(radler_Settings_PixelScale))
       .def_readwrite("x", &radler::Settings::PixelScale::x)
       .def_readwrite("y", &radler::Settings::PixelScale::y);
 
-  py::class_<radler::Settings::LocalRms>(settings, "LocalRms")
-      .def_readwrite("method", &radler::Settings::LocalRms::method)
-      .def_readwrite("window", &radler::Settings::LocalRms::window)
-      .def_readwrite("image", &radler::Settings::LocalRms::image);
+  py::class_<radler::Settings::LocalRms>(settings, "LocalRms",
+                                         DOC(radler_LocalRmsMethod))
+      .def_readwrite("method", &radler::Settings::LocalRms::method,
+                     DOC(radler_Settings_LocalRms_method))
+      .def_readwrite("window", &radler::Settings::LocalRms::window,
+                     DOC(radler_Settings_LocalRms_window))
+      .def_readwrite("image", &radler::Settings::LocalRms::image,
+                     DOC(radler_Settings_LocalRms_image));
 
-  py::class_<radler::Settings::SpectralFitting>(settings, "SpectralFitting")
-      .def_readwrite("mode", &radler::Settings::SpectralFitting::mode)
-      .def_readwrite("terms", &radler::Settings::SpectralFitting::terms)
+  py::class_<radler::Settings::SpectralFitting>(
+      settings, "SpectralFitting", DOC(radler_Settings_SpectralFitting))
+      .def_readwrite("mode", &radler::Settings::SpectralFitting::mode,
+                     DOC(radler_Settings_SpectralFitting_mode))
+      .def_readwrite("terms", &radler::Settings::SpectralFitting::terms,
+                     DOC(radler_Settings_SpectralFitting_terms))
       .def_readwrite("forced_filename",
-                     &radler::Settings::SpectralFitting::forced_filename);
+                     &radler::Settings::SpectralFitting::forced_filename,
+                     DOC(radler_Settings_SpectralFitting_forced_filename));
 
   py::enum_<aocommon::Polarization::PolarizationEnum>(
       m, "Polarization",

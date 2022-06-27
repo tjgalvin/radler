@@ -18,7 +18,15 @@ namespace radler {
  * @brief The value of LocalRmsMethod describes if and how an RMS map
  * should be used.
  */
-enum class LocalRmsMethod { kNone, kRmsWindow, kRmsAndMinimumWindow };
+enum class LocalRmsMethod {
+  /// No local RMS
+  kNone,
+  /// Spatially varying RMS image
+  kRmsWindow,
+  /// Spatially varying RMS image with min. Computed as max(window RMS, 0.3 x
+  /// window min)
+  kRmsAndMinimumWindow
+};
 
 /**
  * @brief The deconvolution algorithm type.
@@ -84,20 +92,25 @@ enum class MultiscaleShape {
   kGaussianShape
 };
 
+/// Class to collect and set (Radler) deconvolution related settings
 struct Settings {
   /**
    * @{
    * Settings that are duplicates from top level settings, and also used outside
    * deconvolution.
    */
+  /// Trimmed image width
   size_t trimmed_image_width = 0;
+  /// Trimmed image height
   size_t trimmed_image_height = 0;
   size_t channels_out = 1;
+  /// Pixel scale in radians
   struct PixelScale {
     double x = 0.0;
     double y = 0.0;
   } pixel_scale;
   size_t thread_count = aocommon::system::ProcessorCount();
+  /// Prefix for saving various output files (e.g. horizon mask)
   std::string prefix_name = "wsclean";
   /** @} */
 
@@ -114,7 +127,7 @@ struct Settings {
    * sub-images.
    */
   struct Parallel {
-    /** Maximum size of a sub-image. Will define how many sub-images to make. */
+    /// Maximum size of a sub-image. Will define how many sub-images to make.
     size_t max_size = 0;
     /**
      * Number of sub-images to run in parallel. Uses the default when set to
@@ -334,24 +347,27 @@ struct Settings {
 
   AlgorithmType algorithm_type = AlgorithmType::kGenericClean;
 
+  /// Settings specific to python algorithm
   struct Python {
-    /** Path to a python file containing the deconvolution algorithm to be used.
-     */
+    /// Path to a python file containing the deconvolution algorithm to be used.
     std::string filename;
   } python;
 
+  /// Settings specific to MORESANE algorithm
   struct MoreSane {
-    /** Path of the MORESANE executable. */
+    /// Path of the MORESANE executable.
     std::string location;
-    /** Extra command-line arguments provided to MORESANE. */
+    /// Extra command-line arguments provided to MORESANE.
     std::string arguments;
-    /** Set of threshold levels provided to MORESANE. The first value is used in
+    /**
+     * Set of threshold levels provided to MORESANE. The first value is used in
      * the first major iteration, the second value in the second major
      * iteration, etc.
      */
     std::vector<double> sigma_levels;
   } more_sane;
 
+  /// Settings specific to multiscale algorithm
   struct Multiscale {
     /**
      * Use the fast variant of this algorithm. When @c true, the minor loops are
@@ -413,6 +429,7 @@ struct Settings {
     MultiscaleShape shape = MultiscaleShape::kTaperedQuadraticShape;
   } multiscale;
 
+  /// Settings not specific to the algorithm
   struct Generic {
     /**
      * Corresponds to @ref Multiscale::fast_sub_minor_loop.

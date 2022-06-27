@@ -173,11 +173,30 @@ build-doc-2204:
   stage: build
   image: $BASE_IMAGE_2204
   script:
-    - RADLER_PATH=$PWD
     - mkdir build && cd build
-    - cmake -DBUILD_PYTHON_BINDINGS=ON -DBUILD_DOCUMENTATION=ON $RADLER_PATH -G Ninja
+    - cmake -DBUILD_PYTHON_BINDINGS=ON -DBUILD_DOCUMENTATION=ON .. -G Ninja
     - ninja
     - ninja doc
   artifacts:
     paths:
     - build/doc/html
+
+build-docstrings-2204:
+  extends: .needs-2204
+  stage: build
+  image: $BASE_IMAGE_2204
+  script:
+    - mkdir build && cd build
+    - cmake -DBUILD_DOCSTRINGS=ON -G Ninja ..
+    - ninja
+    - ninja docstrings
+    - cp -r doc/docstrings ../python
+    # Check if the generated docstrings still match the doxygen comments
+    # If this check fails, you should either
+    # a) Run cmake with `-DBUILD_DOCSTRINGS=On` (if you have pybind11_mkdoc installed), and then `make_docstrings`, OR
+    # b) Download the docstrings file that is the artifact of this build job
+    # After this, you should copy the docstrings file into the source tree at `python/docstrings`, and commit the changes.
+    - git diff -U0 --exit-code ../python/docstrings
+  artifacts:
+    paths:
+    - build/doc/docstrings

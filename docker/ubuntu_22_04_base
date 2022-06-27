@@ -2,12 +2,14 @@
 
 # base
 FROM ubuntu:22.04
+# clang, llvm just needed for docstrings (for development only)
 RUN export DEBIAN_FRONTEND="noninteractive" && \
     apt-get update && \
     apt-get upgrade -y && \
     apt-get -y install \
         casacore-dev \
         casacore-tools \
+        clang \
         clang-format-12 \
         clang-tidy-12 \
         cmake \
@@ -21,13 +23,15 @@ RUN export DEBIAN_FRONTEND="noninteractive" && \
         libgsl-dev \
         libhdf5-dev \
         libpython3-dev \
+        llvm \
+        locales \
         make \
         ninja-build \
         python3-pip \
         wcslib-dev \
         wget \
     && \
-	rm -rf /var/lib/apt/lists/* \
+    rm -rf /var/lib/apt/lists/* \
     # The formatter needs a binary named 'clang-format', not 'clang-format-12'.
     # Same for clang-tidy-12
     && \
@@ -39,8 +43,13 @@ RUN python3 -m pip install \
         cmake-format \
         myst-parser \
         numpy \
+        pybind11-mkdoc \
         pytest \
         pytest-lazy-fixture \
         sphinx \
         sphinx_rtd_theme \
     ;
+RUN locale-gen en_US.UTF-8  # Necessary for creating docstrings (Högbom)
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:UTF-8
+ENV LC_ALL en_US.UTF-8

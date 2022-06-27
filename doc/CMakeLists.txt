@@ -37,3 +37,42 @@ add_custom_target(
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   COMMENT "Generating documentation with Sphinx"
   DEPENDS doxygen_xml pyradler)
+
+if(BUILD_DOCSTRINGS)
+  set(FILES_TO_DOCUMENT ${CMAKE_CURRENT_SOURCE_DIR}/../cpp/settings.h)
+
+  set(DOCSTRINGS_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/docstrings")
+  file(MAKE_DIRECTORY ${DOCSTRINGS_OUTPUT_DIR})
+
+  # Find libclang for cases where pybind11_mkdoc itself fails (like on DAS-6)
+  find_library(LIBCLANG_PATH libclang${CMAKE_SHARED_LIBRARY_SUFFIX})
+  set(PYBIND11_MKDOC_BASE_COMMAND pybind11-mkdoc -std=c++17)
+  if(LIBCLANG_PATH)
+    get_filename_component(LLVM_DIR_PATH ${LIBCLANG_PATH}/../.. ABSOLUTE)
+    set(PYBIND11_MKDOC_BASE_COMMAND
+        ${CMAKE_COMMAND} -E env LIBCLANG_PATH=${LIBCLANG_PATH}
+        LLVM_DIR_PATH=${LLVM_DIR_PATH} ${PYBIND11_MKDOC_BASE_COMMAND})
+  endif()
+
+  foreach(RADLER_TARGET_INCLUDE_DIR ${RADLER_TARGET_INCLUDE_DIRS})
+    set(PYBIND11_MKDOC_BASE_COMMAND ${PYBIND11_MKDOC_BASE_COMMAND} -I
+                                    ${RADLER_TARGET_INCLUDE_DIR})
+  endforeach()
+  foreach(FILE_TO_DOCUMENT ${FILES_TO_DOCUMENT})
+    get_filename_component(DOCSTRINGS_NAME ${FILE_TO_DOCUMENT} NAME_WLE)
+    list(
+      APPEND
+      PYBIND11_MKDOC_COMMAND
+      COMMAND
+      ${PYBIND11_MKDOC_BASE_COMMAND}
+      -o
+      ${DOCSTRINGS_NAME}_docstrings.h
+      ${FILE_TO_DOCUMENT})
+  endforeach()
+
+  add_custom_target(
+    docstrings
+    ${PYBIND11_MKDOC_COMMAND}
+    WORKING_DIRECTORY ${DOCSTRINGS_OUTPUT_DIR}
+    COMMENT "Creating docstrings from doxygen comments")
+endif()
