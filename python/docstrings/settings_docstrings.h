@@ -103,7 +103,12 @@ thresholding.)doc";
 
 static const char *__doc_radler_Settings_LocalRms_window = R"doc(Size of the sliding window to calculate the "local" RMS over.)doc";
 
-static const char *__doc_radler_Settings_MoreSane = R"doc(Settings specific to MORESANE algorithm)doc";
+static const char *__doc_radler_Settings_MoreSane =
+R"doc(Settings specific to MORESANE algorithm. If the MORESANE package is
+installed it can be called by Radler. This mode was implemented to
+facilitate comparing MORESANE with wsclean/Radler. The integration
+with MORESANE is not routinely tested. If you run into problems please
+contact the MORESANE developers.)doc";
 
 static const char *__doc_radler_Settings_MoreSane_arguments = R"doc(Extra command-line arguments provided to MORESANE.)doc";
 

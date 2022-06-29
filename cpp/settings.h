@@ -353,7 +353,13 @@ struct Settings {
     std::string filename;
   } python;
 
-  /// Settings specific to MORESANE algorithm
+  /**
+   * Settings specific to MORESANE algorithm. If the MORESANE package is
+   * installed it can be called by Radler. This mode was implemented to
+   * facilitate comparing MORESANE with wsclean/Radler. The integration with
+   * MORESANE is not routinely tested. If you run into problems please contact
+   * the MORESANE developers.
+   */
   struct MoreSane {
     /// Path of the MORESANE executable.
     std::string location;

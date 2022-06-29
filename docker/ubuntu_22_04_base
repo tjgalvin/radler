@@ -2,14 +2,14 @@
 
 # base
 FROM ubuntu:22.04
-# clang, llvm just needed for docstrings (for development only)
+# libclang, llvm just needed for docstrings (for development only)
 RUN export DEBIAN_FRONTEND="noninteractive" && \
     apt-get update && \
     apt-get upgrade -y && \
     apt-get -y install \
         casacore-dev \
         casacore-tools \
-        clang \
+        libclang1 \
         clang-format-12 \
         clang-tidy-12 \
         cmake \
