@@ -198,5 +198,6 @@ build-docstrings-2204:
     # After this, you should copy the docstrings file into the source tree at `python/docstrings`, and commit the changes.
     - git diff -U0 --exit-code ../python/docstrings
   artifacts:
+    when: on_failure
     paths:
     - build/doc/docstrings
