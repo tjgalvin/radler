@@ -324,7 +324,7 @@ struct Settings {
      * channels to vary fully independently.
      */
     schaapcommon::fitters::SpectralFittingMode mode =
-        schaapcommon::fitters::SpectralFittingMode::NoFitting;
+        schaapcommon::fitters::SpectralFittingMode::kNoFitting;
     /**
      * Number of spectral terms to constrain the channels to, or zero to
      * disable.
@@ -333,6 +333,7 @@ struct Settings {
     /**
      * File path to a FITS file that contains spectral index values to force the
      * channels onto. See Ceccoti et al (2022) for details.
+     * Only used when mode == kForcedFitting.
      */
     std::string forced_filename;
   } spectral_fitting;

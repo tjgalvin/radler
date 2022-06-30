@@ -243,16 +243,21 @@ void init_settings(py::module& m) {
       "Select the fitting mode for joined channel deconvolution. Wraps "
       "schaapcommon::fitters::SpectralFittingMode")
       .value("no_fitting",
-             schaapcommon::fitters::SpectralFittingMode::NoFitting, R"pbdoc(
+             schaapcommon::fitters::SpectralFittingMode::kNoFitting, R"pbdoc(
         No fitting, so each channel gets a separate solution.
        )pbdoc")
       .value("polynomial",
-             schaapcommon::fitters::SpectralFittingMode::Polynomial, R"pbdoc(
+             schaapcommon::fitters::SpectralFittingMode::kPolynomial, R"pbdoc(
         Use polynomial for spectral fitting.
        )pbdoc")
       .value("log_polynomial",
-             schaapcommon::fitters::SpectralFittingMode::LogPolynomial,
+             schaapcommon::fitters::SpectralFittingMode::kLogPolynomial,
              R"pbdoc(
         Use double log polynomial for spectral fitting.
+       )pbdoc")
+      .value("forced_terms",
+             schaapcommon::fitters::SpectralFittingMode::kForcedTerms,
+             R"pbdoc(
+        Use forced terms for spectral fitting.
        )pbdoc");
 }

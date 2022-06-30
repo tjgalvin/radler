@@ -17,7 +17,7 @@ struct PyChannel {
 
 class PySpectralFitter {
  public:
-  explicit PySpectralFitter(schaapcommon::fitters::SpectralFitter& fitter)
+  explicit PySpectralFitter(const schaapcommon::fitters::SpectralFitter& fitter)
       : _fitter(fitter) {}
 
   pybind11::array_t<double> fit(pybind11::array_t<double> values, size_t x,
@@ -26,14 +26,15 @@ class PySpectralFitter {
       throw std::runtime_error(
           "spectral_fitter.fit(): Invalid dimensions of values array");
     }
-    if (static_cast<size_t>(values.shape()[0]) != _fitter.NFrequencies()) {
+    if (static_cast<size_t>(values.shape()[0]) !=
+        _fitter.Frequencies().size()) {
       throw std::runtime_error(
           "spectral_fitter.fit(): Incorrect size of values array");
     }
-    aocommon::UVector<float> vec(_fitter.NFrequencies());
+    aocommon::UVector<float> vec(_fitter.Frequencies().size());
     pybind11::buffer_info info = values.request();
     const unsigned char* buffer = static_cast<const unsigned char*>(info.ptr);
-    for (size_t i = 0; i != _fitter.NFrequencies(); ++i) {
+    for (size_t i = 0; i != _fitter.Frequencies().size(); ++i) {
       vec[i] = *reinterpret_cast<const double*>(buffer + info.strides[0] * i);
     }
     std::vector<float> result;
@@ -57,14 +58,15 @@ class PySpectralFitter {
           "spectral_fitter.fit_and_evaluate(): Invalid dimensions of values "
           "array");
     }
-    if (static_cast<size_t>(values.shape()[0]) != _fitter.NFrequencies()) {
+    if (static_cast<size_t>(values.shape()[0]) !=
+        _fitter.Frequencies().size()) {
       throw std::runtime_error(
           "spectral_fitter.fit_and_evaluate(): Incorrect size of values array");
     }
-    aocommon::UVector<float> vec(_fitter.NFrequencies());
+    aocommon::UVector<float> vec(_fitter.Frequencies().size());
     pybind11::buffer_info info = values.request();
     const unsigned char* buffer = static_cast<const unsigned char*>(info.ptr);
-    for (size_t i = 0; i != _fitter.NFrequencies(); ++i) {
+    for (size_t i = 0; i != _fitter.Frequencies().size(); ++i) {
       vec[i] = *reinterpret_cast<const double*>(buffer + info.strides[0] * i);
     }
 
@@ -74,22 +76,23 @@ class PySpectralFitter {
     pybind11::buffer_info resultBuf(
         nullptr,  // ask NumPy to allocate
         sizeof(double), pybind11::format_descriptor<double>::value, 1,
-        {static_cast<ptrdiff_t>(_fitter.NFrequencies())},
+        {static_cast<ptrdiff_t>(_fitter.Frequencies().size())},
         {sizeof(double)}  // Stride
     );
     pybind11::array_t<double> pyResult(resultBuf);
-    std::copy_n(vec.data(), _fitter.NFrequencies(),
+    std::copy_n(vec.data(), _fitter.Frequencies().size(),
                 static_cast<double*>(pyResult.request(true).ptr));
     return pyResult;
   }
 
  private:
-  schaapcommon::fitters::SpectralFitter& _fitter;
+  const schaapcommon::fitters::SpectralFitter& _fitter;
 };
 
 struct PyMetaData {
  public:
-  explicit PyMetaData(schaapcommon::fitters::SpectralFitter& _spectral_fitter)
+  explicit PyMetaData(
+      const schaapcommon::fitters::SpectralFitter& _spectral_fitter)
       : spectral_fitter(_spectral_fitter) {}
 
   std::vector<PyChannel> channels;
@@ -133,7 +136,8 @@ PythonDeconvolution::PythonDeconvolution(const std::string& filename)
 }
 
 PythonDeconvolution::PythonDeconvolution(const PythonDeconvolution& other)
-    : _filename(other._filename),
+    : DeconvolutionAlgorithm(other),
+      _filename(other._filename),
       _guard(other._guard),
       _deconvolveFunction(
           std::make_unique<pybind11::function>(*other._deconvolveFunction)) {}
@@ -231,18 +235,18 @@ float PythonDeconvolution::ExecuteMajorIteration(
     pybind11::array_t<double> pyPsfs(psfBuf);
     setPsf(psfs, static_cast<double*>(pyPsfs.request(true).ptr), width, height);
 
-    PyMetaData meta(spectral_fitter_);
-    meta.channels.resize(spectral_fitter_.NFrequencies());
-    for (size_t i = 0; i != spectral_fitter_.NFrequencies(); ++i) {
-      meta.channels[i].frequency = spectral_fitter_.Frequency(i);
-      meta.channels[i].weight = spectral_fitter_.Weight(i);
+    PyMetaData meta(Fitter());
+    meta.channels.resize(Fitter().Frequencies().size());
+    for (size_t i = 0; i != Fitter().Frequencies().size(); ++i) {
+      meta.channels[i].frequency = Fitter().Frequencies()[i];
+      meta.channels[i].weight = Fitter().Weights()[i];
     }
-    meta.gain = minor_loop_gain_;
-    meta.iteration_number = iteration_number_;
-    meta.major_iter_threshold = major_iteration_threshold_;
-    meta.max_iterations = max_iterations_;
-    meta.mgain = major_loop_gain_;
-    meta.final_threshold = threshold_;
+    meta.gain = MinorLoopGain();
+    meta.iteration_number = IterationNumber();
+    meta.major_iter_threshold = MajorIterationThreshold();
+    meta.max_iterations = MaxIterations();
+    meta.mgain = MajorLoopGain();
+    meta.final_threshold = Threshold();
 
     // Run the python code
     result = (*_deconvolveFunction)(std::move(pyResiduals), std::move(pyModel),

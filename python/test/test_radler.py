@@ -131,7 +131,7 @@ def test_input_dtype(settings):
 @pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
 def test_matching_arrays(settings):
     """
-    Check that Radler constructor only accepts valid numpy arrays that match.
+    Check that the Radler constructor only accepts valid numpy arrays that match.
     """
     valid_images = np.zeros((3, HEIGHT, WIDTH), dtype=np.float32)
     valid_frequencies = np.zeros((valid_images.shape[0], 2), dtype=np.float64)
@@ -172,6 +172,15 @@ def test_matching_arrays(settings):
         rd.Radler(settings, nonmatching_images, valid_images, valid_images,
                   BEAM_SIZE, weights=nonmatching_weights)
 
+@pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
+def test_require_frequencies(settings):
+    """
+    Check that Radler requires frequencies when spectral fitting is enabled.
+    """
+    image = np.zeros((HEIGHT, WIDTH), dtype=np.float32)
+    settings.spectral_fitting.mode = rd.SpectralFittingMode.polynomial
+    with pytest.raises(RuntimeError):
+        rd.Radler(settings, image, image, image, BEAM_SIZE)
 
 @pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
 def test_default_args(settings):

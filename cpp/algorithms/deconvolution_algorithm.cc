@@ -9,31 +9,40 @@
 namespace radler::algorithms {
 
 DeconvolutionAlgorithm::DeconvolutionAlgorithm()
-    : threshold_(0.0),
-      major_iteration_threshold_(0.0),
-      minor_loop_gain_(0.1),
-      major_loop_gain_(1.0),
-      clean_border_ratio_(0.05),
-      max_iterations_(500),
-      iteration_number_(0),
-      thread_count_(aocommon::system::ProcessorCount()),
-      allow_negative_components_(true),
-      stop_on_negative_component_(false),
-      clean_mask_(nullptr),
+    : iteration_number_(0),
+      rms_factor_image_(),
       log_receiver_(nullptr),
-      spectral_fitter_(schaapcommon::fitters::SpectralFittingMode::NoFitting,
-                       0) {}
+      settings_(),
+      fitting_scratch_(),
+      spectral_fitter_(),
+      n_polarizations_(0) {
+  settings_.thread_count = aocommon::system::ProcessorCount();
+}
+
+DeconvolutionAlgorithm::DeconvolutionAlgorithm(
+    const DeconvolutionAlgorithm& other)
+    : iteration_number_(other.iteration_number_),
+      rms_factor_image_(other.rms_factor_image_),
+      log_receiver_(other.log_receiver_),
+      settings_(other.settings_),
+      fitting_scratch_(),  // Copying this scratch buffer is not needed.
+      spectral_fitter_(
+          other.spectral_fitter_
+              ? std::make_unique<schaapcommon::fitters::SpectralFitter>(
+                    *other.spectral_fitter_)
+              : nullptr),
+      n_polarizations_(other.n_polarizations_) {}
 
 void DeconvolutionAlgorithm::PerformSpectralFit(float* values, size_t x,
                                                 size_t y) {
-  const size_t n = spectral_fitter_.NFrequencies();
+  const size_t n = spectral_fitter_->Frequencies().size();
   for (size_t p = 0; p != n_polarizations_; ++p) {
-    // Values are ordered by pol, so reshuffle so all frequencies are together
-    // It's somewhat like an (inplace) transpose, but then for only one column
+    // Values are ordered by pol, so reshuffle so all frequencies are together.
+    // It's somewhat like an (inplace) transpose, but then for only one column.
     for (size_t ch = 0; ch != n; ++ch) {
       std::swap(values[ch * n_polarizations_ + p], values[ch]);
     }
-    spectral_fitter_.FitAndEvaluate(values, x, y, fitting_scratch_);
+    spectral_fitter_->FitAndEvaluate(values, x, y, fitting_scratch_);
     // placing channel values back should be in reversed order to
     // undo multiple moves of a single value that might have happened
     for (size_t i = 0; i != n; ++i) {

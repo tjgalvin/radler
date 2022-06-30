@@ -194,7 +194,8 @@ static const char *__doc_radler_Settings_SpectralFitting = R"doc(Settings relate
 
 static const char *__doc_radler_Settings_SpectralFitting_forced_filename =
 R"doc(File path to a FITS file that contains spectral index values to force
-the channels onto. See Ceccoti et al (2022) for details.)doc";
+the channels onto. See Ceccoti et al (2022) for details. Only used
+when mode == kForcedFitting.)doc";
 
 static const char *__doc_radler_Settings_SpectralFitting_mode =
 R"doc(Fitting mode, or schaapcommon::fitters::SpectralFittingMode::NoFitting

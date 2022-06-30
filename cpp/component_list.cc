@@ -66,7 +66,7 @@ void ComponentList::Write(const std::string& filename,
         "Run ComponentList::MergeDuplicates() first.");
   }
 
-  if (fitter.Mode() == schaapcommon::fitters::SpectralFittingMode::NoFitting &&
+  if (fitter.Mode() == schaapcommon::fitters::SpectralFittingMode::kNoFitting &&
       n_frequencies_ > 1) {
     throw std::runtime_error(
         "Can't Write component list, because you have not specified a spectral "
@@ -76,11 +76,12 @@ void ComponentList::Write(const std::string& filename,
   std::ofstream file(filename);
   bool use_log_si = false;
   switch (fitter.Mode()) {
-    case schaapcommon::fitters::SpectralFittingMode::NoFitting:
-    case schaapcommon::fitters::SpectralFittingMode::Polynomial:
+    case schaapcommon::fitters::SpectralFittingMode::kNoFitting:
+    case schaapcommon::fitters::SpectralFittingMode::kPolynomial:
+    case schaapcommon::fitters::SpectralFittingMode::kForcedTerms:
       use_log_si = false;
       break;
-    case schaapcommon::fitters::SpectralFittingMode::LogPolynomial:
+    case schaapcommon::fitters::SpectralFittingMode::kLogPolynomial:
       use_log_si = true;
       break;
   }

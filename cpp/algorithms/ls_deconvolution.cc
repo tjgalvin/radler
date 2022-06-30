@@ -163,7 +163,7 @@ void LsDeconvolution::linearFit(float* dataImage, float* modelImage,
                                 size_t height,
                                 bool& /*reachedMajorThreshold*/) {
   aocommon::UVector<std::pair<size_t, size_t>> maskPositions;
-  getMaskPositions(maskPositions, clean_mask_, width, height);
+  getMaskPositions(maskPositions, CleanMask(), width, height);
   Logger::Info << "Running LSDeconvolution with " << maskPositions.size()
                << " parameters.\n";
 
@@ -240,9 +240,9 @@ void LsDeconvolution::nonLinearFit(float* dataImage, float* modelImage,
                                    const aocommon::Image& psfImage,
                                    size_t width, size_t height,
                                    bool& /*reachedMajorThreshold*/) {
-  if (clean_mask_ == nullptr) throw std::runtime_error("No mask available");
+  if (!CleanMask()) throw std::runtime_error("No mask available");
 
-  getMaskPositions(_data->maskPositions, clean_mask_, width, height);
+  getMaskPositions(_data->maskPositions, CleanMask(), width, height);
   size_t parameterCount = _data->maskPositions.size(),
          dataCount = width * height + 1;
   Logger::Info << "Running LSDeconvolution with " << parameterCount

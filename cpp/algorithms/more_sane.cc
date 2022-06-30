@@ -20,9 +20,9 @@ void MoreSane::ExecuteMajorIteration(float* residual_data, float* model_data,
     aocommon::Logger::Info << "Convolving model with psf...\n";
     aocommon::Image preparedPsf(width, height);
     schaapcommon::fft::PrepareConvolutionKernel(
-        preparedPsf.Data(), psf_image.Data(), width, height, thread_count_);
+        preparedPsf.Data(), psf_image.Data(), width, height, ThreadCount());
     schaapcommon::fft::Convolve(model_data, preparedPsf.Data(), width, height,
-                                thread_count_);
+                                ThreadCount());
     aocommon::Logger::Info << "Adding model back to residual...\n";
     for (size_t i = 0; i != width * height; ++i) {
       residual_data[i] += model_data[i];
@@ -36,14 +36,14 @@ void MoreSane::ExecuteMajorIteration(float* residual_data, float* model_data,
       outputName(outputStr.str());
   aocommon::FitsWriter writer;
   writer.SetImageDimensions(width, height);
-  if (clean_mask_ != nullptr) writer.WriteMask(maskName, clean_mask_);
+  if (CleanMask()) writer.WriteMask(maskName, CleanMask());
   writer.Write(dirtyName, residual_data);
   writer.Write(psfName, psf_image.Data());
 
   std::ostringstream commandLine;
   commandLine << "time python \"" << settings_.location << "\" ";
-  if (!allow_negative_components_) commandLine << "-ep ";
-  if (clean_mask_ != nullptr) commandLine << "-m \"" << maskName + "\" ";
+  if (!AllowNegativeComponents()) commandLine << "-ep ";
+  if (CleanMask()) commandLine << "-m \"" << maskName + "\" ";
   if (!settings_.arguments.empty()) commandLine << settings_.arguments << ' ';
   commandLine << "\"" << dirtyName << "\" \"" << psfName << "\" \""
               << outputName << '\"';
@@ -81,7 +81,7 @@ float MoreSane::ExecuteMajorIteration(
 
   ++iteration_number_;
 
-  reached_major_threshold = iteration_number_ < max_iterations_;
+  reached_major_threshold = iteration_number_ < MaxIterations();
   return 0.0;
 }
 }  // namespace radler::algorithms

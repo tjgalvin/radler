@@ -110,7 +110,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   void FindActiveScaleConvolvedMaxima(const ImageSet& image_set,
                                       aocommon::Image& integrated_scratch,
                                       aocommon::Image& scratch, bool report_rms,
-                                      ThreadedDeconvolutionTools* tools);
+                                      ThreadedDeconvolutionTools& tools);
   bool SelectMaximumScale(size_t& scale_with_peak);
   void ActivateScales(size_t scale_with_last_peak);
   void MeasureComponentValues(aocommon::UVector<float>& component_values,

@@ -90,6 +90,13 @@ void init_radler(py::module& m) {
             const pybind11::ssize_t n_images =
                 (psf.ndim() == 2) ? 1 : psf.shape(0);
 
+            if (settings.spectral_fitting.mode !=
+                    schaapcommon::fitters::SpectralFittingMode::kNoFitting &&
+                frequencies.size() == 0) {
+              throw std::runtime_error(
+                  "Frequencies are required when spectral fitting is enabled.");
+            }
+
             if (frequencies.size() > 0 &&
                 (frequencies.ndim() != 2 || frequencies.shape(0) != n_images ||
                  frequencies.shape(1) != 2)) {
@@ -180,12 +187,12 @@ void init_radler(py::module& m) {
             Radler deconvolves all images separately.
         frequencies: np.array, optional
             2-D array with the start and end frequencies for each image.
-            You may only omit this argument when Radler deconvolves all images
-            separately.
-            If Radler does need the frequencies, perform() will throw an error.
+            You may only omit this argument when spectral fitting is disabled in
+            the supplied settings.
         weights: np.array, optional
             1-D array with the relative weight of each image. Radler uses these
             weights when joinedly deconvolving images.
+            If omitted, all weight values become 1.0.
         polarization: radler.Polarization, optional
             Polarization of the input images. Default rd.Polarization.stokes_i.
        )pbdoc",

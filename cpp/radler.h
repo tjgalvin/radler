@@ -75,7 +75,11 @@ class Radler {
   // Constructor that becomes convenient when implementing AST-890
   Radler(const Settings& settings, double beam_size);
 
-  // Initializes the deconvolution algorithm
+  /// Creates the spectral fitter for the deconvolution algorithm.
+  std::unique_ptr<schaapcommon::fitters::SpectralFitter> CreateSpectralFitter()
+      const;
+
+  /// Initializes the deconvolution algorithm.
   void InitializeDeconvolutionAlgorithm(std::unique_ptr<WorkTable> table);
 
   void ReadMask(const WorkTable& group_table);

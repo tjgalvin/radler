@@ -22,9 +22,9 @@ class IuwtDeconvolution final : public DeconvolutionAlgorithm {
                               const std::vector<aocommon::Image>& psf_images,
                               bool& reached_major_threshold) final {
     IuwtDeconvolutionAlgorithm algorithm(
-        data_image.Width(), data_image.Height(), minor_loop_gain_,
-        major_loop_gain_, clean_border_ratio_, allow_negative_components_,
-        clean_mask_, threshold_);
+        data_image.Width(), data_image.Height(), MinorLoopGain(),
+        MajorLoopGain(), CleanBorderRatio(), AllowNegativeComponents(),
+        CleanMask(), Threshold());
     float val = algorithm.PerformMajorIteration(
         iteration_number_, MaxIterations(), model_image, data_image, psf_images,
         reached_major_threshold);

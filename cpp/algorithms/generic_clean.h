@@ -32,7 +32,7 @@ class GenericClean final : public DeconvolutionAlgorithm {
                               bool& reached_major_threshold) final;
 
   std::unique_ptr<DeconvolutionAlgorithm> Clone() const final {
-    return std::unique_ptr<DeconvolutionAlgorithm>(new GenericClean(*this));
+    return std::make_unique<GenericClean>(*this);
   }
 
  private:

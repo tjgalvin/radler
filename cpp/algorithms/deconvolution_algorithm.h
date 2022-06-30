@@ -20,6 +20,9 @@ namespace radler::algorithms {
 class DeconvolutionAlgorithm {
  public:
   virtual ~DeconvolutionAlgorithm() = default;
+  // Alhough deleting the copy-assignment violates the rule of three, it is not
+  // used. Defining it would only result in unused and untested code.
+  DeconvolutionAlgorithm& operator=(const DeconvolutionAlgorithm&) = delete;
   DeconvolutionAlgorithm(DeconvolutionAlgorithm&&) = delete;
   DeconvolutionAlgorithm& operator=(DeconvolutionAlgorithm&&) = delete;
 
@@ -31,51 +34,63 @@ class DeconvolutionAlgorithm {
   virtual std::unique_ptr<DeconvolutionAlgorithm> Clone() const = 0;
 
   void SetMaxIterations(size_t max_iterations) {
-    max_iterations_ = max_iterations;
+    settings_.max_iterations = max_iterations;
   }
 
-  void SetThreshold(float threshold) { threshold_ = threshold; }
+  void SetThreshold(float threshold) { settings_.threshold = threshold; }
 
   void SetMajorIterationThreshold(float major_iteration_threshold) {
-    major_iteration_threshold_ = major_iteration_threshold;
+    settings_.major_iteration_threshold = major_iteration_threshold;
   }
 
   void SetMinorLoopGain(float minor_loop_gain) {
-    minor_loop_gain_ = minor_loop_gain;
+    settings_.minor_loop_gain = minor_loop_gain;
   }
 
   void SetMajorLoopGain(float major_loop_gain) {
-    major_loop_gain_ = major_loop_gain;
+    settings_.major_loop_gain = major_loop_gain;
   }
 
   void SetAllowNegativeComponents(bool allow_negative_components) {
-    allow_negative_components_ = allow_negative_components;
+    settings_.allow_negative_components = allow_negative_components;
   }
 
   void SetStopOnNegativeComponents(bool stop_on_negative_component) {
-    stop_on_negative_component_ = stop_on_negative_component;
+    settings_.stop_on_negative_component = stop_on_negative_component;
   }
 
   void SetCleanBorderRatio(float clean_border_ratio) {
-    clean_border_ratio_ = clean_border_ratio;
+    settings_.clean_border_ratio = clean_border_ratio;
   }
 
-  void SetThreadCount(size_t thread_count) { thread_count_ = thread_count; }
+  void SetCleanMask(const bool* clean_mask) {
+    settings_.clean_mask = clean_mask;
+  }
+
+  void SetThreadCount(size_t thread_count) {
+    settings_.thread_count = thread_count;
+  }
 
   void SetLogReceiver(aocommon::LogReceiver& log_receiver) {
     log_receiver_ = &log_receiver;
   }
 
-  size_t MaxIterations() const { return max_iterations_; }
-  float Threshold() const { return threshold_; }
-  float MajorIterationThreshold() const { return major_iteration_threshold_; }
-  float MinorLoopGain() const { return minor_loop_gain_; }
-  float MajorLoopGain() const { return major_loop_gain_; }
-  float CleanBorderRatio() const { return clean_border_ratio_; }
-  bool AllowNegativeComponents() const { return allow_negative_components_; }
-  bool StopOnNegativeComponents() const { return stop_on_negative_component_; }
-
-  void SetCleanMask(const bool* clean_mask) { clean_mask_ = clean_mask; }
+  size_t MaxIterations() const { return settings_.max_iterations; }
+  float Threshold() const { return settings_.threshold; }
+  float MajorIterationThreshold() const {
+    return settings_.major_iteration_threshold;
+  }
+  float MinorLoopGain() const { return settings_.minor_loop_gain; }
+  float MajorLoopGain() const { return settings_.major_loop_gain; }
+  float CleanBorderRatio() const { return settings_.clean_border_ratio; }
+  bool AllowNegativeComponents() const {
+    return settings_.allow_negative_components;
+  }
+  bool StopOnNegativeComponents() const {
+    return settings_.stop_on_negative_component;
+  }
+  const bool* CleanMask() const { return settings_.clean_mask; }
+  size_t ThreadCount() const { return settings_.thread_count; }
 
   size_t IterationNumber() const { return iteration_number_; }
 
@@ -83,36 +98,19 @@ class DeconvolutionAlgorithm {
     iteration_number_ = iteration_number;
   }
 
-  void CopyConfigFrom(const DeconvolutionAlgorithm& source) {
-    threshold_ = source.threshold_;
-    minor_loop_gain_ = source.minor_loop_gain_;
-    major_loop_gain_ = source.major_loop_gain_;
-    clean_border_ratio_ = source.clean_border_ratio_;
-    max_iterations_ = source.max_iterations_;
-    // skip iteration_number_
-    allow_negative_components_ = source.allow_negative_components_;
-    stop_on_negative_component_ = source.stop_on_negative_component_;
-    clean_mask_ = source.clean_mask_;
-    spectral_fitter_ = source.spectral_fitter_;
-  }
-
-  void SetSpectralFittingMode(schaapcommon::fitters::SpectralFittingMode mode,
-                              size_t n_terms, size_t n_polarizations) {
-    spectral_fitter_.SetMode(mode, n_terms);
+  void SetSpectralFitter(
+      std::unique_ptr<schaapcommon::fitters::SpectralFitter> fitter,
+      const size_t n_polarizations) {
+    spectral_fitter_ = std::move(fitter);
     n_polarizations_ = n_polarizations;
   }
 
   void SetSpectrallyForcedImages(std::vector<aocommon::Image>&& images) {
-    spectral_fitter_.SetForcedImages(std::move(images));
-  }
-
-  void InitializeFrequencies(std::vector<double>&& frequencies,
-                             std::vector<float>&& weights) {
-    spectral_fitter_.SetFrequencies(std::move(frequencies), std::move(weights));
+    spectral_fitter_->SetForcedTerms(std::move(images));
   }
 
   const schaapcommon::fitters::SpectralFitter& Fitter() const {
-    return spectral_fitter_;
+    return *spectral_fitter_;
   }
 
   void SetRMSFactorImage(aocommon::Image&& image) {
@@ -133,26 +131,29 @@ class DeconvolutionAlgorithm {
  protected:
   DeconvolutionAlgorithm();
 
-  DeconvolutionAlgorithm(const DeconvolutionAlgorithm&) = default;
-  DeconvolutionAlgorithm& operator=(const DeconvolutionAlgorithm&) = default;
+  DeconvolutionAlgorithm(const DeconvolutionAlgorithm&);
 
-  float threshold_;
-  float major_iteration_threshold_;
-  float minor_loop_gain_;
-  float major_loop_gain_;
-  float clean_border_ratio_;
-  size_t max_iterations_;
   size_t iteration_number_;
-  size_t thread_count_;
-  bool allow_negative_components_;
-  bool stop_on_negative_component_;
-  const bool* clean_mask_;
   aocommon::Image rms_factor_image_;
-  std::vector<float> fitting_scratch_;
-
   aocommon::LogReceiver* log_receiver_;
 
-  schaapcommon::fitters::SpectralFitter spectral_fitter_;
+ private:
+  // Using a settings struct simplifies the constructors.
+  struct {
+    float threshold = 0.0;
+    float major_iteration_threshold = 0.0;
+    float minor_loop_gain = 0.1;
+    float major_loop_gain = 1.0;
+    float clean_border_ratio = 0.05;
+    size_t max_iterations = 500;
+    bool allow_negative_components = true;
+    bool stop_on_negative_component = false;
+    const bool* clean_mask = nullptr;
+    size_t thread_count = 0;
+  } settings_;
+
+  std::vector<float> fitting_scratch_;
+  std::unique_ptr<schaapcommon::fitters::SpectralFitter> spectral_fitter_;
   size_t n_polarizations_ = 1;
 };
 

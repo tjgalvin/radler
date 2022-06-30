@@ -33,6 +33,7 @@ using aocommon::Image;
 using aocommon::ImageCoordinates;
 using aocommon::Logger;
 using aocommon::units::FluxDensity;
+using schaapcommon::fitters::SpectralFittingMode;
 
 namespace radler {
 
@@ -92,6 +93,13 @@ Radler::Radler(const Settings& settings, double beam_size)
       pixel_scale_y_(settings_.pixel_scale.y),
       auto_mask_(),
       beam_size_(beam_size) {
+  if (settings.spectral_fitting.mode ==
+          schaapcommon::fitters::SpectralFittingMode::kForcedTerms &&
+      settings.spectral_fitting.forced_filename.empty()) {
+    throw std::runtime_error(
+        "Forced fitting filename is required when forced fitting is enabled.");
+  }
+
   // Ensure that all FFTWF plan calls inside Radler are
   // thread safe.
   schaapcommon::fft::MakeFftwfPlannerThreadSafe();
@@ -259,6 +267,21 @@ void Radler::Perform(bool& reached_major_threshold,
       settings_.thread_count);
 }
 
+std::unique_ptr<schaapcommon::fitters::SpectralFitter>
+Radler::CreateSpectralFitter() const {
+  std::vector<double> channel_frequencies;
+  std::vector<float> channel_weights;
+
+  if (settings_.spectral_fitting.mode != SpectralFittingMode::kNoFitting) {
+    ImageSet::CalculateDeconvolutionFrequencies(*table_, channel_frequencies,
+                                                channel_weights);
+  }
+
+  return std::make_unique<schaapcommon::fitters::SpectralFitter>(
+      settings_.spectral_fitting.mode, settings_.spectral_fitting.terms,
+      std::move(channel_frequencies), std::move(channel_weights));
+}
+
 void Radler::InitializeDeconvolutionAlgorithm(
     std::unique_ptr<WorkTable> table) {
   auto_mask_is_finished_ = false;
@@ -310,21 +333,11 @@ void Radler::InitializeDeconvolutionAlgorithm(
   algorithm->SetStopOnNegativeComponents(settings_.stop_on_negative_components);
   algorithm->SetThreadCount(settings_.thread_count);
   const size_t n_polarizations = table_->OriginalGroups().front().size();
-  algorithm->SetSpectralFittingMode(settings_.spectral_fitting.mode,
-                                    settings_.spectral_fitting.terms,
-                                    n_polarizations);
+  algorithm->SetSpectralFitter(CreateSpectralFitter(), n_polarizations);
 
-  {
-    std::vector<double> channel_frequencies;
-    std::vector<float> channel_weights;
-    ImageSet::CalculateDeconvolutionFrequencies(*table_, channel_frequencies,
-                                                channel_weights);
-    algorithm->InitializeFrequencies(std::move(channel_frequencies),
-                                     std::move(channel_weights));
-  }
   parallel_deconvolution_->SetAlgorithm(std::move(algorithm));
 
-  if (!settings_.spectral_fitting.forced_filename.empty()) {
+  if (settings_.spectral_fitting.mode == SpectralFittingMode::kForcedTerms) {
     Logger::Debug << "Reading " << settings_.spectral_fitting.forced_filename
                   << ".\n";
     FitsReader reader(settings_.spectral_fitting.forced_filename);

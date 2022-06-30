@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
     residualSet.AssignAndStoreResidual();
     modelSet.InterpolateAndStoreModel(
         schaapcommon::fitters::SpectralFitter(
-            schaapcommon::fitters::SpectralFittingMode::NoFitting, 0),
+            schaapcommon::fitters::SpectralFittingMode::kNoFitting, 0),
         1);
   }
   return 0;
