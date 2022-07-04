@@ -137,9 +137,9 @@ void init_radler(py::module& m) {
               entry->original_channel_index = i;
               entry->image_weight =
                   (weights.size() > 0) ? weights.unchecked<1>()(i) : 1.0;
-              entry->psf_accessor =
+              entry->psfs.emplace_back(
                   std::make_unique<radler::utils::LoadOnlyImageAccessor>(
-                      psf_image);
+                      psf_image));
               entry->residual_accessor =
                   std::make_unique<radler::utils::LoadAndStoreImageAccessor>(
                       residual_image);
@@ -152,7 +152,7 @@ void init_radler(py::module& m) {
                                                     beam_size);
           }),
           R"pbdoc(
-        Constructor expecting a radler::Settings object along with psf,
+        Constructor expecting a radler::Settings object along with PSF,
         residual, and model images as a numpy array of dtype=np.float32.
         The numpy arrays can be 2-D arrays containing a single image or 3-D
         arrays that contain images for different frequency bands.
@@ -196,7 +196,7 @@ void init_radler(py::module& m) {
         polarization: radler.Polarization, optional
             Polarization of the input images. Default rd.Polarization.stokes_i.
        )pbdoc",
-          // noconvert() is necessary for psf, residual and model, since
+          // noconvert() is necessary for PSF, residual and model, since
           // (lists of) images can be large. It is not necessary for
           // frequencies and weights, since those lists are small.
           py::arg("settings"), py::arg("psf").noconvert(),

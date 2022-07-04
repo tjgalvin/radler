@@ -69,9 +69,9 @@ Radler::Radler(const Settings& settings, const aocommon::Image& psf_image,
                                            n_deconvolution_channels);
   auto e = std::make_unique<WorkTableEntry>();
   e->polarization = polarization;
-  e->image_weight = 1.0;  //
-  e->psf_accessor =
-      std::make_unique<radler::utils::LoadOnlyImageAccessor>(psf_image);
+  e->image_weight = 1.0;
+  e->psfs.emplace_back(
+      std::make_unique<radler::utils::LoadOnlyImageAccessor>(psf_image));
   e->residual_accessor =
       std::make_unique<radler::utils::LoadAndStoreImageAccessor>(
           residual_image);

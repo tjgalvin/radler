@@ -24,5 +24,11 @@ set(VELA_DIRTY_IMAGE_PATH
     ${DATA_DIR}/wsclean-dirty.fits
     PARENT_SCOPE)
 
-add_unittest(radler_main runtests.cc test_component_list.cc test_image_set.cc
-             test_radler.cc test_work_table.cc)
+add_unittest(
+  radler_main
+  runtests.cc
+  test_component_list.cc
+  test_image_set.cc
+  test_psf.cc
+  test_radler.cc
+  test_work_table.cc)

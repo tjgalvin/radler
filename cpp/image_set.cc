@@ -143,7 +143,7 @@ std::vector<aocommon::Image> ImageSet::LoadAndAveragePsfs() {
         work_table_.OriginalGroups()[group_index];
     const WorkTableEntry& entry = *channel_group.front();
     const double input_channel_weight = entry.image_weight;
-    entry.psf_accessor->Load(scratch);
+    entry.psfs[0].accessor->Load(scratch);
     for (size_t i = 0; i != image_size; ++i) {
       psf_images[channel_index][i] += scratch[i] * input_channel_weight;
     }

@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
     e->band_start_frequency = imgReader.Frequency();
     e->band_end_frequency = imgReader.Frequency();
     e->image_weight = 1.0;
-    e->psf_accessor =
+    e->psfs[0].accessor =
         std::make_unique<MinimalImageAccessor>(psf, writer, "psf.fits");
     e->model_accessor =
         std::make_unique<MinimalImageAccessor>(model, writer, "model.fits");

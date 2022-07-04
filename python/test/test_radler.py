@@ -302,7 +302,7 @@ def test_one_entry_worktable(settings, algorithm, scale, source_shift):
     model = np.zeros_like(residual)
 
     entry = rd.WorkTableEntry()
-    entry.psf = psf
+    entry.psfs.append(psf)
     entry.residual = residual
     entry.model = model
     entry.original_channel_index = 0
@@ -350,7 +350,7 @@ def test_ndeconvolution_is_noriginal(settings, algorithm):
     work_table = rd.WorkTable(2, 2)
     for i in range(2):
         entry = rd.WorkTableEntry()
-        entry.psf = psf
+        entry.psfs.append(psf)
         entry.residual = residuals[i]
         entry.model = models[i]
         entry.original_channel_index = i
@@ -438,7 +438,7 @@ def test_ndeconvolution_lt_noriginal(settings, algorithm):
     work_table = rd.WorkTable(2, 1)
     for i in range(2):
         entry = rd.WorkTableEntry()
-        entry.psf = psf
+        entry.psfs.append(psf)
         entry.residual = residuals[i]
         entry.model = models[i]
         entry.original_channel_index = i

@@ -130,7 +130,7 @@ def test_add_entries_wrong_type():
     model = np.ones((4, 4), np.complex)
 
     with pytest.raises(TypeError):
-        entries[0].psf = psf
+        entries[0].psfs.append(psf)
 
     with pytest.raises(TypeError):
         entries[1].residual = residual
@@ -155,13 +155,13 @@ def test_add_entries():
     model = np.ones((4, 4), np.float32)
 
     # Write property
-    entries[0].psf = psf
+    entries[0].psfs.append(psf)
     entries[1].residual = residual
     entries[2].model = model
 
     # Read (image) properties back should fail
     with pytest.raises(AttributeError):
-        psf_read = entries[0].psf
+        psf_read = entries[0].psfs[0].accessor
 
     with pytest.raises(AttributeError):
         residual_read = entries[1].residual

@@ -3,6 +3,8 @@
 #ifndef RADLER_WORK_TABLE_ENTRY_H_
 #define RADLER_WORK_TABLE_ENTRY_H_
 
+#include "psf.h"
+
 #include <iomanip>
 #include <memory>
 #include <ostream>
@@ -12,6 +14,7 @@
 #include <aocommon/polarization.h>
 
 namespace radler {
+
 struct WorkTableEntry {
   double CentralFrequency() const {
     return 0.5 * (band_start_frequency + band_end_frequency);
@@ -49,10 +52,11 @@ struct WorkTableEntry {
   double image_weight = 0.0;
 
   /**
-   * Image accessor for the PSF image for this entry. This accessor is only used
-   * for the first entry of each channel group.
+   * Image accessors for the PSF image for this entry.
+   *
+   * These accessors are only used for the first entry of each channel group.
    */
-  std::unique_ptr<aocommon::ImageAccessor> psf_accessor;
+  std::vector<Psf> psfs{};
 
   /**
    * Image accessor for the model image for this entry.

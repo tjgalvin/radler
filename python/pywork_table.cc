@@ -3,6 +3,8 @@
 #include "work_table.h"
 #include "work_table_entry.h"
 
+#include <algorithm>
+
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
@@ -13,9 +15,147 @@
 #include "utils/load_image_accessor.h"
 #include "utils/load_and_store_image_accessor.h"
 
+PYBIND11_MAKE_OPAQUE(std::vector<radler::Psf>)
+PYBIND11_MAKE_OPAQUE(radler::Psf)
+
 namespace py = pybind11;
 
+/**
+ * Helper function to create an image accessor from an appropriate NumPy array.
+ *
+ * @tparam T The type of accessor to create.
+ *
+ * @param data The data to refer to in the image. The lifetime of @a data
+ * should outlife the lifetime of the returned pointer.
+ */
+template <class T>
+[[nodiscard]] std::unique_ptr<T> MakeImageAccessor(
+    py::array_t<float, py::array::c_style>& data) {
+  const size_t n_dim = 2;
+  if (data.ndim() != n_dim) {
+    throw std::runtime_error("Provided array should have 2 dimensions.");
+  }
+  const size_t width = static_cast<size_t>(data.shape(1));
+  const size_t height = static_cast<size_t>(data.shape(0));
+  aocommon::Image image(data.mutable_data(), width, height);
+  return std::make_unique<T>(image);
+}
+
 void init_work_table(py::module& m) {
+  py::class_<radler::Psf>(m, "Psf", R"pbdoc(
+A point-spread function (PSF).
+)pbdoc")
+      .def("__str__",
+           [](const radler::Psf& self) {
+             std::stringstream result;
+             result << self;
+             return result.str();
+           })
+      .def_readwrite("x", &radler::Psf::x,
+                     R"pbdoc(
+The x-offset in pixels from the corner position.
+Use 0 if the PSF is not direction dependant.
+)pbdoc")
+      .def_readwrite("y", &radler::Psf::y,
+                     R"pbdoc(
+The y-offset in pixels from the corner position.
+Use 0 if the PSF is not direction dependant.
+)pbdoc")
+      .def_property(
+          "accessor", nullptr,
+          [](radler::Psf& self, py::array_t<float, py::array::c_style>& psf) {
+            self.accessor =
+                MakeImageAccessor<radler::utils::LoadOnlyImageAccessor>(psf);
+          },
+          R"pbdoc(
+Set the image associated a PSF in a WorkTableEntry.
+The lifetime of the provided numpy array should exceed the lifetime of the
+Radler object in which the WorkTableEntry with this PSF is used.
+
+Parameters
+----------
+psf: np.2darray
+  Numpy array with 2 dimensions and dtype=np.float32 containing the PSF image.
+)pbdoc");
+
+  py::class_<std::vector<radler::Psf>>(m, "VectorPsf", R"pbdoc(
+List of point-spread functions (PSFs).
+The list contains one PSF for every direction in the case of using
+direction-dependent PSFs, otherwise a list one PSF.
+)pbdoc")
+      .def("__str__",
+           [](const std::vector<radler::Psf>& self) {
+             std::stringstream result;
+             result << "[";
+             if (!self.empty()) {
+               result << self.front();
+               std::for_each(self.begin() + 1, self.end(),
+                             [&result](const radler::Psf& psf) {
+                               result << ", " << psf;
+                             });
+             }
+             result << "]";
+             return result.str();
+           })
+      .def("__len__",
+           [](const std::vector<radler::Psf>& self) { return self.size(); })
+      // Since a radler::Psf contains a std::unique_ptr it's not possible to
+      // use the default PyBind11 bindings. Instead a reference needs to be
+      // returned. When returning a reference using a lambda two things need to
+      // be taken into account:
+      // - The return type needs to be explicitly set to a reference.
+      // - The Pybind11 return value policy needs to be set to
+      //   py::return_value_policy::reference
+      .def(
+          "__getitem__",
+          [](std::vector<radler::Psf>& self, int index) -> radler::Psf& {
+            if (index < 0 || static_cast<size_t>(index) >= self.size())
+              throw std::out_of_range("VectorPsf index out of bounds");
+            return self[index];
+          },
+          py::return_value_policy::reference)
+      .def(
+          "append",
+          [](std::vector<radler::Psf>& self,
+             py::array_t<float, py::array::c_style>& psf) {
+            self.emplace_back(
+                MakeImageAccessor<radler::utils::LoadOnlyImageAccessor>(psf));
+          },
+          R"pbdoc(
+Adds a new PSF image to the list of PSF images.
+The lifetime of the provided numpy array should exceed the lifetime of the
+Radler object in which this WorkTableEntry will be used.
+
+Parameters
+----------
+psf: np.2darray
+  Numpy array with 2 dimensions and dtype=np.float32 containing the PSF image.
+)pbdoc")
+      .def(
+          "append",
+          [](std::vector<radler::Psf>& self, int x, int y,
+             py::array_t<float, py::array::c_style>& psf) {
+            self.emplace_back(
+                x, y,
+                MakeImageAccessor<radler::utils::LoadOnlyImageAccessor>(psf));
+          },
+          R"pbdoc(
+Adds a new PSF image to the list of PSF images.
+The lifetime of the provided numpy array should exceed the lifetime of the
+Radler object in which this WorkTableEntry will be used.
+
+Parameters
+----------
+x: int
+  The x-offset in pixels from the corner position.
+y: int
+  The y-offset in pixels from the corner position.
+psf: np.2darray
+  Numpy array with 2 dimensions and dtype=np.float32 containing the PSF image.
+          )pbdoc"
+
+      );
+
   py::class_<radler::WorkTable>(m, "WorkTable", R"pbdoc(
         The WorkTable contains a table instructions for the deconvolver,
         along with accesors to the underlying images.
@@ -113,37 +253,24 @@ void init_work_table(py::module& m) {
       .def_readwrite("original_interval_index",
                      &radler::WorkTableEntry::original_interval_index)
       .def_readwrite("image_weight", &radler::WorkTableEntry::image_weight)
-      // Write only property for the model image.
-      // Avoid most type casts by specifying py::array::c_style template
-      // parameter. It is not as strong as fool proof as py::arg().noconvert() -
-      // which can't be specified on properties - though.
-      .def_property(
-          "psf", nullptr,
-          [](radler::WorkTableEntry& self,
-             py::array_t<float, py::array::c_style>& psf) {
-            const size_t n_dim = 2;
-            if (psf.ndim() != n_dim) {
-              throw std::runtime_error(
-                  "Provided array should have dimension 2.");
-            }
-            const size_t width = static_cast<size_t>(psf.shape(1));
-            const size_t height = static_cast<size_t>(psf.shape(0));
-            aocommon::Image psf_image(psf.mutable_data(), width, height);
-            self.psf_accessor =
-                std::make_unique<radler::utils::LoadOnlyImageAccessor>(
-                    psf_image);
+      // Since a radler::Psf contains a std::unique_ptr it's not possible to
+      // use the default PyBind11 bindings. Instead a reference needs to be
+      // returned. When returning a reference using a lambda two things need to
+      // be taken into account:
+      // - The return type needs to be explicitly set to a reference.
+      // - The Pybind11 return value policy needs to be set to
+      //   py::return_value_policy::reference
+      .def_property_readonly(
+          "psfs",
+          [](radler::WorkTableEntry& self) -> std::vector<radler::Psf>& {
+            return self.psfs;
           },
+          py::return_value_policy::reference,
           R"pbdoc(
-            Set the psf image associated with this WorkTableEntry.
-            The lifetime of the provided numpy array should exceed the lifetime
-            of the Radler object in which this WorkTableEntry will be used.
-
-            Parameters
-            ----------
-            psf: np.2darray
-                Numpy array of dimension 2 and dtype=np.float32 containing
-                the psf image.
-          )pbdoc")
+The list of PSF images associated with this WorkTableEntry.
+The list contains one PSF for every direction in the case of using
+direction-dependent PSFs, otherwise a list one PSF.
+)pbdoc")
       // Write only property for the model image.
       // Avoid most type casts by specifying py::array::c_style template
       // parameter. It is not as strong as fool proof as py::arg().noconvert() -
@@ -152,18 +279,9 @@ void init_work_table(py::module& m) {
           "residual", nullptr,
           [](radler::WorkTableEntry& self,
              py::array_t<float, py::array::c_style>& residual) {
-            const size_t n_dim = 2;
-            if (residual.ndim() != n_dim) {
-              throw std::runtime_error(
-                  "Provided array should have dimension 2.");
-            }
-            const size_t width = static_cast<size_t>(residual.shape(1));
-            const size_t height = static_cast<size_t>(residual.shape(0));
-            aocommon::Image residual_image(residual.mutable_data(), width,
-                                           height);
             self.residual_accessor =
-                std::make_unique<radler::utils::LoadAndStoreImageAccessor>(
-                    residual_image);
+                MakeImageAccessor<radler::utils::LoadAndStoreImageAccessor>(
+                    residual);
           },
           R"pbdoc(
             Set the residual image associated with this WorkTableEntry.
@@ -173,7 +291,7 @@ void init_work_table(py::module& m) {
             Parameters
             ----------
             residual: np.2darray
-                Numpy array of dimension 2 and dtype=np.float32 containing
+                Numpy array with 2 dimensions and dtype=np.float32 containing
                 the residual image.
           )pbdoc")
       // Write only property for the model image.
@@ -184,17 +302,9 @@ void init_work_table(py::module& m) {
           "model", nullptr,
           [](radler::WorkTableEntry& self,
              py::array_t<float, py::array::c_style>& model) {
-            const size_t n_dim = 2;
-            if (model.ndim() != n_dim) {
-              throw std::runtime_error(
-                  "Provided array should have dimension 2.");
-            }
-            const size_t width = static_cast<size_t>(model.shape(1));
-            const size_t height = static_cast<size_t>(model.shape(0));
-            aocommon::Image model_image(model.mutable_data(), width, height);
             self.model_accessor =
-                std::make_unique<radler::utils::LoadAndStoreImageAccessor>(
-                    model_image);
+                MakeImageAccessor<radler::utils::LoadAndStoreImageAccessor>(
+                    model);
           },
           R"pbdoc(
             Set the model image associated with this WorkTableEntry.
@@ -204,7 +314,7 @@ void init_work_table(py::module& m) {
             Parameters
             ----------
             model: np.2darray
-                Numpy array of dimension 2 and dtype=np.float32 containing
+                Numpy array with 2 dimensions and dtype=np.float32 containing
                 the model image.
           )pbdoc");
 }

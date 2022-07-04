@@ -2,6 +2,10 @@
 
 #include "image_set.h"
 
+#include "utils/load_image_accessor.h"
+
+#include "test/imageaccessor.h"
+
 #include <memory>
 
 #include <boost/test/unit_test.hpp>
@@ -15,47 +19,6 @@ using aocommon::Image;
 using aocommon::PolarizationEnum;
 
 namespace radler {
-
-namespace {
-
-/**
- * @brief Dummy image accessor that doesn't allow doing anything.
- */
-class DummyImageAccessor final : public aocommon::ImageAccessor {
- public:
-  DummyImageAccessor() = default;
-  ~DummyImageAccessor() override = default;
-
-  void Load(Image&) const override {
-    throw std::logic_error("Unexpected DummyImageAccessor::Load() call");
-  }
-
-  void Store(const Image&) override {
-    throw std::logic_error("Unexpected DummyImageAccessor::Store() call");
-  }
-};
-
-/**
- * @brief Mimimal image accessor that only admits loading an image. Required
- * to test @c LoadAndAverage functionality.
- */
-class LoadOnlyImageAccessor final : public aocommon::ImageAccessor {
- public:
-  explicit LoadOnlyImageAccessor(const aocommon::Image& image)
-      : _image(image) {}
-  ~LoadOnlyImageAccessor() override = default;
-
-  void Load(Image& image) const override { image = _image; }
-
-  void Store(const Image&) override {
-    throw std::logic_error("Unexpected LoadOnlyImageAccessor::Store() call");
-  }
-
- private:
-  const aocommon::Image _image;
-};
-
-}  // namespace
 
 struct ImageSetFixtureBase {
   ImageSetFixtureBase() = default;
@@ -73,9 +36,10 @@ struct ImageSetFixtureBase {
     e->band_start_frequency = frequencyMHz * 1.0e6;
     e->band_end_frequency = frequencyMHz * 1.0e6;
     e->image_weight = imageWeight;
-    e->psf_accessor = std::make_unique<DummyImageAccessor>();
-    e->model_accessor = std::make_unique<LoadOnlyImageAccessor>(modelImage);
-    e->residual_accessor = std::make_unique<DummyImageAccessor>();
+    e->psfs.emplace_back(std::make_unique<test::DummyImageAccessor>());
+    e->model_accessor =
+        std::make_unique<test::LoadOnlyImageAccessor>(modelImage);
+    e->residual_accessor = std::make_unique<test::DummyImageAccessor>();
     table->AddEntry(std::move(e));
   }
 

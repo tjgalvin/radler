@@ -91,8 +91,14 @@ else()
           LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
 endif()
 
-set(PUBLIC_HEADERS component_list.h work_table.h work_table_entry.h image_set.h
-                   radler.h settings.h)
+set(PUBLIC_HEADERS
+    component_list.h
+    image_set.h
+    psf.h
+    radler.h
+    settings.h
+    work_table.h
+    work_table_entry.h)
 
 install_headers_with_directory("${PUBLIC_HEADERS}")
 
