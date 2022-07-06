@@ -11,9 +11,12 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "pyopaque.h"
-
 namespace py = pybind11;
+
+// Enables pass-by-reference of stl vectors, see
+// https://pybind11.readthedocs.io/en/stable/advanced/cast/stl.html?highlight=PYBIND11_MAKE_OPAQUE#making-opaque-types
+PYBIND11_MAKE_OPAQUE(std::vector<float>)
+PYBIND11_MAKE_OPAQUE(std::vector<double>)
 
 void init_component_list(py::module& m) {
   py::class_<radler::ComponentList>(m, "ComponentList", R"pbdoc(

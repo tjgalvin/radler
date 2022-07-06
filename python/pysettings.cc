@@ -7,24 +7,17 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/stl_bind.h>
 
 #include <aocommon/polarization.h>
 #include <aocommon/system.h>
 
 #include <schaapcommon/fitters/spectralfitter.h>
 
-#include "pyopaque.h"
 #include "docstrings/settings_docstrings.h"
 
 namespace py = pybind11;
 
 void init_settings(py::module& m) {
-  // Enables pass-by-reference of stl vectors, see
-  // https://pybind11.readthedocs.io/en/stable/advanced/cast/stl.html?highlight=PYBIND11_MAKE_OPAQUE#making-opaque-types
-  py::bind_vector<std::vector<float>>(m, "VectorFloat");
-  py::bind_vector<std::vector<double>>(m, "VectorDouble");
-
   py::enum_<radler::AlgorithmType>(m, "AlgorithmType",
                                    DOC(radler_AlgorithmType))
       .value("generic_clean", radler::AlgorithmType::kGenericClean,

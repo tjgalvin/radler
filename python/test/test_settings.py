@@ -54,7 +54,7 @@ def test_default():
     assert settings.stop_on_negative_components == False
     assert settings.squared_joins == False
     assert settings.spectral_correction_frequency == 0.0
-    assert settings.spectral_correction == rd.VectorFloat([])
+    assert settings.spectral_correction == []
     assert settings.border_ratio == 0.0
     assert settings.fits_mask == ""
     assert settings.casa_mask == ""
@@ -74,7 +74,7 @@ def test_default():
     # More sane
     assert settings.more_sane.location == ""
     assert settings.more_sane.arguments == ""
-    assert settings.more_sane.sigma_levels == rd.VectorDouble([])
+    assert settings.more_sane.sigma_levels == []
 
     # Iuwt
     # ... no options
@@ -85,7 +85,7 @@ def test_default():
     assert settings.multiscale.scale_bias == 0.6
     assert settings.multiscale.max_scales == 0
     assert settings.multiscale.convolution_padding == 1.1
-    assert settings.multiscale.scale_list == rd.VectorDouble([])
+    assert settings.multiscale.scale_list == []
     assert settings.multiscale.shape == rd.MultiscaleShape.tapered_quadratic
 
     # Generic clean
@@ -115,9 +115,14 @@ def test_readwrite():
 
     value = 20.0
 
-    # List like append
+    # Test that list properties use value semantics.
+    # 'append' does not work, since it's applied to a copy.
     settings.spectral_correction.append(value)
-    assert settings.spectral_correction[0] == value
+    assert settings.spectral_correction == []
+
+    # Test changing a list property.
+    settings.spectral_correction = [value]
+    assert settings.spectral_correction == [value]
 
     # Test nested property
     settings.multiscale.sub_minor_loop_gain = value
