@@ -156,9 +156,12 @@ void init_settings(py::module& m) {
                      DOC(radler_Settings_Multiscale_shape));
 
   py::class_<radler::Settings::MoreSane>(settings, "MoreSane")
-      .def_readwrite("location", &radler::Settings::MoreSane::location)
-      .def_readwrite("arguments", &radler::Settings::MoreSane::arguments)
-      .def_readwrite("sigma_levels", &radler::Settings::MoreSane::sigma_levels);
+      .def_readwrite("location", &radler::Settings::MoreSane::location,
+                     DOC(radler_Settings_MoreSane_location))
+      .def_readwrite("arguments", &radler::Settings::MoreSane::arguments,
+                     DOC(radler_Settings_MoreSane_arguments))
+      .def_readwrite("sigma_levels", &radler::Settings::MoreSane::sigma_levels,
+                     DOC(radler_Settings_MoreSane_sigma_levels));
 
   py::class_<radler::Settings::Python>(settings, "Python",
                                        DOC(radler_Settings_Python))

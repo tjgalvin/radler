@@ -67,7 +67,13 @@ if(BUILD_DOCSTRINGS)
       ${PYBIND11_MKDOC_BASE_COMMAND}
       -o
       ${DOCSTRINGS_NAME}_docstrings.h
-      ${FILE_TO_DOCUMENT})
+      ${FILE_TO_DOCUMENT}
+      # Add a comma to the resulting file and make it ISO C++ compliant.
+      COMMAND
+      sed
+      -i
+      "'s=\\(__EXPAND(__COUNT(__VA_ARGS__, 7, 6, 5, 4, 3, 2, 1\\)))=\\1, 0))='"
+      ${DOCSTRINGS_NAME}_docstrings.h)
   endforeach()
 
   add_custom_target(
