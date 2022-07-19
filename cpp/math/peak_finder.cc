@@ -11,6 +11,7 @@
 #include <immintrin.h>
 #endif
 
+#include <algorithm>
 #include <limits>
 
 namespace radler::math::peak_finder {
