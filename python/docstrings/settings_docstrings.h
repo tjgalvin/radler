@@ -174,9 +174,7 @@ sub-images.)doc";
 
 static const char *__doc_radler_Settings_Parallel_max_size = R"doc(Maximum size of a sub-image. Will define how many sub-images to make.)doc";
 
-static const char *__doc_radler_Settings_Parallel_max_threads =
-R"doc(Number of sub-images to run in parallel. Uses the default when set to
-zero.)doc";
+static const char *__doc_radler_Settings_Parallel_max_threads = R"doc(Number of sub-images to run in parallel. It must be larger than zero.)doc";
 
 static const char *__doc_radler_Settings_PixelScale = R"doc(Pixel scale in radians)doc";
 

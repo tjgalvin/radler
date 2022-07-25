@@ -87,12 +87,14 @@ void ParallelDeconvolution::SetAlgorithm(
     vertical_images_ = (height + maxSubImageSize - 1) / maxSubImageSize;
     algorithms_.resize(horizontal_images_ * vertical_images_);
     algorithms_.front() = std::move(algorithm);
-    size_t threadsPerAlg =
-        (settings_.parallel.max_threads + algorithms_.size() - 1) /
-        algorithms_.size();
-    algorithms_.front()->SetThreadCount(threadsPerAlg);
+    const size_t parallel_subimages =
+        std::min(settings_.parallel.max_threads, algorithms_.size());
+    const size_t threads_per_alg =
+        (settings_.thread_count + parallel_subimages - 1) / parallel_subimages;
+    algorithms_.front()->SetThreadCount(threads_per_alg);
     Logger::Debug << "Parallel deconvolution will use " << algorithms_.size()
-                  << " subimages.\n";
+                  << " subimages, each using " << threads_per_alg
+                  << " threads.\n";
     for (size_t i = 1; i != algorithms_.size(); ++i) {
       algorithms_[i] = algorithms_.front()->Clone();
     }
@@ -412,7 +414,7 @@ void ParallelDeconvolution::ExecuteParallelRun(
   double mIterThreshold = maxValue * (1.0 - settings_.major_loop_gain);
 
   // Run the deconvolution
-  loop.Run(0, algorithms_.size(), [&](size_t index, size_t) {
+  loop.Run(0, algorithms_.size(), [&](size_t index) {
     logs_.Activate(index);
     RunSubImage(subImages[index], data_image, model_image, resultModel,
                 psf_images, mIterThreshold, false, mutex);

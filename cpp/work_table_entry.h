@@ -54,7 +54,8 @@ struct WorkTableEntry {
   /**
    * Image accessors for the PSF image for this entry.
    *
-   * These accessors are only used for the first entry of each channel group.
+   * These accessors are only used for the first entry of each channel group,
+   * i.e., all polarizations of the same channel share the same PSF.
    */
   std::vector<Psf> psfs{};
 

@@ -130,10 +130,9 @@ struct Settings {
     /// Maximum size of a sub-image. Will define how many sub-images to make.
     size_t max_size = 0;
     /**
-     * Number of sub-images to run in parallel. Uses the default when set to
-     * zero.
+     * Number of sub-images to run in parallel. It must be larger than zero.
      */
-    size_t max_threads = 0;
+    size_t max_threads = aocommon::system::ProcessorCount();
   } parallel;
 
   /**
