@@ -186,7 +186,7 @@ class SubMinorLoop {
    * subtracted from the given residual image. To be called after Run(). After
    * this method, the residual will hold the result of the subminor loop run.
    * @p scratch_a and @p scratch_b need to be able to store the full padded
-   * image (_paddedWidth x _paddedHeight). @p scratch_p only needs to
+   * image (_paddedWidth x _paddedHeight). @p scratch_c only needs to
    * store the trimmed size (_width x _height).
    */
   void CorrectResidualDirty(float* scratch_a, float* scratch_b,

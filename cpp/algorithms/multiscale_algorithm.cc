@@ -664,8 +664,8 @@ void MultiScaleAlgorithm::FindPeakDirect(const aocommon::Image& image,
   if (rms_factor_image_.Empty()) {
     actualImage = image.Data();
   } else {
-    scratch = image;
-    scratch *= rms_factor_image_;
+    for (size_t i = 0; i != image.Size(); ++i)
+      scratch[i] = image[i] * rms_factor_image_[i];
     actualImage = scratch.Data();
   }
 
