@@ -127,8 +127,16 @@ struct Settings {
    * sub-images.
    */
   struct Parallel {
-    /// Maximum size of a sub-image. Will define how many sub-images to make.
-    size_t max_size = 0;
+    /**
+     * Number of sub-images in the x direction.
+     */
+    size_t grid_width = 1;
+
+    /**
+     * Number of sub-images in the y direction.
+     */
+    size_t grid_height = 1;
+
     /**
      * Number of sub-images to run in parallel. It must be larger than zero.
      */

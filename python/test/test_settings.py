@@ -40,7 +40,8 @@ def test_default():
     assert settings.prefix_name == "wsclean"
     assert settings.thread_count == multiprocessing.cpu_count()
     assert settings.linked_polarizations == set()
-    assert settings.parallel.max_size == 0
+    assert settings.parallel.grid_width == 1
+    assert settings.parallel.grid_height == 1
     assert settings.parallel.max_threads > 0
     assert settings.threshold == 0.0
     assert settings.minor_loop_gain == 0.1

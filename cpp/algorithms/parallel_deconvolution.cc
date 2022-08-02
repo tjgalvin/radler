@@ -18,9 +18,7 @@ using aocommon::Logger;
 namespace radler::algorithms {
 
 ParallelDeconvolution::ParallelDeconvolution(const Settings& settings)
-    : horizontal_images_(0),
-      vertical_images_(0),
-      settings_(settings),
+    : settings_(settings),
       mask_(nullptr),
       track_per_scale_masks_(false),
       use_per_scale_masks_(false) {
@@ -76,33 +74,24 @@ const DeconvolutionAlgorithm& ParallelDeconvolution::MaxScaleCountAlgorithm()
 
 void ParallelDeconvolution::SetAlgorithm(
     std::unique_ptr<DeconvolutionAlgorithm> algorithm) {
-  if (settings_.parallel.max_size == 0) {
-    algorithms_.resize(1);
-    algorithms_.front() = std::move(algorithm);
-  } else {
-    const size_t width = settings_.trimmed_image_width;
-    const size_t height = settings_.trimmed_image_height;
-    size_t maxSubImageSize = settings_.parallel.max_size;
-    horizontal_images_ = (width + maxSubImageSize - 1) / maxSubImageSize,
-    vertical_images_ = (height + maxSubImageSize - 1) / maxSubImageSize;
-    algorithms_.resize(horizontal_images_ * vertical_images_);
-    algorithms_.front() = std::move(algorithm);
-    const size_t parallel_subimages =
-        std::min(settings_.parallel.max_threads, algorithms_.size());
-    const size_t threads_per_alg =
-        (settings_.thread_count + parallel_subimages - 1) / parallel_subimages;
-    algorithms_.front()->SetThreadCount(threads_per_alg);
-    Logger::Debug << "Parallel deconvolution will use " << algorithms_.size()
-                  << " subimages, each using " << threads_per_alg
-                  << " threads.\n";
-    for (size_t i = 1; i != algorithms_.size(); ++i) {
-      algorithms_[i] = algorithms_.front()->Clone();
-    }
+  algorithms_.resize(settings_.parallel.grid_width *
+                     settings_.parallel.grid_height);
+  algorithms_.front() = std::move(algorithm);
+  const size_t parallel_subimages =
+      std::min(settings_.parallel.max_threads, algorithms_.size());
+  const size_t threads_per_alg =
+      (settings_.thread_count + parallel_subimages - 1) / parallel_subimages;
+  algorithms_.front()->SetThreadCount(threads_per_alg);
+  Logger::Debug << "Parallel deconvolution will use " << algorithms_.size()
+                << " subimages, each using " << threads_per_alg
+                << " threads.\n";
+  for (size_t i = 1; i != algorithms_.size(); ++i) {
+    algorithms_[i] = algorithms_.front()->Clone();
   }
 }
 
 void ParallelDeconvolution::SetRmsFactorImage(Image&& image) {
-  if (settings_.parallel.max_size == 0) {
+  if (algorithms_.size() == 1) {
     algorithms_.front()->SetRMSFactorImage(std::move(image));
   } else {
     rms_image_ = std::move(image);
@@ -292,8 +281,8 @@ void ParallelDeconvolution::ExecuteParallelRun(
     bool& reached_major_threshold) {
   const size_t width = data_image.Width();
   const size_t height = data_image.Height();
-  const size_t avgHSubImageSize = width / horizontal_images_;
-  const size_t avgVSubImageSize = height / vertical_images_;
+  const size_t avgHSubImageSize = width / settings_.parallel.grid_width;
+  const size_t avgVSubImageSize = height / settings_.parallel.grid_height;
 
   Image image(width, height);
   Image dividingLine(width, height, 0.0);
@@ -306,21 +295,22 @@ void ParallelDeconvolution::ExecuteParallelRun(
     aocommon::UVector<bool> mask;
     size_t x, width;
   };
-  std::vector<VerticalArea> verticalAreas(horizontal_images_);
+  std::vector<VerticalArea> verticalAreas(settings_.parallel.grid_width);
 
   Logger::Info << "Calculating edge paths...\n";
   aocommon::ParallelFor<size_t> splitLoop(settings_.thread_count);
 
   // Divide into columns (i.e. construct the vertical lines)
-  splitLoop.Run(1, horizontal_images_, [&](size_t divNr, size_t) {
-    size_t splitStart =
-               width * divNr / horizontal_images_ - avgHSubImageSize / 4,
-           splitEnd = width * divNr / horizontal_images_ + avgHSubImageSize / 4;
+  splitLoop.Run(1, settings_.parallel.grid_width, [&](size_t divNr, size_t) {
+    const size_t splitMiddle = width * divNr / settings_.parallel.grid_width;
+    const size_t splitStart = splitMiddle - avgHSubImageSize / 4;
+    const size_t splitEnd = splitMiddle + avgHSubImageSize / 4;
     divisor.DivideVertically(image.Data(), dividingLine.Data(), splitStart,
                              splitEnd);
   });
-  for (size_t divNr = 0; divNr != horizontal_images_; ++divNr) {
-    size_t midX = divNr * width / horizontal_images_ + avgHSubImageSize / 2;
+  for (size_t divNr = 0; divNr != settings_.parallel.grid_width; ++divNr) {
+    const size_t midX =
+        divNr * width / settings_.parallel.grid_width + avgHSubImageSize / 2;
     VerticalArea& area = verticalAreas[divNr];
     divisor.FloodVerticalArea(dividingLine.Data(), midX,
                               largeScratchMask.data(), area.x, area.width);
@@ -331,10 +321,10 @@ void ParallelDeconvolution::ExecuteParallelRun(
 
   // Make the rows (horizontal lines)
   dividingLine = 0.0f;
-  splitLoop.Run(1, vertical_images_, [&](size_t divNr, size_t) {
-    size_t splitStart =
-               height * divNr / vertical_images_ - avgVSubImageSize / 4,
-           splitEnd = height * divNr / vertical_images_ + avgVSubImageSize / 4;
+  splitLoop.Run(1, settings_.parallel.grid_height, [&](size_t divNr, size_t) {
+    const size_t splitMiddle = height * divNr / settings_.parallel.grid_height;
+    const size_t splitStart = splitMiddle - avgVSubImageSize / 4;
+    const size_t splitEnd = splitMiddle + avgVSubImageSize / 4;
     divisor.DivideHorizontally(image.Data(), dividingLine.Data(), splitStart,
                                splitEnd);
   });
@@ -344,13 +334,14 @@ void ParallelDeconvolution::ExecuteParallelRun(
   // Find the bounding boxes and clean masks for each subimage
   aocommon::UVector<bool> mask(width * height);
   std::vector<SubImage> subImages;
-  for (size_t y = 0; y != vertical_images_; ++y) {
-    size_t midY = y * height / vertical_images_ + avgVSubImageSize / 2;
+  for (size_t y = 0; y != settings_.parallel.grid_height; ++y) {
+    const size_t midY =
+        y * height / settings_.parallel.grid_height + avgVSubImageSize / 2;
     size_t hAreaY, hAreaWidth;
     divisor.FloodHorizontalArea(dividingLine.Data(), midY,
                                 largeScratchMask.data(), hAreaY, hAreaWidth);
 
-    for (size_t x = 0; x != horizontal_images_; ++x) {
+    for (size_t x = 0; x != settings_.parallel.grid_width; ++x) {
       subImages.emplace_back();
       SubImage& subImage = subImages.back();
       subImage.index = subImages.size() - 1;
@@ -382,7 +373,8 @@ void ParallelDeconvolution::ExecuteParallelRun(
 
   // Initialize loggers
   std::mutex mutex;
-  logs_.Initialize(horizontal_images_, vertical_images_);
+  logs_.Initialize(settings_.parallel.grid_width,
+                   settings_.parallel.grid_height);
   for (size_t i = 0; i != algorithms_.size(); ++i) {
     algorithms_[i]->SetLogReceiver(logs_[i]);
   }

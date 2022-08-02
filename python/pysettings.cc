@@ -170,8 +170,10 @@ void init_settings(py::module& m) {
 
   py::class_<radler::Settings::Parallel>(settings, "Parallel",
                                          DOC(radler_Settings_Parallel))
-      .def_readwrite("max_size", &radler::Settings::Parallel::max_size,
-                     DOC(radler_Settings_Parallel_max_size))
+      .def_readwrite("grid_width", &radler::Settings::Parallel::grid_width,
+                     DOC(radler_Settings_Parallel_grid_width))
+      .def_readwrite("grid_height", &radler::Settings::Parallel::grid_height,
+                     DOC(radler_Settings_Parallel_grid_height))
       .def_readwrite("max_threads", &radler::Settings::Parallel::max_threads,
                      DOC(radler_Settings_Parallel_max_threads));
 

@@ -95,8 +95,6 @@ class ParallelDeconvolution {
 
   std::vector<std::unique_ptr<DeconvolutionAlgorithm>> algorithms_;
   logging::SubImageLogSet logs_;
-  size_t horizontal_images_;
-  size_t vertical_images_;
   // Radler::settings_ outlives ParallelDeconvolution::settings_
   const Settings& settings_;
   const bool* mask_;

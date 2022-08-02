@@ -100,8 +100,17 @@ Radler::Radler(const Settings& settings, double beam_size)
         "Forced fitting filename is required when forced fitting is enabled.");
   }
 
-  if (settings.parallel.max_threads == 0)
+  if (settings.parallel.grid_width == 0) {
+    throw std::runtime_error("parallel.grid_width must be larger than zero");
+  }
+
+  if (settings.parallel.grid_height == 0) {
+    throw std::runtime_error("parallel.grid_height must be larger than zero");
+  }
+
+  if (settings.parallel.max_threads == 0) {
     throw std::runtime_error("parallel.max_threads must be larger than zero");
+  }
 
   // Ensure that all FFTWF plan calls inside Radler are
   // thread safe.
