@@ -249,6 +249,8 @@ def test_write_component_list(settings):
     SHORT_MINOR_ITERATION_COUNT = 42
     PHASE_CENTRE_RA = 0.3
     PHASE_CENTRE_DEC = 0.4
+    SHIFT_L = 0.0
+    SHIFT_M = 0.0
 
     settings.save_source_list = True
     settings.minor_iteration_count = SHORT_MINOR_ITERATION_COUNT
@@ -275,7 +277,9 @@ def test_write_component_list(settings):
                                  settings.pixel_scale.x,
                                  settings.pixel_scale.y,
                                  PHASE_CENTRE_RA,
-                                 PHASE_CENTRE_DEC)
+                                 PHASE_CENTRE_DEC,
+                                 SHIFT_L,
+                                 SHIFT_M)
 
     assert os.path.isfile(SOURCES_FILENAME)
 
