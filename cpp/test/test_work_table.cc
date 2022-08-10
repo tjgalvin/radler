@@ -15,7 +15,7 @@ BOOST_AUTO_TEST_SUITE(work_table)
 BOOST_AUTO_TEST_CASE(constructor) {
   const size_t kTableSize = 42;
 
-  WorkTable table(kTableSize, kTableSize);
+  WorkTable table({}, kTableSize, kTableSize);
 
   BOOST_TEST(table.OriginalGroups().size() == kTableSize);
   for (const WorkTable::Group& group : table.OriginalGroups()) {
@@ -33,27 +33,27 @@ BOOST_AUTO_TEST_CASE(constructor) {
 }
 
 BOOST_AUTO_TEST_CASE(single_deconvolution_group) {
-  WorkTable table(7, 1);
+  WorkTable table({}, 7, 1);
   const std::vector<std::vector<size_t>> kExpectedGroups{{0, 1, 2, 3, 4, 5, 6}};
   BOOST_TEST_REQUIRE(table.DeconvolutionGroups() == kExpectedGroups);
 }
 
 BOOST_AUTO_TEST_CASE(multiple_deconvolution_groups) {
-  WorkTable table(7, 3);
+  WorkTable table({}, 7, 3);
   const std::vector<std::vector<size_t>> kExpectedGroups{
       {0, 1, 2}, {3, 4}, {5, 6}};
   BOOST_TEST_REQUIRE(table.DeconvolutionGroups() == kExpectedGroups);
 }
 
 BOOST_AUTO_TEST_CASE(too_many_deconvolution_groups) {
-  WorkTable table(7, 42);
+  WorkTable table({}, 7, 42);
   const std::vector<std::vector<size_t>> kExpectedGroups{{0}, {1}, {2}, {3},
                                                          {4}, {5}, {6}};
   BOOST_TEST_REQUIRE(table.DeconvolutionGroups() == kExpectedGroups);
 }
 
 BOOST_AUTO_TEST_CASE(add_entries) {
-  WorkTable table(3, 1);
+  WorkTable table({}, 3, 1);
 
   std::array<test::UniquePtr<WorkTableEntry>, 3> entries;
   entries[0]->original_channel_index = 1;
@@ -90,8 +90,8 @@ BOOST_AUTO_TEST_CASE(add_entries) {
   BOOST_TEST(table.Size() == entries.size());
 }
 
-BOOST_AUTO_TEST_CASE(print_empty) {
-  WorkTable table(0, 0);
+BOOST_AUTO_TEST_CASE(print_no_entries_no_psfs) {
+  WorkTable table({}, 0, 0);
 
   std::stringstream output;
   output << table;
@@ -103,8 +103,8 @@ Channel index         0
 )");
 }
 
-BOOST_AUTO_TEST_CASE(print_not_empty) {
-  WorkTable table(3, 1);
+BOOST_AUTO_TEST_CASE(print_entries_no_psfs) {
+  WorkTable table({}, 3, 1);
   table.AddEntry(std::make_unique<WorkTableEntry>(
       WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
                      aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234}));
@@ -127,6 +127,86 @@ Channel index         0
    1   I  1        8   1.01 1-2
    2   U  0       16    1.1 100-200
 )");
+}
+
+BOOST_AUTO_TEST_CASE(print_entries_psfs) {
+  WorkTable table({PsfOffset{1, 2}, PsfOffset{3, 4}}, 3, 1);
+  table.AddEntry(std::make_unique<WorkTableEntry>(
+      WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
+                     aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234}));
+  table.AddEntry(std::make_unique<WorkTableEntry>(
+      WorkTableEntry{1, 1'000'000.0, 2'000'000.0,
+                     aocommon::PolarizationEnum::StokesI, 1, 8, 1.01}));
+  table.AddEntry(std::make_unique<WorkTableEntry>(
+      WorkTableEntry{1, 100'000'000.0, 200'000'000.0,
+                     aocommon::PolarizationEnum::StokesU, 0, 16, 1.1}));
+
+  std::stringstream output;
+  output << table;
+  BOOST_CHECK_EQUAL(output.str(),
+                    R"(=== IMAGING TABLE ===
+Original groups       3
+Deconvolution groups  1
+Channel index         0
+   # Pol Ch Interval Weight Freq(MHz)
+   0   Q  0        4  1.234 5-10
+   1   I  1        8   1.01 1-2
+   2   U  0       16    1.1 100-200
+=== PSFs ===
+[x: 1, y: 2]
+[x: 3, y: 4]
+)");
+}
+
+BOOST_AUTO_TEST_CASE(validate_psf_offsets_valid) {
+  {
+    const WorkTable table({}, 1, 1);
+    // Valid since there are no entries.
+    table.ValidatePsfOffsets();
+  }
+  {
+    WorkTable table({PsfOffset{1, 1}}, 1, 1);
+    auto entry = std::make_unique<WorkTableEntry>(
+        WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
+                       aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234});
+    entry->psf_accessors.emplace_back(nullptr);
+    table.AddEntry(std::move(entry));
+    table.ValidatePsfOffsets();
+  }
+  for (int entries = 2; entries < 10; ++entries) {
+    WorkTable table(std::vector<PsfOffset>(entries), 1, 1);
+    auto entry = std::make_unique<WorkTableEntry>(
+        WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
+                       aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234});
+
+    for (int i = 0; i < entries; ++i) {
+      entry->psf_accessors.emplace_back(nullptr);
+    }
+    table.AddEntry(std::move(entry));
+
+    table.ValidatePsfOffsets();
+  }
+}
+
+BOOST_AUTO_TEST_CASE(validate_psf_offsets_invalid) {
+  {  // Test with too few psf accessors.
+    WorkTable table({}, 1, 1);
+    table.AddEntry(std::make_unique<WorkTableEntry>(
+        WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
+                       aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234}));
+
+    BOOST_CHECK_THROW(table.ValidatePsfOffsets(), std::runtime_error);
+  }
+  {  // Test with too many psf accessors.
+    WorkTable table({PsfOffset{1, 1}}, 1, 1);
+    auto entry = std::make_unique<WorkTableEntry>(
+        WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
+                       aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234});
+    entry->psf_accessors.emplace_back(nullptr);
+    entry->psf_accessors.emplace_back(nullptr);
+    table.AddEntry(std::move(entry));
+    BOOST_CHECK_THROW(table.ValidatePsfOffsets(), std::runtime_error);
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

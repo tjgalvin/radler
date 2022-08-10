@@ -15,6 +15,7 @@ def test_component_list():
     with pytest.raises(IndexError):
         cl.component_count(0)
 
+
 def test_multiscale_component_list():
     WIDTH = 8
     HEIGHT = 9

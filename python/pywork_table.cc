@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
+#include "psf_offset.h"
 #include "work_table.h"
 #include "work_table_entry.h"
 
@@ -15,8 +16,7 @@
 #include "utils/load_image_accessor.h"
 #include "utils/load_and_store_image_accessor.h"
 
-PYBIND11_MAKE_OPAQUE(std::vector<radler::Psf>)
-PYBIND11_MAKE_OPAQUE(radler::Psf)
+PYBIND11_MAKE_OPAQUE(std::vector<std::unique_ptr<aocommon::ImageAccessor>>)
 
 namespace py = pybind11;
 
@@ -42,119 +42,28 @@ template <class T>
 }
 
 void init_work_table(py::module& m) {
-  py::class_<radler::Psf>(m, "Psf", R"pbdoc(
-A point-spread function (PSF).
-)pbdoc")
-      .def("__str__",
-           [](const radler::Psf& self) {
-             std::stringstream result;
-             result << self;
-             return result.str();
-           })
-      .def_readwrite("x", &radler::Psf::x,
-                     R"pbdoc(
-The x-offset in pixels from the corner position.
-Use 0 if the PSF is not direction dependant.
-)pbdoc")
-      .def_readwrite("y", &radler::Psf::y,
-                     R"pbdoc(
-The y-offset in pixels from the corner position.
-Use 0 if the PSF is not direction dependant.
-)pbdoc")
-      .def_property(
-          "accessor", nullptr,
-          [](radler::Psf& self, py::array_t<float, py::array::c_style>& psf) {
-            self.accessor =
-                MakeImageAccessor<radler::utils::LoadOnlyImageAccessor>(psf);
-          },
-          R"pbdoc(
-Set the image associated a PSF in a WorkTableEntry.
-The lifetime of the provided numpy array should exceed the lifetime of the
-Radler object in which the WorkTableEntry with this PSF is used.
-
-Parameters
-----------
-psf: np.2darray
-  Numpy array with 2 dimensions and dtype=np.float32 containing the PSF image.
-)pbdoc");
-
-  py::class_<std::vector<radler::Psf>>(m, "VectorPsf", R"pbdoc(
-List of point-spread functions (PSFs).
-The list contains one PSF for every direction in the case of using
-direction-dependent PSFs, otherwise a list one PSF.
-)pbdoc")
-      .def("__str__",
-           [](const std::vector<radler::Psf>& self) {
-             std::stringstream result;
-             result << "[";
-             if (!self.empty()) {
-               result << self.front();
-               std::for_each(self.begin() + 1, self.end(),
-                             [&result](const radler::Psf& psf) {
-                               result << ", " << psf;
-                             });
-             }
-             result << "]";
-             return result.str();
-           })
+  py::class_<std::vector<std::unique_ptr<aocommon::ImageAccessor>>>(
+      m, "VectorUniquePtrImageAccessor")
       .def("__len__",
-           [](const std::vector<radler::Psf>& self) { return self.size(); })
-      // Since a radler::Psf contains a std::unique_ptr it's not possible to
-      // use the default PyBind11 bindings. Instead a reference needs to be
-      // returned. When returning a reference using a lambda two things need to
-      // be taken into account:
-      // - The return type needs to be explicitly set to a reference.
-      // - The Pybind11 return value policy needs to be set to
-      //   py::return_value_policy::reference
-      .def(
-          "__getitem__",
-          [](std::vector<radler::Psf>& self, int index) -> radler::Psf& {
-            if (index < 0 || static_cast<size_t>(index) >= self.size())
-              throw std::out_of_range("VectorPsf index out of bounds");
-            return self[index];
-          },
-          py::return_value_policy::reference)
+           [](const std::vector<std::unique_ptr<aocommon::ImageAccessor>>&
+                  self) { return self.size(); })
       .def(
           "append",
-          [](std::vector<radler::Psf>& self,
+          [](std::vector<std::unique_ptr<aocommon::ImageAccessor>>& self,
              py::array_t<float, py::array::c_style>& psf) {
             self.emplace_back(
                 MakeImageAccessor<radler::utils::LoadOnlyImageAccessor>(psf));
           },
           R"pbdoc(
-Adds a new PSF image to the list of PSF images.
-The lifetime of the provided numpy array should exceed the lifetime of the
-Radler object in which this WorkTableEntry will be used.
+      Adds a new PSF image to the list of PSF images.
+      The lifetime of the provided numpy array should exceed the lifetime of the
+      Radler object in which this WorkTableEntry will be used.
 
-Parameters
-----------
-psf: np.2darray
-  Numpy array with 2 dimensions and dtype=np.float32 containing the PSF image.
-)pbdoc")
-      .def(
-          "append",
-          [](std::vector<radler::Psf>& self, int x, int y,
-             py::array_t<float, py::array::c_style>& psf) {
-            self.emplace_back(
-                x, y,
-                MakeImageAccessor<radler::utils::LoadOnlyImageAccessor>(psf));
-          },
-          R"pbdoc(
-Adds a new PSF image to the list of PSF images.
-The lifetime of the provided numpy array should exceed the lifetime of the
-Radler object in which this WorkTableEntry will be used.
-
-Parameters
-----------
-x: int
-  The x-offset in pixels from the corner position.
-y: int
-  The y-offset in pixels from the corner position.
-psf: np.2darray
-  Numpy array with 2 dimensions and dtype=np.float32 containing the PSF image.
-          )pbdoc"
-
-      );
+      Parameters
+      ----------
+      psf: np.2darray
+        Numpy array with 2 dimensions and dtype=np.float32 containing the PSF
+      image.)pbdoc");
 
   py::class_<radler::WorkTable>(m, "WorkTable", R"pbdoc(
         The WorkTable contains a table instructions for the deconvolver,
@@ -163,18 +72,44 @@ psf: np.2darray
         It contains WorkTableEntries and groups entries sharing the same
         squared deconvolution index.
         )pbdoc")
-      .def(py::init([](std::size_t n_original_groups,
-                       std::size_t n_deconvolution_groups,
-                       std::size_t channel_index_offset) {
-             return std::make_unique<radler::WorkTable>(n_original_groups,
-                                                        n_deconvolution_groups,
-                                                        channel_index_offset);
-           }),
-           R"pbdoc(
+      .def(
+          py::init([](py::array_t<size_t> py_psf_offsets,
+                      std::size_t n_original_groups,
+                      std::size_t n_deconvolution_groups,
+                      std::size_t channel_index_offset) {
+            std::vector<radler::PsfOffset> psf_offsets;
+
+            // If the py_pfs aren't empty its contents are copied to the psfs
+            // vector.
+            if (len(py_psf_offsets)) {
+              if (py_psf_offsets.ndim() != 2)
+                throw pybind11::type_error(
+                    "Non-empty PSF offsets must have two dimensions.");
+
+              if (py_psf_offsets.shape(1) != 2)
+                throw pybind11::type_error("PSF entries must have two values.");
+
+              const size_t* first = py_psf_offsets.data();
+              const size_t* last = first + py_psf_offsets.size();
+              while (first != last) {
+                psf_offsets.emplace_back(*first, *(first + 1));
+                first += 2;
+              }
+            }
+
+            return std::make_unique<radler::WorkTable>(
+                std::move(psf_offsets), n_original_groups,
+                n_deconvolution_groups, channel_index_offset);
+          }),
+          R"pbdoc(
           Construct a new, empty WorkTable.
 
           Parameters
           ---------
+          py_psf_offsets: np2darray
+              Numpy array with 2 dimensions and type size_t containing the x
+              and y offset of the direction-dependent PSFs. When no
+              direction-dependent PSF is used the array should be empty.
           n_original_groups: int
               The number of original channel groups. When adding entries, their
               original channel index must be less than the number of original
@@ -189,8 +124,9 @@ psf: np.2darray
              The index of the first channel in the caller.
              Must be >= 0.
           )pbdoc",
-           py::arg("n_original_groups"), py::arg("n_deconvolution_groups"),
-           py::arg("channel_index_offset") = 0)
+          py::arg("py_psf_offsets"), py::arg("n_original_groups"),
+          py::arg("n_deconvolution_groups"),
+          py::arg("channel_index_offset") = 0)
       .def_property_readonly("original_groups",
                              &radler::WorkTable::OriginalGroups)
       .def_property_readonly("deconvolution_groups",
@@ -253,7 +189,7 @@ psf: np.2darray
       .def_readwrite("original_interval_index",
                      &radler::WorkTableEntry::original_interval_index)
       .def_readwrite("image_weight", &radler::WorkTableEntry::image_weight)
-      // Since a radler::Psf contains a std::unique_ptr it's not possible to
+      // Since the vector contains a std::unique_ptr it's not possible to
       // use the default PyBind11 bindings. Instead a reference needs to be
       // returned. When returning a reference using a lambda two things need to
       // be taken into account:
@@ -262,15 +198,16 @@ psf: np.2darray
       //   py::return_value_policy::reference
       .def_property_readonly(
           "psfs",
-          [](radler::WorkTableEntry& self) -> std::vector<radler::Psf>& {
-            return self.psfs;
+          [](radler::WorkTableEntry& self)
+              -> std::vector<std::unique_ptr<aocommon::ImageAccessor>>& {
+            return self.psf_accessors;
           },
           py::return_value_policy::reference,
           R"pbdoc(
-The list of PSF images associated with this WorkTableEntry.
-The list contains one PSF for every direction in the case of using
-direction-dependent PSFs, otherwise a list one PSF.
-)pbdoc")
+      The list of PSF images associated with this WorkTableEntry.
+      The list contains one PSF for every direction in the case of using
+      direction-dependent PSFs, otherwise a list containing one PSF.
+      )pbdoc")
       // Write only property for the model image.
       // Avoid most type casts by specifying py::array::c_style template
       // parameter. It is not as strong as fool proof as py::arg().noconvert() -

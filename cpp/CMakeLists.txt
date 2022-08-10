@@ -94,7 +94,7 @@ endif()
 set(PUBLIC_HEADERS
     component_list.h
     image_set.h
-    psf.h
+    psf_offset.h
     radler.h
     settings.h
     work_table.h

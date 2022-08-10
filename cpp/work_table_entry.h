@@ -3,8 +3,6 @@
 #ifndef RADLER_WORK_TABLE_ENTRY_H_
 #define RADLER_WORK_TABLE_ENTRY_H_
 
-#include "psf.h"
-
 #include <iomanip>
 #include <memory>
 #include <ostream>
@@ -52,12 +50,16 @@ struct WorkTableEntry {
   double image_weight = 0.0;
 
   /**
-   * Image accessors for the PSF image for this entry.
+   * Image accessors for the PSF images for this entry.
+   *
+   * The number of image assessors should match the number of elements in
+   * the PSF offsets in the @ref WorkTable. When direction-dependant PSFs are
+   * disabled, there should be one PSF accessor.
    *
    * These accessors are only used for the first entry of each channel group,
    * i.e., all polarizations of the same channel share the same PSF.
    */
-  std::vector<Psf> psfs{};
+  std::vector<std::unique_ptr<aocommon::ImageAccessor>> psf_accessors{};
 
   /**
    * Image accessor for the model image for this entry.

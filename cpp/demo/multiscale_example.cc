@@ -62,15 +62,16 @@ int main(int argc, char* argv[]) {
     aocommon::FitsWriter writer(imgReader);
 
     std::unique_ptr<radler::WorkTable> table =
-        std::make_unique<radler::WorkTable>(n_channels, n_channels);
+        std::make_unique<radler::WorkTable>(std::vector<radler::PsfOffset>{},
+                                            n_channels, n_channels);
 
     auto e = std::make_unique<radler::WorkTableEntry>();
     e->polarization = imgReader.Polarization();
     e->band_start_frequency = imgReader.Frequency();
     e->band_end_frequency = imgReader.Frequency();
     e->image_weight = 1.0;
-    e->psfs[0].accessor =
-        std::make_unique<MinimalImageAccessor>(psf, writer, "psf.fits");
+    e->psf_accessors.emplace_back(
+        std::make_unique<MinimalImageAccessor>(psf, writer, "psf.fits"));
     e->model_accessor =
         std::make_unique<MinimalImageAccessor>(model, writer, "model.fits");
     e->residual_accessor =

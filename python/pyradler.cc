@@ -112,7 +112,8 @@ void init_radler(py::module& m) {
 
             // Create a WorkTable with an entry for each image.
             auto table = std::make_unique<radler::WorkTable>(
-                n_images, n_deconvolution_groups);
+                std::vector<radler::PsfOffset>{}, n_images,
+                n_deconvolution_groups);
             for (pybind11::ssize_t i = 0; i < n_images; ++i) {
               // This loop supports both 2-D arrays with a single image,
               // and 3-D arrays with multiple images.
@@ -137,7 +138,7 @@ void init_radler(py::module& m) {
               entry->original_channel_index = i;
               entry->image_weight =
                   (weights.size() > 0) ? weights.unchecked<1>()(i) : 1.0;
-              entry->psfs.emplace_back(
+              entry->psf_accessors.emplace_back(
                   std::make_unique<radler::utils::LoadOnlyImageAccessor>(
                       psf_image));
               entry->residual_accessor =

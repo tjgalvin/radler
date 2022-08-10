@@ -65,12 +65,12 @@ Radler::Radler(const Settings& settings, const aocommon::Image& psf_image,
   // Make WorkTable with just one entry
   const size_t n_original_channels = 1;
   const size_t n_deconvolution_channels = 1;
-  auto table = std::make_unique<WorkTable>(n_original_channels,
-                                           n_deconvolution_channels);
+  auto table = std::make_unique<WorkTable>(
+      std::vector<PsfOffset>{}, n_original_channels, n_deconvolution_channels);
   auto e = std::make_unique<WorkTableEntry>();
   e->polarization = polarization;
   e->image_weight = 1.0;
-  e->psfs.emplace_back(
+  e->psf_accessors.emplace_back(
       std::make_unique<radler::utils::LoadOnlyImageAccessor>(psf_image));
   e->residual_accessor =
       std::make_unique<radler::utils::LoadAndStoreImageAccessor>(
@@ -131,6 +131,7 @@ const algorithms::DeconvolutionAlgorithm& Radler::MaxScaleCountAlgorithm()
 void Radler::Perform(bool& reached_major_threshold,
                      size_t major_iteration_number) {
   assert(table_);
+  table_->ValidatePsfOffsets();
 
   Logger::Info.Flush();
   Logger::Info << " == Deconvolving (" << major_iteration_number << ") ==\n";

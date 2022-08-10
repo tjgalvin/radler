@@ -29,6 +29,6 @@ add_unittest(
   runtests.cc
   test_component_list.cc
   test_image_set.cc
-  test_psf.cc
+  test_psf_offset.cc
   test_radler.cc
   test_work_table.cc)

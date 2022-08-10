@@ -3,6 +3,7 @@
 #ifndef RADLER_WORK_TABLE_H_
 #define RADLER_WORK_TABLE_H_
 
+#include "psf_offset.h"
 #include "work_table_entry.h"
 
 #include <functional>
@@ -69,7 +70,8 @@ class WorkTable {
    * all channels are deconvolved separately.
    * @param channel_index_offset The index of the first channel in the caller.
    */
-  explicit WorkTable(std::size_t n_original_groups,
+  explicit WorkTable(std::vector<PsfOffset> psf_offsets,
+                     std::size_t n_original_groups,
                      std::size_t n_deconvolution_groups,
                      std::size_t channel_index_offset = 0);
 
@@ -136,8 +138,28 @@ class WorkTable {
    */
   size_t GetChannelIndexOffset() const { return channel_index_offset_; }
 
+  const std::vector<PsfOffset>& PsfOffsets() const noexcept {
+    return psf_offsets_;
+  }
+
+  /** Validates the invariant of @ref psf_offsets_. */
+  void ValidatePsfOffsets() const;
+
  private:
   Entries entries_;
+
+  /**
+   * The direction-dependent PSF offsets.
+   *
+   * When no direction-dependent PSF is used the vector is empty.
+   *
+   * All @ref Worktable::entries_ use the same PSF offsets. The number of PSF
+   * accessors shall be equal to the number of elements of this vector, or
+   * shall be 1 when no direction-dependant PSF is used.  When the
+   * deconvolution is executed this invariant shall be valid. This is validated
+   * by @ref ValidatePsfOffsets when calling @ref Radler::Perform.
+   */
+  std::vector<PsfOffset> psf_offsets_;
 
   /**
    * A user of the WorkTable may use different channel indices than
@@ -184,6 +206,13 @@ class WorkTable {
 
       for (const auto& entry : work_table.entries_) {
         output << *entry;
+      }
+    }
+
+    if (!work_table.psf_offsets_.empty()) {
+      output << "=== PSFs ===\n";
+      for (const auto& psf : work_table.psf_offsets_) {
+        output << psf << '\n';
       }
     }
     return output;

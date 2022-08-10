@@ -37,9 +37,10 @@ def test_zero_groups():
 
     n_original_groups = 0
     n_deconvolution_groups = 0
-    work_table = rd.WorkTable(n_original_groups, n_deconvolution_groups)
+    work_table = rd.WorkTable([], n_original_groups, n_deconvolution_groups)
     assert work_table.original_groups == [[]]
     assert work_table.deconvolution_groups == [[0]]
+
 
 def test_negative_original_groups():
     """
@@ -50,7 +51,8 @@ def test_negative_original_groups():
     n_original_groups = -2
     n_deconvolution_groups = 1
     with pytest.raises(TypeError):
-        work_table = rd.WorkTable(n_original_groups, n_deconvolution_groups)
+        work_table = rd.WorkTable([], n_original_groups, n_deconvolution_groups)
+
 
 def test_negative_deconvolution_groups():
     """
@@ -61,17 +63,19 @@ def test_negative_deconvolution_groups():
     n_original_groups = 10
     n_deconvolution_groups = -1
     with pytest.raises(TypeError):
-        work_table = rd.WorkTable(n_original_groups, n_deconvolution_groups)
+        work_table = rd.WorkTable([], n_original_groups, n_deconvolution_groups)
+
 
 @pytest.mark.parametrize(
-    "n_original_groups,n_deconvolution_groups", [(4, 12), (12, 4)],
+    "n_original_groups,n_deconvolution_groups",
+    [(4, 12), (12, 4)],
 )
 def test_multiple_deconvolution_groups(n_original_groups, n_deconvolution_groups):
     """
     Test the WorkTable constructor for (combinations of) multiple deconvolution groups.
     """
 
-    work_table = rd.WorkTable(n_original_groups, n_deconvolution_groups)
+    work_table = rd.WorkTable([], n_original_groups, n_deconvolution_groups)
 
     assert len(work_table.original_groups) == n_original_groups
     assert not any(work_table.original_groups)
@@ -100,14 +104,14 @@ def test_channel_index_offset(channel_index_offset):
     if channel_index_offset is not None and channel_index_offset < 0:
         with pytest.raises(TypeError):
             work_table = rd.WorkTable(
-                n_original_groups, n_deconvolution_groups, channel_index_offset
+                [], n_original_groups, n_deconvolution_groups, channel_index_offset
             )
     else:
         work_table = (
-            rd.WorkTable(n_original_groups, n_deconvolution_groups)
+            rd.WorkTable([], n_original_groups, n_deconvolution_groups)
             if channel_index_offset is None
             else rd.WorkTable(
-                n_original_groups, n_deconvolution_groups, channel_index_offset
+                [], n_original_groups, n_deconvolution_groups, channel_index_offset
             )
         )
         assert (
@@ -115,6 +119,27 @@ def test_channel_index_offset(channel_index_offset):
             if channel_index_offset is None
             else channel_index_offset
         )
+
+
+def test_psfs_wrong_shape():
+    """
+    Check that invalid PSF entries throw an exception.
+    """
+
+    with pytest.raises(TypeError):
+        rd.WorkTable([1], 1, 1)  # Not a 2D array
+
+    with pytest.raises(TypeError):
+        rd.WorkTable([1, 1], 1, 1)  # Not a 2D array
+
+    with pytest.raises(TypeError):
+        rd.WorkTable([[1, 1], []], 1, 1)
+
+    with pytest.raises(TypeError):
+        rd.WorkTable([[1, 1], [1]], 1, 1)
+
+    with pytest.raises(TypeError):
+        rd.WorkTable([[1, 1], [1, 1, 1]], 1, 1)
 
 
 def test_add_entries_wrong_type():
@@ -146,7 +171,7 @@ def test_add_entries():
 
     NOTE: just checking whether the interface behaves correctly.
     """
-    work_table = rd.WorkTable(3, 1)
+    work_table = rd.WorkTable([], 3, 1)
 
     entries = [rd.WorkTableEntry(), rd.WorkTableEntry(), rd.WorkTableEntry()]
 
@@ -160,9 +185,6 @@ def test_add_entries():
     entries[2].model = model
 
     # Read (image) properties back should fail
-    with pytest.raises(AttributeError):
-        psf_read = entries[0].psfs[0].accessor
-
     with pytest.raises(AttributeError):
         residual_read = entries[1].residual
 
@@ -196,13 +218,17 @@ def test_str(capsys):
     and are tested to validate they work as intended.
     """
 
-    work_table = rd.WorkTable(0, 0)
+    work_table = rd.WorkTable([[1, 2], [3, 4], [5, 6]], 0, 0)
     assert (
         work_table.__str__()
         == """=== IMAGING TABLE ===
 Original groups       1
 Deconvolution groups  1
 Channel index         0
+=== PSFs ===
+[x: 1, y: 2]
+[x: 3, y: 4]
+[x: 5, y: 6]
 """
     )
     assert (
@@ -211,6 +237,10 @@ Channel index         0
 Original groups       1
 Deconvolution groups  1
 Channel index         0
+=== PSFs ===
+[x: 1, y: 2]
+[x: 3, y: 4]
+[x: 5, y: 6]
 """
     )
 
@@ -222,6 +252,10 @@ Channel index         0
 Original groups       1
 Deconvolution groups  1
 Channel index         0
+=== PSFs ===
+[x: 1, y: 2]
+[x: 3, y: 4]
+[x: 5, y: 6]
 
 """
     )

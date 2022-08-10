@@ -23,8 +23,9 @@ namespace radler {
 struct ImageSetFixtureBase {
   ImageSetFixtureBase() = default;
 
-  void initTable(size_t n_original_channels, size_t n_deconvolution_channels) {
-    table = std::make_unique<WorkTable>(n_original_channels,
+  void initTable(std::vector<PsfOffset> psfs, size_t n_original_channels,
+                 size_t n_deconvolution_channels) {
+    table = std::make_unique<WorkTable>(std::move(psfs), n_original_channels,
                                         n_deconvolution_channels);
   }
 
@@ -36,7 +37,7 @@ struct ImageSetFixtureBase {
     e->band_start_frequency = frequencyMHz * 1.0e6;
     e->band_end_frequency = frequencyMHz * 1.0e6;
     e->image_weight = imageWeight;
-    e->psfs.emplace_back(std::make_unique<test::DummyImageAccessor>());
+    e->psf_accessors.emplace_back(std::make_unique<test::DummyImageAccessor>());
     e->model_accessor =
         std::make_unique<test::LoadOnlyImageAccessor>(modelImage);
     e->residual_accessor = std::make_unique<test::DummyImageAccessor>();
@@ -62,7 +63,7 @@ struct ImageSetFixtureBase {
 template <size_t NDeconvolutionChannels>
 struct ImageSetFixture : public ImageSetFixtureBase {
   ImageSetFixture() {
-    initTable(2, NDeconvolutionChannels);
+    initTable({}, 2, NDeconvolutionChannels);
     addToImageSet(0, aocommon::Polarization::XX, 100);
     addToImageSet(0, aocommon::Polarization::YY, 100);
     addToImageSet(1, aocommon::Polarization::XX, 200);
@@ -98,7 +99,7 @@ BOOST_FIXTURE_TEST_CASE(constructor_2, ImageSetFixture<2>) {
 }
 
 BOOST_FIXTURE_TEST_CASE(xxNormalization, ImageSetFixtureBase) {
-  initTable(1, 1);
+  initTable({}, 1, 1);
   addToImageSet(0, aocommon::Polarization::XX, 100);
   ImageSet dset(*table, false, {aocommon::Polarization::XX}, 2, 2);
   dset = 0.0;
@@ -108,7 +109,7 @@ BOOST_FIXTURE_TEST_CASE(xxNormalization, ImageSetFixtureBase) {
 }
 
 BOOST_FIXTURE_TEST_CASE(iNormalization, ImageSetFixtureBase) {
-  initTable(1, 1);
+  initTable({}, 1, 1);
   addToImageSet(0, aocommon::Polarization::StokesI, 100);
   ImageSet dset(*table, false, {aocommon::Polarization::StokesI}, 2, 2);
   dset = 0.0;
@@ -118,7 +119,7 @@ BOOST_FIXTURE_TEST_CASE(iNormalization, ImageSetFixtureBase) {
 }
 
 BOOST_FIXTURE_TEST_CASE(i_2channel_Normalization, ImageSetFixtureBase) {
-  initTable(2, 2);
+  initTable({}, 2, 2);
   addToImageSet(0, aocommon::Polarization::StokesI, 100);
   addToImageSet(1, aocommon::Polarization::StokesI, 200);
   ImageSet dset(*table, false, {aocommon::Polarization::StokesI}, 2, 2);
@@ -130,7 +131,7 @@ BOOST_FIXTURE_TEST_CASE(i_2channel_Normalization, ImageSetFixtureBase) {
 }
 
 BOOST_FIXTURE_TEST_CASE(i_2channel_NaNs, ImageSetFixtureBase) {
-  initTable(2, 2);
+  initTable({}, 2, 2);
   addToImageSet(0, aocommon::Polarization::StokesI, 100, 0.0);
   addToImageSet(1, aocommon::Polarization::StokesI, 200, 1.0);
   ImageSet dset(*table, false, {aocommon::Polarization::StokesI}, 2, 2);
@@ -142,7 +143,7 @@ BOOST_FIXTURE_TEST_CASE(i_2channel_NaNs, ImageSetFixtureBase) {
 }
 
 BOOST_FIXTURE_TEST_CASE(xxyyNormalization, ImageSetFixtureBase) {
-  initTable(1, 1);
+  initTable({}, 1, 1);
   addToImageSet(0, aocommon::Polarization::XX, 100);
   addToImageSet(0, aocommon::Polarization::YY, 100);
   const std::set<PolarizationEnum> kLinkedPolarizations{
@@ -157,7 +158,7 @@ BOOST_FIXTURE_TEST_CASE(xxyyNormalization, ImageSetFixtureBase) {
 }
 
 BOOST_FIXTURE_TEST_CASE(iqNormalization, ImageSetFixtureBase) {
-  initTable(1, 1);
+  initTable({}, 1, 1);
   addToImageSet(0, aocommon::Polarization::StokesI, 100);
   addToImageSet(0, aocommon::Polarization::StokesQ, 100);
   const std::set<PolarizationEnum> kLinkedPolarizations{
@@ -171,7 +172,7 @@ BOOST_FIXTURE_TEST_CASE(iqNormalization, ImageSetFixtureBase) {
 }
 
 BOOST_FIXTURE_TEST_CASE(linkedINormalization, ImageSetFixtureBase) {
-  initTable(1, 1);
+  initTable({}, 1, 1);
   addToImageSet(0, aocommon::Polarization::StokesI, 100);
   addToImageSet(0, aocommon::Polarization::StokesQ, 100);
   ImageSet dset(*table, false, {aocommon::Polarization::StokesI}, 2, 2);
@@ -183,7 +184,7 @@ BOOST_FIXTURE_TEST_CASE(linkedINormalization, ImageSetFixtureBase) {
 }
 
 BOOST_FIXTURE_TEST_CASE(iquvNormalization, ImageSetFixtureBase) {
-  initTable(1, 1);
+  initTable({}, 1, 1);
   addToImageSet(0, aocommon::Polarization::StokesI, 100);
   addToImageSet(0, aocommon::Polarization::StokesQ, 100);
   addToImageSet(0, aocommon::Polarization::StokesU, 100);
@@ -202,7 +203,7 @@ BOOST_FIXTURE_TEST_CASE(iquvNormalization, ImageSetFixtureBase) {
 }
 
 BOOST_FIXTURE_TEST_CASE(xx_xy_yx_yyNormalization, ImageSetFixtureBase) {
-  initTable(1, 1);
+  initTable({}, 1, 1);
   addToImageSet(0, aocommon::Polarization::XX, 100);
   addToImageSet(0, aocommon::Polarization::XY, 100);
   addToImageSet(0, aocommon::Polarization::YX, 100);
@@ -223,7 +224,7 @@ BOOST_FIXTURE_TEST_CASE(xx_xy_yx_yyNormalization, ImageSetFixtureBase) {
 
 BOOST_FIXTURE_TEST_CASE(xx_xy_yx_yy_2channel_Normalization,
                         ImageSetFixtureBase) {
-  initTable(2, 2);
+  initTable({}, 2, 2);
   addToImageSet(0, aocommon::Polarization::XX, 100);
   addToImageSet(0, aocommon::Polarization::XY, 100);
   addToImageSet(0, aocommon::Polarization::YX, 100);
@@ -257,7 +258,7 @@ BOOST_FIXTURE_TEST_CASE(xx_xy_yx_yy_2channel_Normalization,
 
 BOOST_FIXTURE_TEST_CASE(qu_squared_2channel_Normalization,
                         ImageSetFixtureBase) {
-  initTable(2, 2);
+  initTable({}, 2, 2);
   addToImageSet(0, aocommon::Polarization::StokesQ, 100);
   addToImageSet(0, aocommon::Polarization::StokesU, 100);
   addToImageSet(1, aocommon::Polarization::StokesQ, 100);
@@ -281,7 +282,7 @@ BOOST_FIXTURE_TEST_CASE(qu_squared_2channel_Normalization,
 
 BOOST_FIXTURE_TEST_CASE(linked_xx_yy_2channel_Normalization,
                         ImageSetFixtureBase) {
-  initTable(2, 2);
+  initTable({}, 2, 2);
   addToImageSet(0, aocommon::Polarization::XX, 100);
   addToImageSet(0, aocommon::Polarization::XY, 100);
   addToImageSet(0, aocommon::Polarization::YX, 100);
@@ -310,7 +311,7 @@ BOOST_FIXTURE_TEST_CASE(linked_xx_yy_2channel_Normalization,
 }
 
 BOOST_FIXTURE_TEST_CASE(linked_xx_2channel_Normalization, ImageSetFixtureBase) {
-  initTable(2, 2);
+  initTable({}, 2, 2);
   addToImageSet(0, aocommon::Polarization::XX, 100);
   addToImageSet(0, aocommon::Polarization::XY, 100);
   addToImageSet(0, aocommon::Polarization::YX, 100);
@@ -335,7 +336,7 @@ BOOST_FIXTURE_TEST_CASE(linked_xx_2channel_Normalization, ImageSetFixtureBase) {
 }
 
 BOOST_FIXTURE_TEST_CASE(deconvchannels_normalization, ImageSetFixtureBase) {
-  initTable(4, 2);
+  initTable({}, 4, 2);
   addToImageSet(0, aocommon::Polarization::StokesI, 100, 1);
   addToImageSet(1, aocommon::Polarization::StokesI, 200, 1);
   addToImageSet(2, aocommon::Polarization::StokesI, 300, 2);
@@ -349,7 +350,7 @@ BOOST_FIXTURE_TEST_CASE(deconvchannels_normalization, ImageSetFixtureBase) {
 }
 
 BOOST_FIXTURE_TEST_CASE(deconvchannels_zeroweight, ImageSetFixtureBase) {
-  initTable(4, 2);
+  initTable({}, 4, 2);
   addToImageSet(0, aocommon::Polarization::StokesI, 100, 1);
   addToImageSet(1, aocommon::Polarization::StokesI, 200, 0);
   addToImageSet(2, aocommon::Polarization::StokesI, 300, 2);
@@ -363,7 +364,7 @@ BOOST_FIXTURE_TEST_CASE(deconvchannels_zeroweight, ImageSetFixtureBase) {
 }
 
 BOOST_FIXTURE_TEST_CASE(deconvchannels_divisor, ImageSetFixtureBase) {
-  initTable(16, 3);
+  initTable({}, 16, 3);
   for (size_t ch = 0; ch != table->OriginalGroups().size(); ++ch) {
     addToImageSet(ch, aocommon::Polarization::StokesI, 100 + ch, 1);
   }
@@ -381,7 +382,7 @@ BOOST_FIXTURE_TEST_CASE(deconvchannels_divisor, ImageSetFixtureBase) {
 }
 
 BOOST_FIXTURE_TEST_CASE(psfindex, ImageSetFixtureBase) {
-  initTable(4, 2);
+  initTable({}, 4, 2);
   for (size_t ch = 0; ch != table->OriginalGroups().size(); ++ch) {
     addToImageSet(ch, aocommon::Polarization::XX, 100, 1);
     addToImageSet(ch, aocommon::Polarization::XY, 200, 0);
@@ -404,7 +405,7 @@ BOOST_FIXTURE_TEST_CASE(psfindex, ImageSetFixtureBase) {
 }
 
 BOOST_FIXTURE_TEST_CASE(load_and_average, ImageSetFixtureBase) {
-  initTable(6, 2);
+  initTable({}, 6, 2);
   const size_t nPol = 2;
   const PolarizationEnum pols[nPol] = {PolarizationEnum::XX,
                                        PolarizationEnum::YY};

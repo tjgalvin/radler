@@ -2,15 +2,20 @@
 
 #include "work_table.h"
 
+#include <aocommon/throwruntimeerror.h>
+
 #include <algorithm>
 #include <cassert>
+#include <stdexcept>
 
 namespace radler {
 
-WorkTable::WorkTable(std::size_t n_original_groups,
+WorkTable::WorkTable(std::vector<PsfOffset> psf_offsets,
+                     std::size_t n_original_groups,
                      std::size_t n_deconvolution_groups,
                      std::size_t channel_index_offset)
     : entries_(),
+      psf_offsets_(std::move(psf_offsets)),
       channel_index_offset_(channel_index_offset),
       original_groups_(
           std::max(n_original_groups, static_cast<std::size_t>(1))),
@@ -37,4 +42,15 @@ void WorkTable::AddEntry(std::unique_ptr<WorkTableEntry> entry) {
 
   original_groups_[original_channel_index].push_back(entries_.back().get());
 }
+
+void WorkTable::ValidatePsfOffsets() const {
+  const size_t n_psfs = std::max<size_t>(1, psf_offsets_.size());
+  for (const auto& entry : entries_)
+    if (entry->psf_accessors.size() != n_psfs)
+      aocommon::ThrowRuntimeError(
+          "WorkTable: Expected ", n_psfs,
+          " PSF accessors per entry, but found an entry with ",
+          entry->psf_accessors.size(), " PSF accessors.");
+}
+
 }  // namespace radler
