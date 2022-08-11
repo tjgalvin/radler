@@ -12,7 +12,8 @@
 #
 import os
 import sys
-import glob
+
+from datetime import date
 
 # Make sure that it refers to the shared object file from current build
 if 'READTHEDOCS' in os.environ:
@@ -30,7 +31,7 @@ except ModuleNotFoundError:
 # -- Project information -----------------------------------------------------
 
 project = "Radler"
-copyright = "2022, ASTRON (Netherlands Institute for Radio Astronomy)"
+copyright = '%d, André Offringa' % date.today().year
 author = "André Offringa"
 
 

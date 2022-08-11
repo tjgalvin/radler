@@ -1,5 +1,4 @@
-# Copyright (C) 2020 ASTRON (Netherlands Institute for Radio Astronomy)
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: LGPL-3.0-only
 
 include(${PROJECT_SOURCE_DIR}/cmake/unittest.cmake)
 include_directories(${CMAKE_BINARY_DIR})
