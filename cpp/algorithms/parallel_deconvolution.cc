@@ -131,144 +131,161 @@ void ParallelDeconvolution::SetSpectrallyForcedImages(
 }
 
 void ParallelDeconvolution::RunSubImage(
-    SubImage& subImg, ImageSet& data_image, const ImageSet& model_image,
-    ImageSet& result_model, const std::vector<aocommon::Image>& psf_images,
+    SubImage& sub_image, ImageSet& data_image, const ImageSet& model_image,
+    ImageSet& result_model,
+    const std::vector<std::vector<aocommon::Image>>& psf_images,
     double major_iteration_threshold, bool find_peak_only, std::mutex& mutex) {
   const size_t width = settings_.trimmed_image_width;
   const size_t height = settings_.trimmed_image_height;
 
-  std::unique_ptr<ImageSet> subModel, subData;
+  std::unique_ptr<ImageSet> sub_model;
+  std::unique_ptr<ImageSet> sub_data;
   {
-    std::lock_guard<std::mutex> lock(mutex);
-    subData = data_image.Trim(subImg.x, subImg.y, subImg.x + subImg.width,
-                              subImg.y + subImg.height, width);
+    const std::lock_guard<std::mutex> lock(mutex);
+    sub_data =
+        data_image.Trim(sub_image.x, sub_image.y, sub_image.x + sub_image.width,
+                        sub_image.y + sub_image.height, width);
     // Because the model of this subimage might extend outside of its boundaries
     // (because of multiscale components), the model is placed back on the image
     // by adding its values. This requires that values outside the boundary are
     // set to zero at this point, otherwise multiple subimages could add the
     // same sources.
-    subModel = model_image.TrimMasked(
-        subImg.x, subImg.y, subImg.x + subImg.width, subImg.y + subImg.height,
-        width, subImg.boundary_mask.data());
+    sub_model = model_image.TrimMasked(
+        sub_image.x, sub_image.y, sub_image.x + sub_image.width,
+        sub_image.y + sub_image.height, width, sub_image.boundary_mask.data());
   }
 
+  // The index of the nearest direction-dependent PSF, or the first when no
+  // direction-dependent PSFs are used.
+  // TODO AST-960 Implement the selection.
+  const size_t psf_image_index = 0;
+
   // Construct the smaller psfs
-  std::vector<Image> subPsfs;
-  subPsfs.reserve(psf_images.size());
-  for (const aocommon::Image& psfImage : psf_images) {
-    subPsfs.emplace_back(psfImage.Trim(subImg.width, subImg.height));
+  std::vector<Image> sub_psfs;
+  sub_psfs.reserve(psf_images[psf_image_index].size());
+  for (const aocommon::Image& psf_image : psf_images[psf_image_index]) {
+    sub_psfs.emplace_back(psf_image.Trim(sub_image.width, sub_image.height));
   }
-  algorithms_[subImg.index]->SetCleanMask(subImg.mask.data());
+  algorithms_[sub_image.index]->SetCleanMask(sub_image.mask.data());
 
   // Construct smaller RMS image if necessary
   if (!rms_image_.Empty()) {
-    Image subRmsImage =
-        rms_image_.TrimBox(subImg.x, subImg.y, subImg.width, subImg.height);
-    algorithms_[subImg.index]->SetRMSFactorImage(std::move(subRmsImage));
+    Image sub_rms_image = rms_image_.TrimBox(sub_image.x, sub_image.y,
+                                             sub_image.width, sub_image.height);
+    algorithms_[sub_image.index]->SetRMSFactorImage(std::move(sub_rms_image));
   }
 
   // If a forced spectral image is active, trim it to the subimage size
   if (!spectrally_forced_images_.empty()) {
-    std::vector<Image> subSpectralImages(spectrally_forced_images_.size());
+    std::vector<Image> sub_spectral_images(spectrally_forced_images_.size());
     for (size_t i = 0; i != spectrally_forced_images_.size(); ++i) {
-      subSpectralImages[i] = spectrally_forced_images_[i].TrimBox(
-          subImg.x, subImg.y, subImg.width, subImg.height);
+      sub_spectral_images[i] = spectrally_forced_images_[i].TrimBox(
+          sub_image.x, sub_image.y, sub_image.width, sub_image.height);
     }
-    algorithms_[subImg.index]->SetSpectrallyForcedImages(
-        std::move(subSpectralImages));
+    algorithms_[sub_image.index]->SetSpectrallyForcedImages(
+        std::move(sub_spectral_images));
   }
 
-  size_t maxNIter = algorithms_[subImg.index]->MaxIterations();
+  const size_t max_n_iter = algorithms_[sub_image.index]->MaxIterations();
   if (find_peak_only) {
-    algorithms_[subImg.index]->SetMaxIterations(0);
+    algorithms_[sub_image.index]->SetMaxIterations(0);
   } else {
-    algorithms_[subImg.index]->SetMajorIterationThreshold(
+    algorithms_[sub_image.index]->SetMajorIterationThreshold(
         major_iteration_threshold);
   }
 
   if (use_per_scale_masks_ || track_per_scale_masks_) {
-    std::lock_guard<std::mutex> lock(mutex);
-    MultiScaleAlgorithm& msAlg =
-        static_cast<class MultiScaleAlgorithm&>(*algorithms_[subImg.index]);
-    // During the first iteration, msAlg will not have scales/masks yet and the
-    // nr scales has also not been determined yet.
+    const std::lock_guard<std::mutex> lock(mutex);
+    MultiScaleAlgorithm& multi_scale_algorithm =
+        static_cast<class MultiScaleAlgorithm&>(*algorithms_[sub_image.index]);
+    // During the first iteration, multi_scale_algorithm will not have
+    // scales/masks yet and the nr scales has also not been determined yet.
     if (!scale_masks_.empty()) {
       // Here we set the scale mask for the multiscale algorithm.
       // The maximum number of scales in the previous iteration can be found by
       // scale_masks_.size() Not all msAlgs might have used that many scales, so
       // we have to take this into account
-      msAlg.SetScaleMaskCount(
-          std::max(msAlg.GetScaleMaskCount(), scale_masks_.size()));
-      for (size_t i = 0; i != msAlg.GetScaleMaskCount(); ++i) {
-        aocommon::UVector<bool>& output = msAlg.GetScaleMask(i);
-        output.assign(subImg.width * subImg.height, false);
+      multi_scale_algorithm.SetScaleMaskCount(std::max(
+          multi_scale_algorithm.GetScaleMaskCount(), scale_masks_.size()));
+      for (size_t i = 0; i != multi_scale_algorithm.GetScaleMaskCount(); ++i) {
+        aocommon::UVector<bool>& output = multi_scale_algorithm.GetScaleMask(i);
+        output.assign(sub_image.width * sub_image.height, false);
         if (i < scale_masks_.size()) {
-          Image::TrimBox(output.data(), subImg.x, subImg.y, subImg.width,
-                         subImg.height, scale_masks_[i].data(), width, height);
+          Image::TrimBox(output.data(), sub_image.x, sub_image.y,
+                         sub_image.width, sub_image.height,
+                         scale_masks_[i].data(), width, height);
         }
       }
     }
   }
 
-  subImg.peak = algorithms_[subImg.index]->ExecuteMajorIteration(
-      *subData, *subModel, subPsfs, subImg.reached_major_threshold);
+  sub_image.peak = algorithms_[sub_image.index]->ExecuteMajorIteration(
+      *sub_data, *sub_model, sub_psfs, sub_image.reached_major_threshold);
 
   // Since this was an RMS image specifically for this subimage size, we free it
   // immediately
-  algorithms_[subImg.index]->SetRMSFactorImage(Image());
+  algorithms_[sub_image.index]->SetRMSFactorImage(Image());
 
   if (track_per_scale_masks_) {
-    std::lock_guard<std::mutex> lock(mutex);
-    MultiScaleAlgorithm& msAlg =
-        static_cast<class MultiScaleAlgorithm&>(*algorithms_[subImg.index]);
+    const std::lock_guard<std::mutex> lock(mutex);
+    MultiScaleAlgorithm& multi_scale_algorithm =
+        static_cast<class MultiScaleAlgorithm&>(*algorithms_[sub_image.index]);
     if (scale_masks_.empty()) {
-      scale_masks_.resize(msAlg.ScaleCount());
+      scale_masks_.resize(multi_scale_algorithm.ScaleCount());
       for (aocommon::UVector<bool>& scaleMask : scale_masks_) {
         scaleMask.assign(width * height, false);
       }
     }
-    for (size_t i = 0; i != msAlg.ScaleCount(); ++i) {
-      const aocommon::UVector<bool>& msMask = msAlg.GetScaleMask(i);
+    for (size_t i = 0; i != multi_scale_algorithm.ScaleCount(); ++i) {
+      const aocommon::UVector<bool>& msMask =
+          multi_scale_algorithm.GetScaleMask(i);
       if (i < scale_masks_.size()) {
-        Image::CopyMasked(scale_masks_[i].data(), subImg.x, subImg.y, width,
-                          msMask.data(), subImg.width, subImg.height,
-                          subImg.boundary_mask.data());
+        Image::CopyMasked(scale_masks_[i].data(), sub_image.x, sub_image.y,
+                          width, msMask.data(), sub_image.width,
+                          sub_image.height, sub_image.boundary_mask.data());
       }
     }
   }
 
   if (settings_.save_source_list &&
       settings_.algorithm_type == AlgorithmType::kMultiscale) {
-    std::lock_guard<std::mutex> lock(mutex);
+    const std::lock_guard<std::mutex> lock(mutex);
     MultiScaleAlgorithm& algorithm =
-        static_cast<MultiScaleAlgorithm&>(*algorithms_[subImg.index]);
+        static_cast<MultiScaleAlgorithm&>(*algorithms_[sub_image.index]);
     if (!component_list_) {
       component_list_ = std::make_unique<ComponentList>(
           width, height, algorithm.ScaleCount(), data_image.Size());
     }
-    component_list_->Add(algorithm.GetComponentList(), subImg.x, subImg.y);
+    component_list_->Add(algorithm.GetComponentList(), sub_image.x,
+                         sub_image.y);
     algorithm.ClearComponentList();
   }
 
   if (find_peak_only) {
-    algorithms_[subImg.index]->SetMaxIterations(maxNIter);
+    algorithms_[sub_image.index]->SetMaxIterations(max_n_iter);
   } else {
-    std::lock_guard<std::mutex> lock(mutex);
-    data_image.CopyMasked(*subData, subImg.x, subImg.y,
-                          subImg.boundary_mask.data());
-    result_model.AddSubImage(*subModel, subImg.x, subImg.y);
+    const std::lock_guard<std::mutex> lock(mutex);
+    data_image.CopyMasked(*sub_data, sub_image.x, sub_image.y,
+                          sub_image.boundary_mask.data());
+    result_model.AddSubImage(*sub_model, sub_image.x, sub_image.y);
   }
 }
 
 void ParallelDeconvolution::ExecuteMajorIteration(
     ImageSet& data_image, ImageSet& model_image,
-    const std::vector<aocommon::Image>& psf_images,
+    const std::vector<std::vector<aocommon::Image>>& psf_images,
     bool& reached_major_threshold) {
   if (algorithms_.size() == 1) {
+    // The index of the nearest direction-dependent PSF, or the first when no
+    // direction-dependent PSFs are used.
+    // TODO AST-960 Implement the selection.
+    const size_t psf_image_index = 0;
+
     aocommon::ForwardingLogReceiver fwdReceiver;
     algorithms_.front()->SetLogReceiver(fwdReceiver);
-    algorithms_.front()->ExecuteMajorIteration(
-        data_image, model_image, psf_images, reached_major_threshold);
+    algorithms_.front()->ExecuteMajorIteration(data_image, model_image,
+                                               psf_images[psf_image_index],
+                                               reached_major_threshold);
   } else {
     ExecuteParallelRun(data_image, model_image, psf_images,
                        reached_major_threshold);
@@ -277,7 +294,7 @@ void ParallelDeconvolution::ExecuteMajorIteration(
 
 void ParallelDeconvolution::ExecuteParallelRun(
     ImageSet& data_image, ImageSet& model_image,
-    const std::vector<aocommon::Image>& psf_images,
+    const std::vector<std::vector<aocommon::Image>>& psf_images,
     bool& reached_major_threshold) {
   const size_t width = data_image.Width();
   const size_t height = data_image.Height();

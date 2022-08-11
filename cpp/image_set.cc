@@ -123,44 +123,54 @@ void ImageSet::LoadAndAverage(bool use_residual_image) {
   }
 }
 
-std::vector<aocommon::Image> ImageSet::LoadAndAveragePsfs() {
+std::vector<std::vector<aocommon::Image>> ImageSet::LoadAndAveragePsfs() {
   const size_t image_size = Width() * Height();
 
-  std::vector<aocommon::Image> psf_images;
-  psf_images.reserve(NDeconvolutionChannels());
-  for (size_t i = 0; i < NDeconvolutionChannels(); ++i) {
-    psf_images.emplace_back(Width(), Height(), 0.0);
-  }
-
+  std::vector<std::vector<aocommon::Image>> result;
   Image scratch(Width(), Height());
 
-  aocommon::UVector<double> averaged_weights(NDeconvolutionChannels(), 0.0);
-  for (size_t group_index = 0; group_index != NOriginalChannels();
-       ++group_index) {
-    const size_t channel_index =
-        (group_index * NDeconvolutionChannels()) / NOriginalChannels();
-    const WorkTable::Group& channel_group =
-        work_table_.OriginalGroups()[group_index];
-    const WorkTableEntry& entry = *channel_group.front();
-    const double input_channel_weight = entry.image_weight;
-    entry.psf_accessors[0]->Load(scratch);
-    for (size_t i = 0; i != image_size; ++i) {
-      psf_images[channel_index][i] += scratch[i] * input_channel_weight;
-    }
-    averaged_weights[channel_index] += input_channel_weight;
-  }
+  // When there's no direction-dependent PSF, work_table_.PsfOffsets() is
+  // empty. In that case the first PSF of the WorkTableEntry still needs to be
+  // processed.
 
-  for (size_t channel_index = 0; channel_index != NDeconvolutionChannels();
-       ++channel_index) {
-    const double factor = averaged_weights[channel_index] == 0.0
-                              ? 0.0
-                              : 1.0 / averaged_weights[channel_index];
-    for (size_t i = 0; i != image_size; ++i) {
-      psf_images[channel_index][i] *= factor;
+  // The index of the PSF in the WorkTableEntry PSF vector being processed.
+  size_t psf_index = 0;
+  do {
+    std::vector<aocommon::Image>& psf_images = result.emplace_back();
+    psf_images.reserve(NDeconvolutionChannels());
+    for (size_t i = 0; i < NDeconvolutionChannels(); ++i) {
+      psf_images.emplace_back(Width(), Height(), 0.0);
     }
-  }
 
-  return psf_images;
+    aocommon::UVector<double> averaged_weights(NDeconvolutionChannels(), 0.0);
+    for (size_t group_index = 0; group_index != NOriginalChannels();
+         ++group_index) {
+      const size_t channel_index =
+          (group_index * NDeconvolutionChannels()) / NOriginalChannels();
+      const WorkTable::Group& channel_group =
+          work_table_.OriginalGroups()[group_index];
+      const WorkTableEntry& entry = *channel_group.front();
+      const double input_channel_weight = entry.image_weight;
+      entry.psf_accessors[psf_index]->Load(scratch);
+      for (size_t i = 0; i != image_size; ++i) {
+        psf_images[channel_index][i] += scratch[i] * input_channel_weight;
+      }
+      averaged_weights[channel_index] += input_channel_weight;
+    }
+
+    for (size_t channel_index = 0; channel_index != NDeconvolutionChannels();
+         ++channel_index) {
+      const double factor = averaged_weights[channel_index] == 0.0
+                                ? 0.0
+                                : 1.0 / averaged_weights[channel_index];
+      for (size_t i = 0; i != image_size; ++i) {
+        psf_images[channel_index][i] *= factor;
+      }
+    }
+    ++psf_index;
+  } while (psf_index < work_table_.PsfOffsets().size());
+
+  return result;
 }
 
 void ImageSet::InterpolateAndStoreModel(

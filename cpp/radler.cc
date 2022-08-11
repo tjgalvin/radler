@@ -218,7 +218,7 @@ void Radler::Perform(bool& reached_major_threshold,
   integrated.Reset();
 
   Logger::Debug << "Loading PSFs...\n";
-  const std::vector<aocommon::Image> psf_images =
+  const std::vector<std::vector<aocommon::Image>> psf_images =
       residual_set.LoadAndAveragePsfs();
 
   if (settings_.algorithm_type == AlgorithmType::kMultiscale) {

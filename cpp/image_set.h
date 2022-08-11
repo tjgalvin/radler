@@ -59,7 +59,29 @@ class ImageSet {
    */
   void LoadAndAverage(bool use_residual_images);
 
-  std::vector<aocommon::Image> LoadAndAveragePsfs();
+  /**
+   * Loads the PSF accessors from the entries and creates the proper PSF images.
+   *
+   * let X is the direction-dependent PSFs index; Y is join axis (frequency)
+   * index.
+   *
+   * In the @ref WorkTable they are stored as @ref aocommon::ImageAccessor in
+   * multiple @ref WorkTableEntry objects. There they are stored as
+   * @c Worktable.entries_[Y].psf_accessors[X].
+   *
+   * The returned object of this function stores them as @c result[X][Y].
+   * The swapping of the X and Y is done to make it easier to use the result
+   * in the deconvolution algorithms. These functions expect a one dimensional
+   * array of join axis (frequency) PSF images.
+   *
+   * The selection algorithm selects the best PSF based on the distance between
+   * the PSF offset and the sub image offset. So when PSF index 1 is the best
+   * match the LoadAndAveragePsfs()[1] will contain the PSFs for the underlying
+   * algorithm.
+   *
+   * @pre @c work_table_.ValidatePSF() can be called without throwing.
+   */
+  std::vector<std::vector<aocommon::Image>> LoadAndAveragePsfs();
 
   void InterpolateAndStoreModel(
       const schaapcommon::fitters::SpectralFitter& fitter, size_t thread_count);
