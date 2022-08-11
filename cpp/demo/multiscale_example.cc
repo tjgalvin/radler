@@ -26,19 +26,25 @@ class MinimalImageAccessor final : public aocommon::ImageAccessor {
   MinimalImageAccessor(const aocommon::Image& image,
                        aocommon::FitsWriter writer,
                        const std::string& output_fits)
-      : _image(image), _writer(writer), _output_fits(output_fits) {}
+      : image_(image), writer_(writer), output_fits_(output_fits) {}
   ~MinimalImageAccessor() override = default;
 
-  void Load(aocommon::Image& image) const override { image = _image; }
+  size_t Width() const override { return writer_.Width(); }
 
-  void Store(const aocommon::Image& image) override {
-    _writer.Write(_output_fits, image.Data());
+  size_t Height() const override { return writer_.Height(); }
+
+  void Load(float* image_data) const override {
+    std::copy_n(image_.Data(), Width() * Height(), image_data);
+  }
+
+  void Store(const float* image_data) override {
+    writer_.Write(output_fits_, image_data);
   }
 
  private:
-  const aocommon::Image _image;
-  const aocommon::FitsWriter _writer;
-  const std::string _output_fits;
+  const aocommon::Image image_;
+  const aocommon::FitsWriter writer_;
+  const std::string output_fits_;
 };
 }  // namespace
 

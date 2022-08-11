@@ -6,8 +6,6 @@
 #include <iomanip>
 #include <ostream>
 
-#include <aocommon/imageaccessor.h>
-
 namespace radler {
 
 class PsfOffset {

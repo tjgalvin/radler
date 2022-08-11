@@ -37,12 +37,16 @@ class LoadAndStoreImageAccessor final : public aocommon::ImageAccessor {
 
   ~LoadAndStoreImageAccessor() override = default;
 
-  void Load(aocommon::Image& image) const override {
-    std::copy_n(data_, width_ * height_, image.Data());
+  size_t Width() const override { return width_; }
+
+  size_t Height() const override { return height_; }
+
+  void Load(float* image_data) const override {
+    std::copy_n(data_, width_ * height_, image_data);
   }
 
-  void Store(const aocommon::Image& image) override {
-    std::copy_n(image.Data(), width_ * height_, data_);
+  void Store(const float* image_data) override {
+    std::copy_n(image_data, width_ * height_, data_);
   }
 
  private:

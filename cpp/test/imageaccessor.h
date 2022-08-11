@@ -3,7 +3,6 @@
 #ifndef RADLER_TEST_IMAGE_ACCESSOR_H
 #define RADLER_TEST_IMAGE_ACCESSOR_H
 
-#include <aocommon/image.h>
 #include <aocommon/imageaccessor.h>
 
 namespace radler::test {
@@ -16,11 +15,19 @@ class DummyImageAccessor final : public aocommon::ImageAccessor {
   DummyImageAccessor() = default;
   ~DummyImageAccessor() override = default;
 
-  void Load(aocommon::Image&) const override {
+  std::size_t Width() const override {
+    throw std::logic_error("Unexpected DummyImageAccessor::Width() call");
+  }
+
+  std::size_t Height() const override {
+    throw std::logic_error("Unexpected DummyImageAccessor::Height() call");
+  }
+
+  void Load(float*) const override {
     throw std::logic_error("Unexpected DummyImageAccessor::Load() call");
   }
 
-  void Store(const aocommon::Image&) override {
+  void Store(const float*) override {
     throw std::logic_error("Unexpected DummyImageAccessor::Store() call");
   }
 };
@@ -28,21 +35,30 @@ class DummyImageAccessor final : public aocommon::ImageAccessor {
 /**
  * @brief Mimimal image accessor that only admits loading an image. Required
  * to test @c LoadAndAverage functionality.
+ *
+ * Unlike radler::utils::LoadOnlyImageAccessor, this class stores a copy of
+ * the image and remains working if the original image is destroyed.
  */
 class LoadOnlyImageAccessor final : public aocommon::ImageAccessor {
  public:
   explicit LoadOnlyImageAccessor(const aocommon::Image& image)
-      : _image(image) {}
+      : image_(image) {}
   ~LoadOnlyImageAccessor() override = default;
 
-  void Load(aocommon::Image& image) const override { image = _image; }
+  std::size_t Width() const override { return image_.Width(); }
 
-  void Store(const aocommon::Image&) override {
+  std::size_t Height() const override { return image_.Height(); }
+
+  void Load(float* image_data) const override {
+    std::copy_n(image_.Data(), image_.Size(), image_data);
+  }
+
+  void Store(const float*) override {
     throw std::logic_error("Unexpected LoadOnlyImageAccessor::Store() call");
   }
 
  private:
-  const aocommon::Image _image;
+  const aocommon::Image image_;
 };
 
 }  // namespace radler::test

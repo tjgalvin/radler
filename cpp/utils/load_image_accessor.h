@@ -37,11 +37,15 @@ class LoadOnlyImageAccessor final : public aocommon::ImageAccessor {
 
   ~LoadOnlyImageAccessor() override = default;
 
-  void Load(aocommon::Image& image) const override {
-    std::copy_n(data_, width_ * height_, image.Data());
+  size_t Width() const override { return width_; }
+
+  size_t Height() const override { return height_; }
+
+  void Load(float* image_data) const override {
+    std::copy_n(data_, width_ * height_, image_data);
   }
 
-  void Store(const aocommon::Image&) override {
+  void Store(const float*) override {
     throw std::logic_error("Unexpected LoadOnlyImageAccessor::Store() call");
   }
 
