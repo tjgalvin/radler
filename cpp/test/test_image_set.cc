@@ -30,7 +30,8 @@ struct ImageSetFixtureBase {
   }
 
   void addToImageSet(size_t outChannel, PolarizationEnum pol,
-                     size_t frequencyMHz, double imageWeight = 1.0) {
+                     size_t frequencyMHz, double imageWeight = 1.0,
+                     const Image* image = nullptr) {
     auto e = std::make_unique<WorkTableEntry>();
     e->original_channel_index = outChannel;
     e->polarization = pol;
@@ -38,8 +39,12 @@ struct ImageSetFixtureBase {
     e->band_end_frequency = frequencyMHz * 1.0e6;
     e->image_weight = imageWeight;
     e->psf_accessors.emplace_back(std::make_unique<test::DummyImageAccessor>());
-    e->model_accessor =
-        std::make_unique<test::LoadOnlyImageAccessor>(modelImage);
+    if (image) {
+      e->model_accessor =
+          std::make_unique<utils::LoadOnlyImageAccessor>(*image);
+    } else {
+      e->model_accessor = std::make_unique<test::DummyImageAccessor>();
+    }
     e->residual_accessor = std::make_unique<test::DummyImageAccessor>();
     table->AddEntry(std::move(e));
   }
@@ -57,7 +62,6 @@ struct ImageSetFixtureBase {
   }
 
   std::unique_ptr<WorkTable> table;
-  aocommon::Image modelImage;
 };
 
 template <size_t NDeconvolutionChannels>
@@ -412,13 +416,13 @@ BOOST_FIXTURE_TEST_CASE(load_and_average, ImageSetFixtureBase) {
   const size_t width = 7;
   const size_t height = 9;
   const std::vector<double> weights{4.0, 4.0, 0.0, 0.0, 1.0, 1.0};
-  Image storedImage(width, height);
+  std::vector<Image> storedImages(table->OriginalGroups().size() * nPol);
   for (size_t ch = 0; ch != table->OriginalGroups().size(); ++ch) {
     for (size_t p = 0; p != nPol; ++p) {
-      size_t index = ch * nPol + p;
-      storedImage = (1 << index);  // assign the entire image to 2^index
-      modelImage = storedImage;
-      addToImageSet(ch, pols[p], 100 + ch, weights[ch]);
+      const size_t index = ch * nPol + p;
+      // assign the entire image to 2^index
+      storedImages[index] = Image(width, height, 1 << index);
+      addToImageSet(ch, pols[p], 100 + ch, weights[ch], &storedImages[index]);
     }
   }
   const std::set<PolarizationEnum> kLinkedPolarizations{
