@@ -62,7 +62,7 @@ class ParallelDeconvolution {
   void ExecuteMajorIteration(
       ImageSet& data_image, ImageSet& model_image,
       const std::vector<std::vector<aocommon::Image>>& psf_images,
-      bool& reached_major_threshold);
+      const std::vector<PsfOffset>& psf_offsets, bool& reached_major_threshold);
 
   void FreeDeconvolutionAlgorithms() {
     algorithms_.clear();
@@ -74,7 +74,7 @@ class ParallelDeconvolution {
   void ExecuteParallelRun(
       ImageSet& data_image, ImageSet& model_image,
       const std::vector<std::vector<aocommon::Image>>& psf_images,
-      bool& reached_major_threshold);
+      const std::vector<PsfOffset>& psf_offsets, bool& reached_major_threshold);
 
   struct SubImage {
     size_t index;
@@ -94,7 +94,7 @@ class ParallelDeconvolution {
   /** @param psf_images @see @ref ImageSet::LoadAndAveragePsfs. */
   void RunSubImage(SubImage& sub_image, ImageSet& data_image,
                    const ImageSet& model_image, ImageSet& result_model,
-                   const std::vector<std::vector<aocommon::Image>>& psf_images,
+                   const std::vector<aocommon::Image>& psf_images,
                    double major_iteration_threshold, bool find_peak_only,
                    std::mutex& mutex);
 

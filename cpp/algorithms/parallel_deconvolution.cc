@@ -7,6 +7,7 @@
 
 #include <schaapcommon/fft/convolution.h>
 
+#include <algorithm>
 #include <memory>
 
 #include "algorithms/multiscale_algorithm.h"
@@ -130,10 +131,42 @@ void ParallelDeconvolution::SetSpectrallyForcedImages(
   }
 }
 
+/**
+ * Returns the nearest PSF to a selected position.
+ *
+ * When the distance is equal for multiple positions the index to the first
+ * PSF in the input is returned.
+ *
+ * @note When @a psf_offsets is empty the first index is returned. This happens
+ * when no direction-dependent PSFs are used, in that case there's always one
+ * PSF.
+ */
+[[nodiscard]] static size_t NearestPsfIndex(
+    const std::vector<PsfOffset>& psf_offsets, size_t x, size_t y) noexcept {
+  if (psf_offsets.empty()) {
+    return 0;
+  }
+
+  // Calculates the squared distance between a psf_offset and the position x, y.
+  // Note comparing squared distances is the same as comparing the real
+  // distance.
+  auto distance = [x, y](const PsfOffset& psf_offset) {
+    ssize_t delta_x = psf_offset.x - x;
+    ssize_t delta_y = psf_offset.y - y;
+    return size_t(delta_x * delta_x) + size_t(delta_y * delta_y);
+  };
+
+  return std::min_element(
+             psf_offsets.begin(), psf_offsets.end(),
+             [&distance](const PsfOffset& lhs, const PsfOffset& rhs) {
+               return distance(lhs) < distance(rhs);
+             }) -
+         psf_offsets.begin();
+}
+
 void ParallelDeconvolution::RunSubImage(
     SubImage& sub_image, ImageSet& data_image, const ImageSet& model_image,
-    ImageSet& result_model,
-    const std::vector<std::vector<aocommon::Image>>& psf_images,
+    ImageSet& result_model, const std::vector<aocommon::Image>& psf_images,
     double major_iteration_threshold, bool find_peak_only, std::mutex& mutex) {
   const size_t width = settings_.trimmed_image_width;
   const size_t height = settings_.trimmed_image_height;
@@ -155,15 +188,10 @@ void ParallelDeconvolution::RunSubImage(
         sub_image.y + sub_image.height, width, sub_image.boundary_mask.data());
   }
 
-  // The index of the nearest direction-dependent PSF, or the first when no
-  // direction-dependent PSFs are used.
-  // TODO AST-960 Implement the selection.
-  const size_t psf_image_index = 0;
-
   // Construct the smaller psfs
   std::vector<Image> sub_psfs;
-  sub_psfs.reserve(psf_images[psf_image_index].size());
-  for (const aocommon::Image& psf_image : psf_images[psf_image_index]) {
+  sub_psfs.reserve(psf_images.size());
+  for (const aocommon::Image& psf_image : psf_images) {
     sub_psfs.emplace_back(psf_image.Trim(sub_image.width, sub_image.height));
   }
   algorithms_[sub_image.index]->SetCleanMask(sub_image.mask.data());
@@ -274,12 +302,12 @@ void ParallelDeconvolution::RunSubImage(
 void ParallelDeconvolution::ExecuteMajorIteration(
     ImageSet& data_image, ImageSet& model_image,
     const std::vector<std::vector<aocommon::Image>>& psf_images,
-    bool& reached_major_threshold) {
+    const std::vector<PsfOffset>& psf_offsets, bool& reached_major_threshold) {
   if (algorithms_.size() == 1) {
     // The index of the nearest direction-dependent PSF, or the first when no
     // direction-dependent PSFs are used.
-    // TODO AST-960 Implement the selection.
-    const size_t psf_image_index = 0;
+    const size_t psf_image_index = NearestPsfIndex(
+        psf_offsets, model_image.Width() / 2, model_image.Height() / 2);
 
     aocommon::ForwardingLogReceiver fwdReceiver;
     algorithms_.front()->SetLogReceiver(fwdReceiver);
@@ -287,7 +315,7 @@ void ParallelDeconvolution::ExecuteMajorIteration(
                                                psf_images[psf_image_index],
                                                reached_major_threshold);
   } else {
-    ExecuteParallelRun(data_image, model_image, psf_images,
+    ExecuteParallelRun(data_image, model_image, psf_images, psf_offsets,
                        reached_major_threshold);
   }
 }
@@ -295,7 +323,7 @@ void ParallelDeconvolution::ExecuteMajorIteration(
 void ParallelDeconvolution::ExecuteParallelRun(
     ImageSet& data_image, ImageSet& model_image,
     const std::vector<std::vector<aocommon::Image>>& psf_images,
-    bool& reached_major_threshold) {
+    const std::vector<PsfOffset>& psf_offsets, bool& reached_major_threshold) {
   const size_t width = data_image.Width();
   const size_t height = data_image.Height();
   const size_t avgHSubImageSize = width / settings_.parallel.grid_width;
@@ -351,6 +379,9 @@ void ParallelDeconvolution::ExecuteParallelRun(
   // Find the bounding boxes and clean masks for each subimage
   aocommon::UVector<bool> mask(width * height);
   std::vector<SubImage> subImages;
+  // The index with the nearest psf_images for all subimages.
+  std::vector<size_t> psf_image_indices;
+
   for (size_t y = 0; y != settings_.parallel.grid_height; ++y) {
     const size_t midY =
         y * height / settings_.parallel.grid_height + avgVSubImageSize / 2;
@@ -384,6 +415,9 @@ void ParallelDeconvolution::ExecuteParallelRun(
           subImage.mask[i] = subImage.mask[i] && mask[i];
         }
       }
+      psf_image_indices.emplace_back(
+          NearestPsfIndex(psf_offsets, subImage.x + subImage.width / 2,
+                          subImage.y + subImage.height / 2));
     }
   }
   verticalAreas.clear();
@@ -403,7 +437,7 @@ void ParallelDeconvolution::ExecuteParallelRun(
   loop.Run(0, algorithms_.size(), [&](size_t index) {
     logs_.Activate(index);
     RunSubImage(subImages[index], data_image, model_image, resultModel,
-                psf_images, 0.0, true, mutex);
+                psf_images[psf_image_indices[index]], 0.0, true, mutex);
     logs_.Deactivate(index);
 
     logs_[index].Mute(false);
@@ -426,7 +460,8 @@ void ParallelDeconvolution::ExecuteParallelRun(
   loop.Run(0, algorithms_.size(), [&](size_t index) {
     logs_.Activate(index);
     RunSubImage(subImages[index], data_image, model_image, resultModel,
-                psf_images, mIterThreshold, false, mutex);
+                psf_images[psf_image_indices[index]], mIterThreshold, false,
+                mutex);
     logs_.Deactivate(index);
 
     logs_[index].Mute(false);

@@ -248,7 +248,8 @@ void Radler::Perform(bool& reached_major_threshold,
   }
 
   parallel_deconvolution_->ExecuteMajorIteration(
-      residual_set, model_set, psf_images, reached_major_threshold);
+      residual_set, model_set, psf_images, table_->PsfOffsets(),
+      reached_major_threshold);
 
   if (!reached_major_threshold && settings_.auto_mask_sigma &&
       !auto_mask_is_finished_) {
