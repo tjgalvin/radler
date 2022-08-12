@@ -1,27 +1,21 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
-include(${PROJECT_SOURCE_DIR}/cmake/unittest.cmake)
-include_directories(${CMAKE_BINARY_DIR})
-
-add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY)
+include(unittest)
 
 ExternalProject_Add(
   download_test_data
   URL https://support.astron.nl/software/ci_data/radler/mwa-vela.tar.bz2
   URL_HASH
     SHA256=96fae8f905e5a810e74cc373d31738d207eb5a79df02417bdb3cf61e6a34f5a7
-  SOURCE_DIR ${DATA_DIR}
+  SOURCE_DIR ${TEST_DATA_DIR}
   CONFIGURE_COMMAND ""
   BUILD_COMMAND ""
   INSTALL_COMMAND "")
 
 # The variables below are used in test_config.h
-set(VELA_PSF_PATH
-    ${DATA_DIR}/wsclean-psf.fits
-    PARENT_SCOPE)
-set(VELA_DIRTY_IMAGE_PATH
-    ${DATA_DIR}/wsclean-dirty.fits
-    PARENT_SCOPE)
+set(VELA_PSF_PATH ${TEST_DATA_DIR}/wsclean-psf.fits)
+set(VELA_DIRTY_IMAGE_PATH ${TEST_DATA_DIR}/wsclean-dirty.fits)
+configure_file(test_config.h.in test_config.h)
 
 add_unittest(
   radler_main
@@ -31,3 +25,7 @@ add_unittest(
   test_psf_offset.cc
   test_radler.cc
   test_work_table.cc)
+
+# Ensure that test_config.h can be found.
+target_include_directories(unittests_radler_main
+                           PRIVATE ${CMAKE_CURRENT_BINARY_DIR})

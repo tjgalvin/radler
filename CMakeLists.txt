@@ -198,16 +198,13 @@ if(NOT ${COMPILE_AS_EXTERNAL_PROJECT} AND ${BUILD_TESTING})
     REQUIRED)
 
   # Set up a test_data directory in the cpp/test directory.
-  set(DATA_DIR ${CMAKE_BINARY_DIR}/cpp/test/test_data)
-  file(MAKE_DIRECTORY ${DATA_DIR})
+  set(TEST_DATA_DIR ${CMAKE_BINARY_DIR}/cpp/test/test_data)
+  file(MAKE_DIRECTORY ${TEST_DATA_DIR})
 
   add_subdirectory(cpp/test)
   add_subdirectory(cpp/algorithms/test)
   add_subdirectory(cpp/math/test)
-  # ------------------------------------------------------------------------------
-  # Generate test_config.h header
-  configure_file(${CMAKE_SOURCE_DIR}/cmake/config/test_config.h.in
-                 ${CMAKE_BINARY_DIR}/test_config.h)
+  add_subdirectory(cpp/utils/test)
 
   if(BUILD_PYTHON_BINDINGS)
     add_subdirectory(python/test)

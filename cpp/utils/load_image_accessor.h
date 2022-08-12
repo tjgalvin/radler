@@ -27,7 +27,7 @@ namespace radler::utils {
  */
 class LoadOnlyImageAccessor final : public aocommon::ImageAccessor {
  public:
-  LoadOnlyImageAccessor(const aocommon::Image& image)
+  explicit LoadOnlyImageAccessor(const aocommon::Image& image)
       : data_(image.Data()), width_(image.Width()), height_(image.Height()) {}
 
   LoadOnlyImageAccessor(const LoadOnlyImageAccessor&) = delete;

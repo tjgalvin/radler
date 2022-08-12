@@ -26,7 +26,7 @@ namespace radler::utils {
  */
 class LoadAndStoreImageAccessor final : public aocommon::ImageAccessor {
  public:
-  LoadAndStoreImageAccessor(aocommon::Image& image)
+  explicit LoadAndStoreImageAccessor(aocommon::Image& image)
       : data_(image.Data()), width_(image.Width()), height_(image.Height()) {}
 
   LoadAndStoreImageAccessor(const LoadAndStoreImageAccessor&) = delete;
