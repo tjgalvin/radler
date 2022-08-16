@@ -136,33 +136,36 @@ void ImageSet::LoadAndAverage(bool use_residual_image) {
 }
 
 std::vector<std::vector<aocommon::Image>> ImageSet::LoadAndAveragePsfs() {
-  const size_t image_size = Width() * Height();
-
   std::vector<std::vector<aocommon::Image>> result;
 
-  // Determine maximum size needed for the scratch buffer.
+  // The PSF accessor vectors in each group should have equal shapes:
+  // - The number of PSFs should be equal.
+  // - For a given index, psf_accessors[index] should have the same size in
+  //   a group. For different indices, psf sizes may differ.
+  // -> Use first vector for the PSF count and PSF sizes.
+  const std::vector<std::unique_ptr<aocommon::ImageAccessor>>&
+      first_psf_accessors = work_table_.Front().psf_accessors;
+
   size_t scratch_size = 0;
-  for (const WorkTable::Group& channel_group : work_table_.OriginalGroups()) {
-    for (const std::unique_ptr<aocommon::ImageAccessor>& psf_accessor :
-         channel_group.front()->psf_accessors) {
-      scratch_size = std::max(scratch_size,
-                              psf_accessor->Width() * psf_accessor->Height());
-    }
+  for (const std::unique_ptr<aocommon::ImageAccessor>& psf_accessor :
+       first_psf_accessors) {
+    scratch_size =
+        std::max(scratch_size, psf_accessor->Width() * psf_accessor->Height());
   }
 
   aocommon::UVector<float> scratch(scratch_size);
 
-  // When there's no direction-dependent PSF, work_table_.PsfOffsets() is
-  // empty. In that case the first PSF of the WorkTableEntry still needs to be
-  // processed.
-
   // The index of the PSF in the WorkTableEntry PSF vector being processed.
-  size_t psf_index = 0;
-  do {
+  for (size_t psf_index = 0; psf_index != first_psf_accessors.size();
+       ++psf_index) {
+    const size_t psf_width = first_psf_accessors[psf_index]->Width();
+    const size_t psf_height = first_psf_accessors[psf_index]->Height();
+    const size_t psf_size = psf_width * psf_height;
+
     std::vector<aocommon::Image>& psf_images = result.emplace_back();
     psf_images.reserve(NDeconvolutionChannels());
     for (size_t i = 0; i < NDeconvolutionChannels(); ++i) {
-      psf_images.emplace_back(Width(), Height(), 0.0);
+      psf_images.emplace_back(psf_width, psf_height, 0.0);
     }
 
     aocommon::UVector<double> averaged_weights(NDeconvolutionChannels(), 0.0);
@@ -174,8 +177,12 @@ std::vector<std::vector<aocommon::Image>> ImageSet::LoadAndAveragePsfs() {
           work_table_.OriginalGroups()[group_index];
       const WorkTableEntry& entry = *channel_group.front();
       const double input_channel_weight = entry.image_weight;
-      entry.psf_accessors[psf_index]->Load(scratch.data());
-      for (size_t i = 0; i != image_size; ++i) {
+      const aocommon::ImageAccessor& psf_accessor =
+          *entry.psf_accessors[psf_index];
+      assert(psf_accessor.Width() == psf_width);
+      assert(psf_accessor.Height() == psf_height);
+      psf_accessor.Load(scratch.data());
+      for (size_t i = 0; i != psf_size; ++i) {
         psf_images[channel_index][i] += scratch[i] * input_channel_weight;
       }
       averaged_weights[channel_index] += input_channel_weight;
@@ -186,12 +193,11 @@ std::vector<std::vector<aocommon::Image>> ImageSet::LoadAndAveragePsfs() {
       const double factor = averaged_weights[channel_index] == 0.0
                                 ? 0.0
                                 : 1.0 / averaged_weights[channel_index];
-      for (size_t i = 0; i != image_size; ++i) {
+      for (size_t i = 0; i != psf_size; ++i) {
         psf_images[channel_index][i] *= factor;
       }
     }
-    ++psf_index;
-  } while (psf_index < work_table_.PsfOffsets().size());
+  }
 
   return result;
 }

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
-#include "algorithms/parallel_deconvolution.h"
+#include "parallel_deconvolution.h"
+
+#include <algorithm>
+#include <memory>
 
 #include <aocommon/parallelfor.h>
 #include <aocommon/units/fluxdensity.h>
 
 #include <schaapcommon/fft/convolution.h>
-
-#include <algorithm>
-#include <memory>
 
 #include "algorithms/multiscale_algorithm.h"
 #include "math/dijkstra_splitter.h"
@@ -192,7 +192,10 @@ void ParallelDeconvolution::RunSubImage(
   std::vector<Image> sub_psfs;
   sub_psfs.reserve(psf_images.size());
   for (const aocommon::Image& psf_image : psf_images) {
-    sub_psfs.emplace_back(psf_image.Trim(sub_image.width, sub_image.height));
+    // The PSF is smaller than the sub image when using a fine grained
+    // direction-dependent(DD) PSF grid. It is larger than the subimage when
+    // using a coarse grained DD PSF grid. Resize supports both cases.
+    sub_psfs.emplace_back(psf_image.Resize(sub_image.width, sub_image.height));
   }
   algorithms_[sub_image.index]->SetCleanMask(sub_image.mask.data());
 
@@ -311,9 +314,31 @@ void ParallelDeconvolution::ExecuteMajorIteration(
 
     aocommon::ForwardingLogReceiver fwdReceiver;
     algorithms_.front()->SetLogReceiver(fwdReceiver);
-    algorithms_.front()->ExecuteMajorIteration(data_image, model_image,
-                                               psf_images[psf_image_index],
-                                               reached_major_threshold);
+
+    // When using direction-dependent PSFs, the PSFs may have a different size.
+    // All PSF images for a psf_image_index should have equal sizes.
+    const aocommon::Image& first_psf_image =
+        psf_images[psf_image_index].front();
+    const bool resize_psfs = first_psf_image.Width() != data_image.Width() ||
+                             first_psf_image.Height() != data_image.Height();
+
+    if (!resize_psfs) {
+      algorithms_.front()->ExecuteMajorIteration(data_image, model_image,
+                                                 psf_images[psf_image_index],
+                                                 reached_major_threshold);
+    } else {
+      // When using direction-dependent PSFs, the PSFs can only be smaller.
+      assert(first_psf_image.Width() <= data_image.Width());
+      assert(first_psf_image.Height() <= data_image.Height());
+      std::vector<aocommon::Image> resized_psf_images;
+      resized_psf_images.reserve(psf_images[psf_image_index].size());
+      for (const aocommon::Image& psf_image : psf_images[psf_image_index]) {
+        resized_psf_images.push_back(
+            psf_image.Untrim(data_image.Width(), data_image.Height()));
+      }
+      algorithms_.front()->ExecuteMajorIteration(
+          data_image, model_image, resized_psf_images, reached_major_threshold);
+    }
   } else {
     ExecuteParallelRun(data_image, model_image, psf_images, psf_offsets,
                        reached_major_threshold);
