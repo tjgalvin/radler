@@ -75,6 +75,17 @@ struct ImageSetFixture : public ImageSetFixtureBase {
   }
 };
 
+static void CompareImages(const aocommon::Image& left,
+                          const aocommon::Image& right) {
+  BOOST_REQUIRE(left.Width() == right.Width());
+  BOOST_REQUIRE(left.Height() == right.Height());
+  // In the current tests, exact comparisons of the floating point values work,
+  // even though Radler does some computations (averaging).
+  // In the future, this check can use BOOST_CHECK_CLOSE if needed.
+  BOOST_CHECK_EQUAL_COLLECTIONS(left.begin(), left.end(), right.begin(),
+                                right.end());
+}
+
 BOOST_AUTO_TEST_SUITE(imageset)
 
 BOOST_FIXTURE_TEST_CASE(constructor_1, ImageSetFixture<1>) {
@@ -458,6 +469,147 @@ BOOST_FIXTURE_TEST_CASE(load_and_average, ImageSetFixtureBase) {
       1e-6);
 
   BOOST_CHECK_THROW(imageSet.LoadAndAverage(true), std::logic_error);
+}
+
+struct PsfFixture {
+  void AddEntry(const std::vector<aocommon::Image>& psf_images,
+                const double weight = 1.0, const size_t channel_index = 0) {
+    auto entry = std::make_unique<WorkTableEntry>();
+    entry->original_channel_index = channel_index;
+    entry->image_weight = weight;
+    for (const aocommon::Image& image : psf_images) {
+      entry->psf_accessors.emplace_back(
+          std::make_unique<utils::LoadOnlyImageAccessor>(image));
+    }
+    entry->model_accessor = std::make_unique<test::DummyImageAccessor>();
+    entry->residual_accessor = std::make_unique<test::DummyImageAccessor>();
+    table->AddEntry(std::move(entry));
+  }
+
+  std::vector<std::vector<aocommon::Image>> LoadAndAveragePsfs() const {
+    const ImageSet image_set(*table, false, {}, 0, 0);
+    return image_set.LoadAndAveragePsfs();
+  }
+
+  static constexpr size_t kWidth = 6;
+  static constexpr size_t kHeight = 4;
+
+  std::unique_ptr<WorkTable> table;
+};
+
+BOOST_FIXTURE_TEST_CASE(load_average_psfs_multiple_psfs, PsfFixture) {
+  constexpr size_t kNPsfs = 3;
+  constexpr size_t kNChannelsIn = 1;
+  constexpr size_t kNChannelsOut = 1;
+
+  std::vector<aocommon::Image> psf_images;
+
+  psf_images.emplace_back(kWidth, kHeight);
+  psf_images.emplace_back(kWidth + 1, kHeight + 1);
+  psf_images.emplace_back(kWidth + 2, kHeight + 2);
+  for (size_t i = 0; i < psf_images[0].Size(); ++i) {
+    psf_images[0][i] = 42 + i;
+  }
+  for (size_t i = 0; i < psf_images[1].Size(); ++i) {
+    psf_images[1][i] = 142 + i;
+  }
+  for (size_t i = 0; i < psf_images[2].Size(); ++i) {
+    psf_images[2][i] = 242 + i;
+  }
+
+  // Using a weight of 3.0 should result in equal images, since each result
+  // is still the 'average' of a single PSF image.
+  table = std::make_unique<WorkTable>(std::vector<PsfOffset>(kNPsfs),
+                                      kNChannelsIn, kNChannelsOut);
+  AddEntry(psf_images, 3.0);
+  std::vector<std::vector<aocommon::Image>> psfs = LoadAndAveragePsfs();
+
+  BOOST_REQUIRE(psfs.size() == kNPsfs);
+  for (size_t i = 0; i < kNPsfs; ++i) {
+    BOOST_REQUIRE(psfs[i].size() == 1);
+    CompareImages(psfs[i][0], psf_images[i]);
+  }
+}
+
+BOOST_FIXTURE_TEST_CASE(load_average_psfs_multiple_channels, PsfFixture) {
+  constexpr double kValue0 = 2.0;
+  constexpr double kValue1 = 5.0;
+  constexpr double kWeight0 = 2.0;
+  constexpr double kWeight1 = 1.0;
+  constexpr double kExpectedValue =
+      (kValue0 * kWeight0 + kValue1 * kWeight1) / (kWeight0 + kWeight1);
+  constexpr size_t kNChannelsIn = 2;
+
+  std::vector<aocommon::Image> psf_images_0;
+  std::vector<aocommon::Image> psf_images_1;
+  aocommon::Image& psf_image_0 =
+      psf_images_0.emplace_back(kWidth, kHeight, kValue0);
+  aocommon::Image& psf_image_1 =
+      psf_images_1.emplace_back(kWidth, kHeight, kValue1);
+
+  {  // Average two channels into one.
+    constexpr size_t kNChannelsOut = 1;
+    const aocommon::Image kExpectedImage(kWidth, kHeight, kExpectedValue);
+    table = std::make_unique<WorkTable>(std::vector<PsfOffset>(), kNChannelsIn,
+                                        kNChannelsOut);
+    AddEntry(psf_images_0, kWeight0, 0);
+    AddEntry(psf_images_1, kWeight1, 1);
+    std::vector<std::vector<aocommon::Image>> psfs = LoadAndAveragePsfs();
+    BOOST_REQUIRE(psfs.size() == 1);
+    BOOST_REQUIRE(psfs[0].size() == 1);
+    CompareImages(psfs[0][0], kExpectedImage);
+  }
+
+  {  // Keep two separate channels, without averaging.
+    constexpr size_t kNChannelsOut = 2;
+    table = std::make_unique<WorkTable>(std::vector<PsfOffset>(), kNChannelsIn,
+                                        kNChannelsOut);
+    AddEntry(psf_images_0, kWeight0, 0);
+    AddEntry(psf_images_1, kWeight1, 1);
+    std::vector<std::vector<aocommon::Image>> psfs = LoadAndAveragePsfs();
+    BOOST_REQUIRE(psfs.size() == 1);
+    BOOST_REQUIRE(psfs[0].size() == 2);
+    CompareImages(psfs[0][0], psf_image_0);
+    CompareImages(psfs[0][1], psf_image_1);
+  }
+}
+
+BOOST_FIXTURE_TEST_CASE(load_average_psfs_multiple_psf_and_channels,
+                        PsfFixture) {
+  constexpr double kPsf0Value0 = 2.0;
+  constexpr double kPsf0Value1 = 5.0;
+  constexpr double kWeight0 = 10.0;
+  constexpr double kWeight1 = 20.0;
+  constexpr double kPsf0ExpectedValue =
+      (kPsf0Value0 * kWeight0 + kPsf0Value1 * kWeight1) / (kWeight0 + kWeight1);
+  constexpr double kPsf1Adjustment = 10.0;
+  constexpr double kPsf1Value0 = kPsf0Value0 + kPsf1Adjustment;
+  constexpr double kPsf1Value1 = kPsf0Value1 + kPsf1Adjustment;
+  constexpr double kPsf1ExpectedValue = kPsf0ExpectedValue + kPsf1Adjustment;
+  constexpr size_t kNPsfs = 2;
+  constexpr size_t kNChannelsIn = 2;
+  constexpr size_t kNChannelsOut = 1;
+
+  std::vector<aocommon::Image> psf_images_0;
+  std::vector<aocommon::Image> psf_images_1;
+  psf_images_0.emplace_back(kWidth, kHeight, kPsf0Value0);
+  psf_images_0.emplace_back(kWidth - 1, kHeight - 1, kPsf1Value0);
+  psf_images_1.emplace_back(kWidth, kHeight, kPsf0Value1);
+  psf_images_1.emplace_back(kWidth - 1, kHeight - 1, kPsf1Value1);
+  const aocommon::Image kExpectedImage0(kWidth, kHeight, kPsf0ExpectedValue);
+  const aocommon::Image kExpectedImage1(kWidth - 1, kHeight - 1,
+                                        kPsf1ExpectedValue);
+
+  table = std::make_unique<WorkTable>(std::vector<PsfOffset>(kNPsfs),
+                                      kNChannelsIn, kNChannelsOut);
+  AddEntry(psf_images_0, kWeight0, 0);
+  AddEntry(psf_images_1, kWeight1, 1);
+  std::vector<std::vector<aocommon::Image>> psfs = LoadAndAveragePsfs();
+  BOOST_REQUIRE(psfs.size() == kNPsfs);
+  BOOST_REQUIRE(psfs[0].size() == 1);
+  BOOST_REQUIRE(psfs[1].size() == 1);
+  CompareImages(psfs[0][0], kExpectedImage0);
+  CompareImages(psfs[1][0], kExpectedImage1);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

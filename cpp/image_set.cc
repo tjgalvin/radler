@@ -135,7 +135,8 @@ void ImageSet::LoadAndAverage(bool use_residual_image) {
   }
 }
 
-std::vector<std::vector<aocommon::Image>> ImageSet::LoadAndAveragePsfs() {
+[[nodiscard]] std::vector<std::vector<aocommon::Image>>
+ImageSet::LoadAndAveragePsfs() const {
   std::vector<std::vector<aocommon::Image>> result;
 
   // The PSF accessor vectors in each group should have equal shapes:
