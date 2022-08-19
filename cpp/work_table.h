@@ -142,8 +142,12 @@ class WorkTable {
     return psf_offsets_;
   }
 
-  /** Validates the invariant of @ref psf_offsets_. */
-  void ValidatePsfOffsets() const;
+  /**
+   * Validates the invariant for @ref psf_offsets_ and the
+   * @ref WorkTableEntry::psf_accessors in @ref entries_.
+   * @throw std::runtime_error If the worktable is incorrect.
+   */
+  void ValidatePsfs() const;
 
  private:
   Entries entries_;
@@ -157,7 +161,7 @@ class WorkTable {
    * accessors shall be equal to the number of elements of this vector, or
    * shall be 1 when no direction-dependant PSF is used.  When the
    * deconvolution is executed this invariant shall be valid. This is validated
-   * by @ref ValidatePsfOffsets when calling @ref Radler::Perform.
+   * by @ref ValidatePsfs when calling @ref Radler::Perform.
    */
   std::vector<PsfOffset> psf_offsets_;
 

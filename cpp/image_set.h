@@ -79,7 +79,7 @@ class ImageSet {
    * match the LoadAndAveragePsfs()[1] will contain the PSFs for the underlying
    * algorithm.
    *
-   * @pre @c work_table_.ValidatePSF() can be called without throwing.
+   * @pre @c work_table_.ValidatePsfs() can be called without throwing.
    */
   std::vector<std::vector<aocommon::Image>> LoadAndAveragePsfs();
 

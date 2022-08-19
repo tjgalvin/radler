@@ -131,7 +131,7 @@ const algorithms::DeconvolutionAlgorithm& Radler::MaxScaleCountAlgorithm()
 void Radler::Perform(bool& reached_major_threshold,
                      size_t major_iteration_number) {
   assert(table_);
-  table_->ValidatePsfOffsets();
+  table_->ValidatePsfs();
 
   Logger::Info.Flush();
   Logger::Info << " == Deconvolving (" << major_iteration_number << ") ==\n";

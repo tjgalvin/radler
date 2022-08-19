@@ -10,6 +10,31 @@
 
 namespace radler {
 
+namespace {
+/**
+ * Helper class for testing ValidatePsfs(), which should only use the Width()
+ * and Height() members of the ImageAccessors for the PSF images.
+ */
+class SizeOnlyAccessor : public aocommon::ImageAccessor {
+ public:
+  explicit SizeOnlyAccessor(const size_t width, const size_t height)
+      : width_(width), height_(height) {}
+
+  size_t Width() const override { return width_; }
+  size_t Height() const override { return height_; }
+  void Load(float*) const override {
+    BOOST_FAIL("Unexpected SizeOnlyAccessor::Load call");
+  }
+  void Store(const float*) override {
+    BOOST_FAIL("Unexpected SizeOnlyAccessor::Store call");
+  }
+
+ private:
+  size_t width_;
+  size_t height_;
+};
+}  // namespace
+
 BOOST_AUTO_TEST_SUITE(work_table)
 
 BOOST_AUTO_TEST_CASE(constructor) {
@@ -158,55 +183,183 @@ Channel index         0
 )");
 }
 
-BOOST_AUTO_TEST_CASE(validate_psf_offsets_valid) {
-  {
-    const WorkTable table({}, 1, 1);
-    // Valid since there are no entries.
-    table.ValidatePsfOffsets();
-  }
+BOOST_AUTO_TEST_CASE(validate_psfs_valid_no_entries) {
+  const WorkTable table({}, 1, 1);
+  // Valid since there are no entries.
+  table.ValidatePsfs();
+}
+
+BOOST_AUTO_TEST_CASE(validate_psfs_valid_single_entry) {
   {
     WorkTable table({PsfOffset{1, 1}}, 1, 1);
     auto entry = std::make_unique<WorkTableEntry>(
         WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
                        aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234});
-    entry->psf_accessors.emplace_back(nullptr);
+    entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(4, 6));
     table.AddEntry(std::move(entry));
-    table.ValidatePsfOffsets();
+    table.ValidatePsfs();
   }
-  for (int entries = 2; entries < 10; ++entries) {
-    WorkTable table(std::vector<PsfOffset>(entries), 1, 1);
+  for (int n_psfs = 2; n_psfs < 10; ++n_psfs) {
+    WorkTable table(std::vector<PsfOffset>(n_psfs), 1, 1);
     auto entry = std::make_unique<WorkTableEntry>(
         WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
                        aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234});
 
-    for (int i = 0; i < entries; ++i) {
-      entry->psf_accessors.emplace_back(nullptr);
+    for (int i = 0; i < n_psfs; ++i) {
+      entry->psf_accessors.emplace_back(
+          std::make_unique<SizeOnlyAccessor>(4 + i, 6));
     }
     table.AddEntry(std::move(entry));
 
-    table.ValidatePsfOffsets();
+    table.ValidatePsfs();
   }
 }
 
-BOOST_AUTO_TEST_CASE(validate_psf_offsets_invalid) {
-  {  // Test with too few psf accessors.
-    WorkTable table({}, 1, 1);
-    table.AddEntry(std::make_unique<WorkTableEntry>(
-        WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
-                       aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234}));
+BOOST_AUTO_TEST_CASE(validate_psfs_valid_multiple_entries) {
+  const size_t kNChannels = 3;
+  const size_t kNPsfs = 2;
+  const size_t kWidth = 42;
+  const size_t kHeight = 43;
 
-    BOOST_CHECK_THROW(table.ValidatePsfOffsets(), std::runtime_error);
+  WorkTable table(std::vector<PsfOffset>(kNPsfs), kNChannels, kNChannels);
+
+  for (size_t ch = 0; ch < kNChannels; ch++) {
+    auto i_entry = std::make_unique<WorkTableEntry>();
+    i_entry->polarization = aocommon::PolarizationEnum::StokesI;
+    i_entry->original_channel_index = ch;
+    for (size_t psf_index = 0; psf_index < kNPsfs; ++psf_index) {
+      i_entry->psf_accessors.emplace_back(
+          std::make_unique<SizeOnlyAccessor>(kWidth, kHeight));
+    }
+    table.AddEntry(std::move(i_entry));
+
+    auto q_entry = std::make_unique<WorkTableEntry>();
+    q_entry->polarization = aocommon::PolarizationEnum::StokesQ;
+    q_entry->original_channel_index = ch;
+    // Do not add PSF accessor
+    table.AddEntry(std::move(q_entry));
+
+    auto u_entry = std::make_unique<WorkTableEntry>();
+    u_entry->polarization = aocommon::PolarizationEnum::StokesU;
+    u_entry->original_channel_index = ch;
+    // Do not add PSF accessor
+    table.AddEntry(std::move(u_entry));
   }
-  {  // Test with too many psf accessors.
-    WorkTable table({PsfOffset{1, 1}}, 1, 1);
-    auto entry = std::make_unique<WorkTableEntry>(
-        WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
-                       aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234});
-    entry->psf_accessors.emplace_back(nullptr);
-    entry->psf_accessors.emplace_back(nullptr);
-    table.AddEntry(std::move(entry));
-    BOOST_CHECK_THROW(table.ValidatePsfOffsets(), std::runtime_error);
-  }
+  BOOST_CHECK_NO_THROW(table.ValidatePsfs());
+}
+
+BOOST_AUTO_TEST_CASE(validate_psfs_too_few_accessors) {
+  WorkTable table({}, 1, 1);
+  table.AddEntry(std::make_unique<WorkTableEntry>(
+      WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
+                     aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234}));
+
+  BOOST_CHECK_THROW(table.ValidatePsfs(), std::runtime_error);
+}
+
+BOOST_AUTO_TEST_CASE(validate_psfs_too_many_accessors) {
+  WorkTable table({PsfOffset{1, 1}}, 1, 1);
+  auto entry = std::make_unique<WorkTableEntry>(
+      WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
+                     aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234});
+  entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(4, 5));
+  entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(6, 7));
+  table.AddEntry(std::move(entry));
+  BOOST_CHECK_THROW(table.ValidatePsfs(), std::runtime_error);
+}
+
+BOOST_AUTO_TEST_CASE(validate_psfs_zero_width) {
+  WorkTable table({}, 1, 1);
+  auto entry = std::make_unique<WorkTableEntry>();
+  entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(0, 5));
+  table.AddEntry(std::move(entry));
+  BOOST_CHECK_THROW(table.ValidatePsfs(), std::runtime_error);
+}
+
+BOOST_AUTO_TEST_CASE(validate_psfs_zero_height) {
+  WorkTable table({}, 1, 1);
+  auto entry = std::make_unique<WorkTableEntry>();
+  entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(4, 0));
+  table.AddEntry(std::move(entry));
+  BOOST_CHECK_THROW(table.ValidatePsfs(), std::runtime_error);
+}
+
+BOOST_AUTO_TEST_CASE(validate_psfs_second_group_without_accessors) {
+  WorkTable table({}, 2, 1);
+
+  auto entry = std::make_unique<WorkTableEntry>();
+  entry->original_channel_index = 0;
+  entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(4, 5));
+  table.AddEntry(std::move(entry));
+
+  entry = std::make_unique<WorkTableEntry>();
+  entry->original_channel_index = 1;
+  table.AddEntry(std::move(entry));
+
+  BOOST_CHECK_THROW(table.ValidatePsfs(), std::runtime_error);
+}
+
+BOOST_AUTO_TEST_CASE(validate_psfs_second_group_with_too_many_accessors) {
+  WorkTable table({}, 2, 1);
+
+  auto entry = std::make_unique<WorkTableEntry>();
+  entry->original_channel_index = 0;
+  entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(4, 5));
+  table.AddEntry(std::move(entry));
+
+  entry = std::make_unique<WorkTableEntry>();
+  entry->original_channel_index = 1;
+  entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(4, 5));
+  entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(4, 5));
+  table.AddEntry(std::move(entry));
+
+  BOOST_CHECK_THROW(table.ValidatePsfs(), std::runtime_error);
+}
+
+BOOST_AUTO_TEST_CASE(validate_psfs_two_groups_incorrect_width) {
+  WorkTable table({}, 2, 1);
+
+  auto entry = std::make_unique<WorkTableEntry>();
+  entry->original_channel_index = 0;
+  entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(4, 5));
+  table.AddEntry(std::move(entry));
+
+  entry = std::make_unique<WorkTableEntry>();
+  entry->original_channel_index = 1;
+  entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(10, 5));
+  table.AddEntry(std::move(entry));
+
+  BOOST_CHECK_THROW(table.ValidatePsfs(), std::runtime_error);
+}
+
+BOOST_AUTO_TEST_CASE(validate_psfs_two_groups_incorrect_height) {
+  WorkTable table({}, 2, 1);
+
+  auto entry = std::make_unique<WorkTableEntry>();
+  entry->original_channel_index = 0;
+  entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(4, 5));
+  table.AddEntry(std::move(entry));
+
+  entry = std::make_unique<WorkTableEntry>();
+  entry->original_channel_index = 1;
+  entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(4, 10));
+  table.AddEntry(std::move(entry));
+
+  BOOST_CHECK_THROW(table.ValidatePsfs(), std::runtime_error);
+}
+
+BOOST_AUTO_TEST_CASE(validate_psfs_single_group_second_entry_has_accessors) {
+  WorkTable table({}, 1, 1);
+
+  auto entry = std::make_unique<WorkTableEntry>();
+  entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(4, 5));
+  table.AddEntry(std::move(entry));
+
+  entry = std::make_unique<WorkTableEntry>();
+  entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(4, 5));
+  table.AddEntry(std::move(entry));
+
+  BOOST_CHECK_THROW(table.ValidatePsfs(), std::runtime_error);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
