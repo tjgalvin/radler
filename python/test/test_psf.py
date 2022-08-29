@@ -53,7 +53,9 @@ def check_values(current_psf, residual, psf_center, source_coords):
     # Since the point source does not lie in the center of the region (a random shift is applied), the PSF and the residual need to be aligned to have a shape match
 
     # Select the region in the residual image (one of the 9 in the grid) corresponding to the input PSF coordinates
-    subimage_residual = get_subimage(psf_center[0], psf_center[1], 15, residual)
+    subimage_residual = get_subimage(
+        psf_center[0], psf_center[1], 15, residual
+    )
 
     # Select a 10x10 region centered around the point source
     subimage_residual_centered = get_subimage(
@@ -76,7 +78,9 @@ def check_values(current_psf, residual, psf_center, source_coords):
 
     # After its value is checked, we can reset the center point to 0 to make the next check easier
     combined[5, 5] = 0
-    np.testing.assert_allclose(combined, np.zeros_like(combined), rtol=1e-6, atol=1e-6)
+    np.testing.assert_allclose(
+        combined, np.zeros_like(combined), rtol=1e-6, atol=1e-6
+    )
 
 
 def test_direction_dependent_psfs():
@@ -114,22 +118,30 @@ def test_direction_dependent_psfs():
 
     entry = rd.WorkTableEntry()
     direction_dependent_psfs = []
-    direction_dependent_psfs.append(get_psf_rectangular(psf_size, w2, w2))  # Square
+    direction_dependent_psfs.append(
+        get_psf_rectangular(psf_size, w2, w2)
+    )  # Square
     direction_dependent_psfs.append(
         get_psf_cross(psf_size, w2, w2)
     )  # Symmetrical cross
-    direction_dependent_psfs.append(get_psf_cross(psf_size, w1, w3))  # Horizontal cross
+    direction_dependent_psfs.append(
+        get_psf_cross(psf_size, w1, w3)
+    )  # Horizontal cross
     direction_dependent_psfs.append(
         get_psf_rectangular(psf_size, w2, 0)
     )  # Vertical line
-    direction_dependent_psfs.append(get_psf_cross(psf_size, w3, w1))  # Vertical cross
+    direction_dependent_psfs.append(
+        get_psf_cross(psf_size, w3, w1)
+    )  # Vertical cross
     direction_dependent_psfs.append(
         get_psf_rectangular(psf_size, w2, w1)
     )  # Vertical rectangle
     direction_dependent_psfs.append(
         get_psf_rectangular(psf_size, 0, w2)
     )  # Horizontal line
-    direction_dependent_psfs.append(get_psf_rectangular(psf_size, 0, 0))  # Point
+    direction_dependent_psfs.append(
+        get_psf_rectangular(psf_size, 0, 0)
+    )  # Point
     direction_dependent_psfs.append(
         get_psf_rectangular(psf_size, w1, w2)
     )  # Horizontal rectangle

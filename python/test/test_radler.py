@@ -17,7 +17,9 @@ MINOR_ITERATION_COUNT = 1000
 def radler_perform(radler_object: rd.Radler, minor_iteration_count: int):
     reached_threshold = False
     iteration_number = 0
-    reached_threshold = radler_object.perform(reached_threshold, iteration_number)
+    reached_threshold = radler_object.perform(
+        reached_threshold, iteration_number
+    )
     assert reached_threshold == False
     assert radler_object.iteration_number <= minor_iteration_count
 
@@ -181,13 +183,21 @@ def test_matching_arrays(settings):
             weights=multi_dimension_weight,
         )
 
-    nonmatching_images = np.zeros((3, WIDTH + 42, HEIGHT + 42), dtype=np.float32)
+    nonmatching_images = np.zeros(
+        (3, WIDTH + 42, HEIGHT + 42), dtype=np.float32
+    )
     with pytest.raises(RuntimeError):
-        rd.Radler(settings, valid_images, valid_images, nonmatching_images, BEAM_SIZE)
+        rd.Radler(
+            settings, valid_images, valid_images, nonmatching_images, BEAM_SIZE
+        )
     with pytest.raises(RuntimeError):
-        rd.Radler(settings, valid_images, nonmatching_images, valid_images, BEAM_SIZE)
+        rd.Radler(
+            settings, valid_images, nonmatching_images, valid_images, BEAM_SIZE
+        )
     with pytest.raises(RuntimeError):
-        rd.Radler(settings, nonmatching_images, valid_images, valid_images, BEAM_SIZE)
+        rd.Radler(
+            settings, nonmatching_images, valid_images, valid_images, BEAM_SIZE
+        )
 
     nonmatching_frequencies = np.zeros((42, 2), dtype=np.float64)
     with pytest.raises(RuntimeError):
@@ -276,7 +286,9 @@ def test_point_source(
 
     np.testing.assert_allclose(residual, np.zeros_like(residual), atol=2e-6)
 
-    check_model_image_point_source(model, scale, source_shift[0], source_shift[1])
+    check_model_image_point_source(
+        model, scale, source_shift[0], source_shift[1]
+    )
 
 
 @pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
@@ -319,7 +331,7 @@ def test_write_component_list(settings):
         PHASE_CENTRE_RA,
         PHASE_CENTRE_DEC,
         SHIFT_L,
-        SHIFT_M
+        SHIFT_M,
     )
 
     assert os.path.isfile(SOURCES_FILENAME)
@@ -363,7 +375,9 @@ def test_one_entry_worktable(settings, algorithm, scale, source_shift):
 
     np.testing.assert_allclose(residual, np.zeros_like(residual), atol=2e-6)
 
-    check_model_image_point_source(model, scale, source_shift[0], source_shift[1])
+    check_model_image_point_source(
+        model, scale, source_shift[0], source_shift[1]
+    )
 
 
 @pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
@@ -406,10 +420,14 @@ def test_ndeconvolution_is_noriginal(settings, algorithm):
     radler_perform(radler_object, settings.minor_iteration_count)
 
     for residual in residuals:
-        np.testing.assert_allclose(residual, np.zeros_like(residual), atol=2e-6)
+        np.testing.assert_allclose(
+            residual, np.zeros_like(residual), atol=2e-6
+        )
 
     for (i, model) in enumerate(models):
-        check_model_image_point_source(model, scales[i], shifts[i][0], shifts[i][1])
+        check_model_image_point_source(
+            model, scales[i], shifts[i][0], shifts[i][1]
+        )
 
 
 @pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
@@ -444,7 +462,9 @@ def test_image_cube_non_joined(settings, algorithm):
 
     for i in 0, 1:
         np.testing.assert_allclose(
-            residuals[i, :, :], np.zeros((WIDTH, HEIGHT), dtype=np.float32), atol=2e-6
+            residuals[i, :, :],
+            np.zeros((WIDTH, HEIGHT), dtype=np.float32),
+            atol=2e-6,
         )
         check_model_image_point_source(
             models[i, :, :], scales[i], shifts[i][0], shifts[i][1]
@@ -499,7 +519,9 @@ def test_ndeconvolution_lt_noriginal(settings, algorithm):
     radler_perform(radler_object, settings.minor_iteration_count)
 
     for residual in residuals:
-        np.testing.assert_allclose(residual, np.zeros_like(residual), atol=2e-6)
+        np.testing.assert_allclose(
+            residual, np.zeros_like(residual), atol=2e-6
+        )
 
     # Model images should be identical
     np.testing.assert_allclose(models[0], models[1], atol=1e-6)
@@ -510,7 +532,9 @@ def test_ndeconvolution_lt_noriginal(settings, algorithm):
     for i, shift in enumerate(shifts):
         source_pixel_x = int(WIDTH // 2 + shift[0])
         source_pixel_y = int(HEIGHT // 2 + shift[1])
-        weighted_pixel_value = np.sum(weights * scale_array[i, :]) / np.sum(weights)
+        weighted_pixel_value = np.sum(weights * scale_array[i, :]) / np.sum(
+            weights
+        )
         model_image_ref[source_pixel_y, source_pixel_x] = weighted_pixel_value
 
     # Model image values at point source locations should be the weighted average
@@ -564,7 +588,9 @@ def test_image_cube_joined(settings, algorithm):
     for i in range(2):
         source_pixel_x = int(WIDTH // 2 + shifts[i][0])
         source_pixel_y = int(HEIGHT // 2 + shifts[i][1])
-        weighted_pixel_value = np.sum(weights * scale_array[i, :]) / np.sum(weights)
+        weighted_pixel_value = np.sum(weights * scale_array[i, :]) / np.sum(
+            weights
+        )
         model_image_ref[source_pixel_y, source_pixel_x] = weighted_pixel_value
 
     # Model image values at point source locations should be the weighted average

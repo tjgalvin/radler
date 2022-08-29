@@ -16,7 +16,7 @@ import sys
 from datetime import date
 
 # Make sure that it refers to the shared object file from current build
-if 'READTHEDOCS' in os.environ:
+if "READTHEDOCS" in os.environ:
     sys.path.insert(0, os.path.abspath("../build/python"))
 else:
     sys.path.insert(0, os.environ["RADLER_SO_PATH"])
@@ -26,12 +26,12 @@ else:
 try:
     import radler
 except ModuleNotFoundError:
-    raise RuntimeError(f'Radler not found at {sys.path[0]}')
+    raise RuntimeError(f"Radler not found at {sys.path[0]}")
 
 # -- Project information -----------------------------------------------------
 
 project = "Radler"
-copyright = '%d, André Offringa' % date.today().year
+copyright = "%d, André Offringa" % date.today().year
 author = "André Offringa"
 
 
@@ -70,8 +70,8 @@ html_static_path = ["_static"]
 
 # Breathe Configuration
 # When using CMake, the 'doc' target already sets breathe_projects.
-if 'READTHEDOCS' in os.environ:
-    breathe_projects = { "Radler": "../build/doc/doxygen/xml" }
+if "READTHEDOCS" in os.environ:
+    breathe_projects = {"Radler": "../build/doc/doxygen/xml"}
 
 # Breathe Configuration
 breathe_default_project = "Radler"

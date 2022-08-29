@@ -51,7 +51,9 @@ def test_negative_original_groups():
     n_original_groups = -2
     n_deconvolution_groups = 1
     with pytest.raises(TypeError):
-        work_table = rd.WorkTable([], n_original_groups, n_deconvolution_groups)
+        work_table = rd.WorkTable(
+            [], n_original_groups, n_deconvolution_groups
+        )
 
 
 def test_negative_deconvolution_groups():
@@ -63,14 +65,18 @@ def test_negative_deconvolution_groups():
     n_original_groups = 10
     n_deconvolution_groups = -1
     with pytest.raises(TypeError):
-        work_table = rd.WorkTable([], n_original_groups, n_deconvolution_groups)
+        work_table = rd.WorkTable(
+            [], n_original_groups, n_deconvolution_groups
+        )
 
 
 @pytest.mark.parametrize(
     "n_original_groups,n_deconvolution_groups",
     [(4, 12), (12, 4)],
 )
-def test_multiple_deconvolution_groups(n_original_groups, n_deconvolution_groups):
+def test_multiple_deconvolution_groups(
+    n_original_groups, n_deconvolution_groups
+):
     """
     Test the WorkTable constructor for (combinations of) multiple deconvolution groups.
     """
@@ -104,14 +110,20 @@ def test_channel_index_offset(channel_index_offset):
     if channel_index_offset is not None and channel_index_offset < 0:
         with pytest.raises(TypeError):
             work_table = rd.WorkTable(
-                [], n_original_groups, n_deconvolution_groups, channel_index_offset
+                [],
+                n_original_groups,
+                n_deconvolution_groups,
+                channel_index_offset,
             )
     else:
         work_table = (
             rd.WorkTable([], n_original_groups, n_deconvolution_groups)
             if channel_index_offset is None
             else rd.WorkTable(
-                [], n_original_groups, n_deconvolution_groups, channel_index_offset
+                [],
+                n_original_groups,
+                n_deconvolution_groups,
+                channel_index_offset,
             )
         )
         assert (

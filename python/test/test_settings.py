@@ -20,7 +20,9 @@ def test_layout():
             "SpectralFitting",
         ]
     )
-    nested_structs = set(filter(lambda x: re.match("^[A-Z]{1}", x), dir(settings)))
+    nested_structs = set(
+        filter(lambda x: re.match("^[A-Z]{1}", x), dir(settings))
+    )
     assert nested_structs == nested_structs_ref
 
     n_properties_ref = 33
@@ -109,7 +111,11 @@ def test_readwrite():
 
     # Test change polarization
     linked_polarizations = set(
-        [rd.Polarization.stokes_i, rd.Polarization.stokes_q, rd.Polarization.xy]
+        [
+            rd.Polarization.stokes_i,
+            rd.Polarization.stokes_q,
+            rd.Polarization.xy,
+        ]
     )
     settings.linked_polarizations = linked_polarizations
     assert settings.linked_polarizations == linked_polarizations

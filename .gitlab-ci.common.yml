@@ -89,13 +89,13 @@ prepare-base-2204:
   image: $BASE_IMAGE_2204
 
 format:
-  extends: .needs-2004
+  extends: .needs-2204
   stage: linting
   script:
     - ./scripts/run-format.sh
 
 clang-tidy:
-  extends: .needs-2004
+  extends: .needs-2204
   stage: linting
   script:
     - mkdir -p build/reports

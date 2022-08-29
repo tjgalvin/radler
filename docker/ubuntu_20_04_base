@@ -8,10 +8,7 @@ RUN export DEBIAN_FRONTEND="noninteractive" && \
     apt-get -y install \
         casacore-dev \
         casacore-tools \
-        clang-format-12 \
-        clang-tidy-12 \
         cmake \
-        doxygen \
         g++ \
         gcovr \
         git \
@@ -27,20 +24,9 @@ RUN export DEBIAN_FRONTEND="noninteractive" && \
         wcslib-dev \
         wget \
     && \
-	rm -rf /var/lib/apt/lists/* \
-    # The formatter needs a binary named 'clang-format', not 'clang-format-12'.
-    # Same for clang-tidy-12
-    && \
-    ln -sf clang-format-12 /usr/bin/clang-format \
-    && \
-    ln -sf clang-tidy-12 /usr/bin/clang-tidy
+	rm -rf /var/lib/apt/lists/*
 RUN python3 -m pip install \
-        breathe \
-        cmake-format \
-        myst-parser \
         numpy \
         pytest \
         pytest-lazy-fixture \
-        sphinx \
-        sphinx_rtd_theme \
     ;
