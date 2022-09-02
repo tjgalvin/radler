@@ -380,7 +380,7 @@ def test_one_entry_worktable(settings, algorithm, scale, source_shift):
     )
 
 
-@pytest.mark.parametrize("settings", [pytest.lazy_fixture("get_settings")])
+@pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
 @pytest.mark.parametrize(
     "algorithm", [rd.AlgorithmType.generic_clean, rd.AlgorithmType.multiscale]
 )

@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: LGPL-3.0-only
+
+FROM quay.io/casacore/casacore:master_wheel36
+
+ADD . /radler
+
+ENV AEC_VERSION 1.0.4
+ENV HDF5_VERSION 1.12.2
+ENV HDF5_DIR /opt/hdf5
+ENV FFTW_VERSION 3.3.8
+ENV FFTW_DIR /opt/fftw3
+WORKDIR /radler
+RUN bash docker/install_libaec.sh
+RUN bash docker/install_hdf5.sh
+RUN bash docker/install_fftw.sh
+RUN bash docker/install_boost.sh
+
+ENV CFLAGS="-I /opt/hdf5/include -L/opt/hdf5/lib -I/usr/include/cfitsio"
+ENV LD_LIBRARY_PATH="/usr/local/lib"
+ENV CMAKE_ARGS="-DCMAKE_PREFIX_PATH='/opt/fftw3;/opt/hdf5' -DCMAKE_CXX_FLAGS='-Wl,--unresolved-symbols=ignore-all'"
+# Create fake libpython to stop the linker from complaining. The wheel should find the user's libpython at runtime.
+RUN touch /usr/lib64/libpython${PYMAJOR}.${PYMINOR}${PYUNICODE}.so
+
+# Wheels should not actually link to libpython, since they find the user's python at runtime.
+# So prevent radler to even find libpython (which is not even included in the anylinux images)
+RUN sed -i 's/find_package(PythonLibs 3 REQUIRED)//' CMakeLists.txt
+RUN /opt/python/${TARGET}/bin/python ./setup.py build_ext -j${THREADS}
+RUN /opt/python/${TARGET}/bin/python ./setup.py bdist_wheel -d .
+RUN auditwheel repair --plat manylinux2014_x86_64 -w /output *.whl
