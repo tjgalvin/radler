@@ -90,7 +90,7 @@ class ComponentList {
   void WriteSources(const Radler& radler, const std::string& filename,
                     long double pixel_scale_x, long double pixel_scale_y,
                     long double phase_centre_ra, long double phase_centre_dec,
-                    long double shift_l, long double shift_m) const;
+                    long double l_shift, long double m_shift) const;
 
   /**
    * @brief Write component lists over all scales, typically
@@ -100,14 +100,14 @@ class ComponentList {
              const algorithms::MultiScaleAlgorithm& multiscale,
              long double pixel_scale_x, long double pixel_scale_y,
              long double phase_centre_ra, long double phase_centre_dec,
-             long double shift_l, long double shift_m) const;
+             long double l_shift, long double m_shift) const;
 
   void WriteSingleScale(const std::string& filename,
                         const algorithms::DeconvolutionAlgorithm& algorithm,
                         long double pixel_scale_x, long double pixel_scale_y,
                         long double phase_centre_ra,
-                        long double phase_centre_dec, long double shift_l,
-                        long double shift_m) const;
+                        long double phase_centre_dec, long double l_shift,
+                        long double m_shift) const;
 
   void MergeDuplicates() {
     if (components_added_since_last_merge_ != 0) {
@@ -188,7 +188,7 @@ class ComponentList {
              const aocommon::UVector<double>& scale_sizes,
              long double pixel_scale_x, long double pixel_scale_y,
              long double phase_centre_ra, long double phase_centre_dec,
-             long double shift_l, long double shift_m) const;
+             long double l_shift, long double m_shift) const;
 
   void LoadFromImageSet(ImageSet& image_set, size_t scale_index);
 

@@ -16,18 +16,18 @@ void ComponentList::WriteSources(
     const Radler& radler, const std::string& filename,
     long double pixel_scale_x, long double pixel_scale_y,
     long double phase_centre_ra, long double phase_centre_dec,
-    long double shift_l, long double shift_m) const {
+    long double l_shift, long double m_shift) const {
   const algorithms::DeconvolutionAlgorithm& deconvolution_algorithm =
       radler.MaxScaleCountAlgorithm();
   if (const auto* multiscale_algorithm =
           dynamic_cast<const algorithms::MultiScaleAlgorithm*>(
               &deconvolution_algorithm)) {
     Write(filename, *multiscale_algorithm, pixel_scale_x, pixel_scale_y,
-          phase_centre_ra, phase_centre_dec, shift_l, shift_m);
+          phase_centre_ra, phase_centre_dec, l_shift, m_shift);
   } else {
     WriteSingleScale(filename, deconvolution_algorithm, pixel_scale_x,
-                     pixel_scale_y, phase_centre_ra, phase_centre_dec, shift_l,
-                     shift_m);
+                     pixel_scale_y, phase_centre_ra, phase_centre_dec, l_shift,
+                     m_shift);
   }
 }
 
@@ -35,14 +35,14 @@ void ComponentList::Write(const std::string& filename,
                           const algorithms::MultiScaleAlgorithm& multiscale,
                           long double pixel_scale_x, long double pixel_scale_y,
                           long double phase_centre_ra,
-                          long double phase_centre_dec, long double shift_l,
-                          long double shift_m) const {
+                          long double phase_centre_dec, long double l_shift,
+                          long double m_shift) const {
   aocommon::UVector<double> scale_sizes(NScales());
   for (size_t scale_index = 0; scale_index != NScales(); ++scale_index) {
     scale_sizes[scale_index] = multiscale.ScaleSize(scale_index);
   }
   Write(filename, multiscale.Fitter(), scale_sizes, pixel_scale_x,
-        pixel_scale_y, phase_centre_ra, phase_centre_dec, shift_l, shift_m);
+        pixel_scale_y, phase_centre_ra, phase_centre_dec, l_shift, m_shift);
 }
 
 void ComponentList::WriteSingleScale(
@@ -50,10 +50,10 @@ void ComponentList::WriteSingleScale(
     const algorithms::DeconvolutionAlgorithm& algorithm,
     long double pixel_scale_x, long double pixel_scale_y,
     long double phase_centre_ra, long double phase_centre_dec,
-    long double shift_l, long double shift_m) const {
+    long double l_shift, long double m_shift) const {
   aocommon::UVector<double> scale_sizes(1, 0);
   Write(filename, algorithm.Fitter(), scale_sizes, pixel_scale_x, pixel_scale_y,
-        phase_centre_ra, phase_centre_dec, shift_l, shift_m);
+        phase_centre_ra, phase_centre_dec, l_shift, m_shift);
 }
 
 void ComponentList::Write(const std::string& filename,
@@ -61,8 +61,8 @@ void ComponentList::Write(const std::string& filename,
                           const aocommon::UVector<double>& scale_sizes,
                           long double pixel_scale_x, long double pixel_scale_y,
                           long double phase_centre_ra,
-                          long double phase_centre_dec, long double shift_l,
-                          long double shift_m) const {
+                          long double phase_centre_dec, long double l_shift,
+                          long double m_shift) const {
   if (components_added_since_last_merge_ != 0) {
     throw std::runtime_error(
         "ComponentList::Write called while there are yet unmerged components. "
@@ -118,8 +118,8 @@ void ComponentList::Write(const std::string& filename,
       long double l, m;
       ImageCoordinates::XYToLM<long double>(x, y, pixel_scale_x, pixel_scale_y,
                                             width_, height_, l, m);
-      l += shift_l;
-      m += shift_m;
+      l += l_shift;
+      m += m_shift;
       long double ra, dec;
       ImageCoordinates::LMToRaDec(l, m, phase_centre_ra, phase_centre_dec, ra,
                                   dec);
