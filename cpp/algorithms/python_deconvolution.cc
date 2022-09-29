@@ -9,6 +9,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <mutex>
+
 namespace radler::algorithms {
 
 struct PyChannel {
@@ -196,6 +198,9 @@ float PythonDeconvolution::ExecuteMajorIteration(
   const size_t height = dirty_set.Height();
   size_t nFreq = dirty_set.NDeconvolutionChannels();
   size_t nPol = dirty_set.Size() / dirty_set.NDeconvolutionChannels();
+
+  static std::mutex mutex;
+  const std::lock_guard<std::mutex> lock(mutex);
 
   pybind11::object result;
 
