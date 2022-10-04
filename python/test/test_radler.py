@@ -291,8 +291,9 @@ def test_point_source(
     )
 
 
+@pytest.mark.parametrize("lm_shift_given", [True, False])
 @pytest.mark.parametrize("settings", [lazy_fixture("get_settings")])
-def test_write_component_list(settings):
+def test_write_component_list(settings, lm_shift_given):
     """
     Check writing of component list
     """
@@ -300,8 +301,8 @@ def test_write_component_list(settings):
     SHORT_MINOR_ITERATION_COUNT = 42
     PHASE_CENTRE_RA = 0.3
     PHASE_CENTRE_DEC = 0.4
-    SHIFT_L = 0.0
-    SHIFT_M = 0.0
+    L_SHIFT = 0.0
+    M_SHIFT = 0.0
 
     settings.save_source_list = True
     settings.minor_iteration_count = SHORT_MINOR_ITERATION_COUNT
@@ -323,16 +324,28 @@ def test_write_component_list(settings):
     assert component_list.n_scales == 1
     assert component_list.component_count(0) == settings.minor_iteration_count
 
-    component_list.write_sources(
-        radler_object,
-        SOURCES_FILENAME,
-        settings.pixel_scale.x,
-        settings.pixel_scale.y,
-        PHASE_CENTRE_RA,
-        PHASE_CENTRE_DEC,
-        SHIFT_L,
-        SHIFT_M,
-    )
+    if lm_shift_given:
+        component_list.write_sources(
+            radler_object,
+            SOURCES_FILENAME,
+            settings.pixel_scale.x,
+            settings.pixel_scale.y,
+            PHASE_CENTRE_RA,
+            PHASE_CENTRE_DEC,
+            L_SHIFT,
+            M_SHIFT,
+        )
+    else:
+        component_list.write_sources(
+            radler_object,
+            SOURCES_FILENAME,
+            settings.pixel_scale.x,
+            settings.pixel_scale.y,
+            PHASE_CENTRE_RA,
+            PHASE_CENTRE_DEC,
+        )
+
+    assert os.path.isfile(SOURCES_FILENAME)
 
     assert os.path.isfile(SOURCES_FILENAME)
 

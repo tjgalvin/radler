@@ -43,7 +43,12 @@ void init_component_list(py::module& m) {
              }
              return self.ComponentCount(scale_index);
            })
-      .def("write_sources", &radler::ComponentList::WriteSources, R"pbdoc(
+      .def("write_sources", &radler::ComponentList::WriteSources,
+           py::arg("radler"), py::arg("filename"), py::arg("pixel_scale_x"),
+           py::arg("pixel_scale_y"), py::arg("phase_centre_ra"),
+           py::arg("phase_centre_dec"), py::arg("l_shift") = 0.0,
+           py::arg("m_shift") = 0.0,
+           R"pbdoc(
            Write the sources in the component list to a file.
 
            Parameters
@@ -60,5 +65,9 @@ void init_component_list(py::module& m) {
                Right ascension of phase centre in radians
            phase_centre_dec: float
                Declination of phase centre in radians
+           l_shift: float
+               l-shift of center (between -1 and 1, default 0)
+           m_shift: float
+               m-shift of center (between -1 and 1, default 0)
            )pbdoc");
 }

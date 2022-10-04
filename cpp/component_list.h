@@ -100,7 +100,7 @@ class ComponentList {
              const algorithms::MultiScaleAlgorithm& multiscale,
              long double pixel_scale_x, long double pixel_scale_y,
              long double phase_centre_ra, long double phase_centre_dec,
-             long double l_shift, long double m_shift) const;
+             long double l_shift = 0.0, long double m_shift = 0.0) const;
 
   void WriteSingleScale(const std::string& filename,
                         const algorithms::DeconvolutionAlgorithm& algorithm,
