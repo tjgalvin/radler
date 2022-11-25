@@ -104,8 +104,8 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
       throw std::runtime_error("Error in component list dimensions!");
     }
   }
-  if (!rms_factor_image_.Empty() && (rms_factor_image_.Width() != width ||
-                                     rms_factor_image_.Height() != height)) {
+  if (!RmsFactorImage().Empty() && (RmsFactorImage().Width() != width ||
+                                    RmsFactorImage().Height() != height)) {
     throw std::runtime_error("Error in RMS factor image dimensions!");
   }
 
@@ -144,9 +144,8 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
   FindActiveScaleConvolvedMaxima(data_image, integratedScratch, scratch, true,
                                  tools);
   if (!SelectMaximumScale(scaleWithPeak)) {
-    log_receiver_->Warn
-        << "No peak found during multi-scale cleaning! Aborting "
-           "deconvolution.\n";
+    LogReceiver().Warn << "No peak found during multi-scale cleaning! Aborting "
+                          "deconvolution.\n";
     reached_major_threshold = false;
     return 0.0;
   }
@@ -163,22 +162,22 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
     isFinalThreshold = true;
   }
 
-  log_receiver_->Info
+  LogReceiver().Info
       << "Starting multi-scale cleaning. Start peak="
       << FluxDensity::ToNiceString(
              scale_infos_[scaleWithPeak].max_unnormalized_image_value *
              scale_infos_[scaleWithPeak].bias_factor)
       << ", major iteration threshold="
       << FluxDensity::ToNiceString(firstThreshold);
-  if (isFinalThreshold) log_receiver_->Info << " (final)";
-  log_receiver_->Info << '\n';
+  if (isFinalThreshold) LogReceiver().Info << " (final)";
+  LogReceiver().Info << '\n';
 
   ImageSet individualConvolvedImages(data_image, width, height);
 
   //
   // The minor iteration loop
   //
-  while (iteration_number_ < MaxIterations() &&
+  while (IterationNumber() < MaxIterations() &&
          std::fabs(scale_infos_[scaleWithPeak].max_unnormalized_image_value *
                    scale_infos_[scaleWithPeak].bias_factor) > firstThreshold &&
          (!StopOnNegativeComponents() ||
@@ -222,24 +221,24 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
     if (firstThreshold > firstSubIterationThreshold) {
       firstSubIterationThreshold = firstThreshold;
       if (!hasHitThresholdInSubLoop) {
-        log_receiver_->Info << "Subminor loop is near minor loop threshold. "
-                               "Initiating countdown.\n";
+        LogReceiver().Info << "Subminor loop is near minor loop threshold. "
+                              "Initiating countdown.\n";
         hasHitThresholdInSubLoop = true;
       }
       thresholdCountdown--;
-      log_receiver_->Info << '(' << thresholdCountdown << ") ";
+      LogReceiver().Info << '(' << thresholdCountdown << ") ";
     }
     // TODO we could chose to run the non-fast loop until we hit e.g. 10
     // iterations in a scale, because the fast loop takes more constant time and
     // is only efficient when doing many iterations.
     if (settings_.fast_sub_minor_loop) {
-      size_t subMinorStartIteration = iteration_number_;
+      size_t subMinorStartIteration = IterationNumber();
       size_t convolutionWidth, convolutionHeight;
       GetConvolutionDimensions(scaleWithPeak, width, height, convolutionWidth,
                                convolutionHeight);
       SubMinorLoop subLoop(width, height, convolutionWidth, convolutionHeight,
-                           *log_receiver_);
-      subLoop.SetIterationInfo(iteration_number_, MaxIterations());
+                           LogReceiver());
+      subLoop.SetIterationInfo(IterationNumber(), MaxIterations());
       subLoop.SetThreshold(
           firstSubIterationThreshold / scale_infos_[scaleWithPeak].bias_factor,
           subIterationGainThreshold / scale_infos_[scaleWithPeak].bias_factor);
@@ -253,8 +252,8 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
       const size_t vertBorderSize =
           std::max<size_t>(round(height * CleanBorderRatio()), scaleBorder);
       subLoop.SetCleanBorders(horBorderSize, vertBorderSize);
-      if (!rms_factor_image_.Empty())
-        subLoop.SetRmsFactorImage(rms_factor_image_);
+      if (!RmsFactorImage().Empty())
+        subLoop.SetRmsFactorImage(RmsFactorImage());
       if (use_per_scale_masks_) {
         subLoop.SetMask(scale_masks_[scaleWithPeak].data());
       } else if (CleanMask()) {
@@ -264,9 +263,9 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
 
       subLoop.Run(individualConvolvedImages, twiceConvolvedPSFs);
 
-      iteration_number_ = subLoop.CurrentIteration();
+      SetIterationNumber(subLoop.CurrentIteration());
       scale_infos_[scaleWithPeak].n_components_cleaned +=
-          (iteration_number_ - subMinorStartIteration);
+          (IterationNumber() - subMinorStartIteration);
       scale_infos_[scaleWithPeak].total_flux_cleaned += subLoop.FluxCleaned();
 
       for (size_t imageIndex = 0; imageIndex != data_image.Size();
@@ -303,7 +302,7 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
     } else {  // don't use the Clark optimization
       const ScaleInfo& maxScaleInfo = scale_infos_[scaleWithPeak];
       while (
-          iteration_number_ < MaxIterations() &&
+          IterationNumber() < MaxIterations() &&
           std::fabs(maxScaleInfo.max_unnormalized_image_value *
                     maxScaleInfo.bias_factor) > firstSubIterationThreshold &&
           (!StopOnNegativeComponents() ||
@@ -345,14 +344,14 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
         // Find maximum for this scale
         individualConvolvedImages.GetLinearIntegrated(integratedScratch);
         FindPeakDirect(integratedScratch, scratch, scaleWithPeak);
-        log_receiver_->Debug
+        LogReceiver().Debug
             << "Scale now "
             << std::fabs(
                    scale_infos_[scaleWithPeak].max_unnormalized_image_value *
                    scale_infos_[scaleWithPeak].bias_factor)
             << '\n';
 
-        ++iteration_number_;
+        SetIterationNumber(IterationNumber() + 1);
       }
     }
 
@@ -362,14 +361,14 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
                                    false, tools);
 
     if (!SelectMaximumScale(scaleWithPeak)) {
-      log_receiver_->Warn << "No peak found in main loop of multi-scale "
-                             "cleaning! Aborting deconvolution.\n";
+      LogReceiver().Warn << "No peak found in main loop of multi-scale "
+                            "cleaning! Aborting deconvolution.\n";
       reached_major_threshold = false;
       return 0.0;
     }
 
-    log_receiver_->Info
-        << "Iteration " << iteration_number_ << ", scale "
+    LogReceiver().Info
+        << "Iteration " << IterationNumber() << ", scale "
         << round(scale_infos_[scaleWithPeak].scale) << " px : "
         << FluxDensity::ToNiceString(
                scale_infos_[scaleWithPeak].max_unnormalized_image_value *
@@ -378,7 +377,7 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
         << scale_infos_[scaleWithPeak].max_image_value_y << '\n';
   }
 
-  bool maxIterReached = iteration_number_ >= MaxIterations(),
+  bool maxIterReached = IterationNumber() >= MaxIterations(),
        negativeReached =
            StopOnNegativeComponents() &&
            scale_infos_[scaleWithPeak].max_unnormalized_image_value < 0.0;
@@ -387,17 +386,17 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
   // scale_infos_[scaleWithPeak].bias_factor) <= threshold_;
 
   if (maxIterReached) {
-    log_receiver_->Info << "Cleaning finished because maximum number of "
-                           "iterations was reached.\n";
+    LogReceiver().Info << "Cleaning finished because maximum number of "
+                          "iterations was reached.\n";
   } else if (negativeReached) {
-    log_receiver_->Info
+    LogReceiver().Info
         << "Cleaning finished because a negative component was found.\n";
   } else if (isFinalThreshold) {
-    log_receiver_->Info
+    LogReceiver().Info
         << "Cleaning finished because the final threshold was reached.\n";
   } else {
-    log_receiver_->Info << "Minor loop finished, continuing cleaning after "
-                           "inversion/prediction round.\n";
+    LogReceiver().Info << "Minor loop finished, continuing cleaning after "
+                          "inversion/prediction round.\n";
   }
 
   reached_major_threshold =
@@ -430,7 +429,7 @@ void MultiScaleAlgorithm::InitializeScaleInfo(size_t min_width_height) {
     } else {
       while (!scale_infos_.empty() &&
              scale_infos_.back().scale >= min_width_height * 0.5) {
-        log_receiver_->Info
+        LogReceiver().Info
             << "Scale size " << scale_infos_.back().scale
             << " does not fit in cleaning region: removing scale.\n";
         scale_infos_.erase(scale_infos_.begin() + scale_infos_.size() - 1);
@@ -455,7 +454,7 @@ void MultiScaleAlgorithm::ConvolvePsfs(std::unique_ptr<Image[]>& convolved_psfs,
                                                 settings_.shape);
   msTransforms.SetThreadCount(ThreadCount());
   convolved_psfs = std::make_unique<Image[]>(scale_infos_.size());
-  if (is_integrated) log_receiver_->Info << "Scale info:\n";
+  if (is_integrated) LogReceiver().Info << "Scale info:\n";
   const double firstAutoScaleSize = beam_size_in_pixels_ * 2.0;
   for (size_t scaleIndex = 0; scaleIndex != scale_infos_.size(); ++scaleIndex) {
     ScaleInfo& scaleEntry = scale_infos_[scaleIndex];
@@ -496,12 +495,12 @@ void MultiScaleAlgorithm::ConvolvePsfs(std::unique_ptr<Image[]>& convolved_psfs,
         convolved_psfs[scaleIndex] = psf;
       }
 
-      log_receiver_->Info << "- Scale " << round(scaleEntry.scale)
-                          << ", bias factor="
-                          << round(scaleEntry.bias_factor * 10.0) / 10.0
-                          << ", psfpeak=" << scaleEntry.psf_peak
-                          << ", gain=" << scaleEntry.gain
-                          << ", kernel peak=" << scaleEntry.kernel_peak << '\n';
+      LogReceiver().Info << "- Scale " << round(scaleEntry.scale)
+                         << ", bias factor="
+                         << round(scaleEntry.bias_factor * 10.0) / 10.0
+                         << ", psfpeak=" << scaleEntry.psf_peak
+                         << ", gain=" << scaleEntry.gain
+                         << ", kernel peak=" << scaleEntry.kernel_peak << '\n';
     } else {
       if (scaleEntry.scale != 0.0) {
         msTransforms.Transform(convolved_psfs[scaleIndex], scratch,
@@ -544,7 +543,7 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
   tools.FindMultiScalePeak(&msTransforms, integrated_scratch, transformScales,
                            results, AllowNegativeComponents(), CleanMask(),
                            transformScaleMasks, CleanBorderRatio(),
-                           rms_factor_image_, report_rms);
+                           RmsFactorImage(), report_rms);
 
   for (size_t i = 0; i != results.size(); ++i) {
     ScaleInfo& scaleEntry = scale_infos_[transformIndices[i]];
@@ -557,15 +556,15 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
     if (report_rms) scaleEntry.rms = results[i].rms;
   }
   if (report_rms) {
-    log_receiver_->Info << "RMS per scale: {";
+    LogReceiver().Info << "RMS per scale: {";
     for (size_t scaleIndex = 0; scaleIndex != scale_infos_.size();
          ++scaleIndex) {
       ScaleInfo& scaleEntry = scale_infos_[scaleIndex];
-      if (scaleIndex != 0) log_receiver_->Info << ", ";
-      log_receiver_->Info << round(scaleEntry.scale) << ": "
-                          << FluxDensity::ToNiceString(scaleEntry.rms);
+      if (scaleIndex != 0) LogReceiver().Info << ", ";
+      LogReceiver().Info << round(scaleEntry.scale) << ": "
+                         << FluxDensity::ToNiceString(scaleEntry.rms);
     }
-    log_receiver_->Info << "}\n";
+    LogReceiver().Info << "}\n";
   }
 }
 
@@ -601,12 +600,12 @@ void MultiScaleAlgorithm::ActivateScales(size_t scale_with_last_peak) {
                               (1.0 - MinorLoopGain()) *
                               scale_infos_[scale_with_last_peak].bias_factor;
     if (!scale_infos_[i].is_active && doActivate) {
-      log_receiver_->Debug << "Scale " << scale_infos_[i].scale
-                           << " is now significant and is activated.\n";
+      LogReceiver().Debug << "Scale " << scale_infos_[i].scale
+                          << " is now significant and is activated.\n";
       scale_infos_[i].is_active = true;
     } else if (scale_infos_[i].is_active && !doActivate) {
-      log_receiver_->Debug << "Scale " << scale_infos_[i].scale
-                           << " is insignificant and is deactivated.\n";
+      LogReceiver().Debug << "Scale " << scale_infos_[i].scale
+                          << " is insignificant and is deactivated.\n";
       scale_infos_[i].is_active = false;
     }
   }
@@ -617,17 +616,17 @@ void MultiScaleAlgorithm::MeasureComponentValues(
     ImageSet& image_set) {
   const ScaleInfo& scale = scale_infos_[scale_index];
   component_values.resize(image_set.Size());
-  log_receiver_->Debug << "Measuring " << scale.max_image_value_x << ','
-                       << scale.max_image_value_y << ", scale " << scale.scale
-                       << ", integrated=" << scale.max_unnormalized_image_value
-                       << ":";
+  LogReceiver().Debug << "Measuring " << scale.max_image_value_x << ','
+                      << scale.max_image_value_y << ", scale " << scale.scale
+                      << ", integrated=" << scale.max_unnormalized_image_value
+                      << ":";
   for (size_t i = 0; i != image_set.Size(); ++i) {
     component_values[i] =
         image_set[i][scale.max_image_value_x +
                      scale.max_image_value_y * image_set.Width()];
-    log_receiver_->Debug << ' ' << component_values[i];
+    LogReceiver().Debug << ' ' << component_values[i];
   }
-  log_receiver_->Debug << '\n';
+  LogReceiver().Debug << '\n';
 }
 
 void MultiScaleAlgorithm::AddComponentToModel(ImageSet& model_image,
@@ -661,11 +660,11 @@ void MultiScaleAlgorithm::FindPeakDirect(const aocommon::Image& image,
   const size_t horBorderSize = std::round(image.Width() * CleanBorderRatio());
   const size_t vertBorderSize = std::round(image.Height() * CleanBorderRatio());
   const float* actualImage;
-  if (rms_factor_image_.Empty()) {
+  if (RmsFactorImage().Empty()) {
     actualImage = image.Data();
   } else {
     for (size_t i = 0; i != image.Size(); ++i)
-      scratch[i] = image[i] * rms_factor_image_[i];
+      scratch[i] = image[i] * RmsFactorImage()[i];
     actualImage = scratch.Data();
   }
 
@@ -689,13 +688,13 @@ void MultiScaleAlgorithm::FindPeakDirect(const aocommon::Image& image,
   }
 
   scaleInfo.max_unnormalized_image_value = maxValue.value_or(0.0);
-  if (rms_factor_image_.Empty()) {
+  if (RmsFactorImage().Empty()) {
     scaleInfo.max_normalized_image_value = maxValue.value_or(0.0);
   } else {
     scaleInfo.max_normalized_image_value =
         maxValue.value_or(0.0) /
-        rms_factor_image_[scaleInfo.max_image_value_x +
-                          scaleInfo.max_image_value_y * image.Width()];
+        RmsFactorImage()[scaleInfo.max_image_value_x +
+                         scaleInfo.max_image_value_y * image.Width()];
   }
 }
 

@@ -8,29 +8,22 @@
 
 namespace radler::algorithms {
 
-DeconvolutionAlgorithm::DeconvolutionAlgorithm()
-    : iteration_number_(0),
-      rms_factor_image_(),
-      log_receiver_(nullptr),
-      settings_(),
-      fitting_scratch_(),
-      spectral_fitter_(),
-      n_polarizations_(0) {
+DeconvolutionAlgorithm::DeconvolutionAlgorithm() {
   settings_.thread_count = aocommon::system::ProcessorCount();
 }
 
 DeconvolutionAlgorithm::DeconvolutionAlgorithm(
     const DeconvolutionAlgorithm& other)
-    : iteration_number_(other.iteration_number_),
-      rms_factor_image_(other.rms_factor_image_),
+    : settings_(other.settings_),
       log_receiver_(other.log_receiver_),
-      settings_(other.settings_),
       fitting_scratch_(),  // Copying this scratch buffer is not needed.
       spectral_fitter_(
           other.spectral_fitter_
               ? std::make_unique<schaapcommon::fitters::SpectralFitter>(
                     *other.spectral_fitter_)
               : nullptr),
+      rms_factor_image_(other.rms_factor_image_),
+      iteration_number_(other.iteration_number_),
       n_polarizations_(other.n_polarizations_) {}
 
 void DeconvolutionAlgorithm::PerformSpectralFit(float* values, size_t x,

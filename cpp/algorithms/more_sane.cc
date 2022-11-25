@@ -16,7 +16,7 @@ void MoreSane::ExecuteMajorIteration(float* residual_data, float* model_data,
                                      const aocommon::Image& psf_image) {
   const size_t width = psf_image.Width();
   const size_t height = psf_image.Height();
-  if (iteration_number_ != 0) {
+  if (IterationNumber() != 0) {
     aocommon::Logger::Info << "Convolving model with psf...\n";
     aocommon::Image preparedPsf(width, height);
     schaapcommon::fft::PrepareConvolutionKernel(
@@ -29,7 +29,7 @@ void MoreSane::ExecuteMajorIteration(float* residual_data, float* model_data,
     }
   }
   std::ostringstream outputStr;
-  outputStr << prefix_name_ << "-tmp-moresaneoutput" << iteration_number_;
+  outputStr << prefix_name_ << "-tmp-moresaneoutput" << IterationNumber();
   const std::string dirtyName(prefix_name_ + "-tmp-moresaneinput-dirty.fits"),
       psfName(prefix_name_ + "-tmp-moresaneinput-psf.fits"),
       maskName(prefix_name_ + "-tmp-moresaneinput-mask.fits"),
@@ -50,7 +50,7 @@ void MoreSane::ExecuteMajorIteration(float* residual_data, float* model_data,
   if (!settings_.sigma_levels.empty()) {
     commandLine << " -sl "
                 << settings_.sigma_levels[std::min(
-                       iteration_number_, settings_.sigma_levels.size() - 1)]
+                       IterationNumber(), settings_.sigma_levels.size() - 1)]
                 << " ";
   }
 
@@ -79,9 +79,9 @@ float MoreSane::ExecuteMajorIteration(
     ExecuteMajorIteration(residual_data, model_data, psf_image);
   }
 
-  ++iteration_number_;
+  SetIterationNumber(IterationNumber() + 1);
 
-  reached_major_threshold = iteration_number_ < MaxIterations();
+  reached_major_threshold = IterationNumber() < MaxIterations();
   return 0.0;
 }
 }  // namespace radler::algorithms

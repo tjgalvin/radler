@@ -93,7 +93,7 @@ void ParallelDeconvolution::SetAlgorithm(
 
 void ParallelDeconvolution::SetRmsFactorImage(Image&& image) {
   if (algorithms_.size() == 1) {
-    algorithms_.front()->SetRMSFactorImage(std::move(image));
+    algorithms_.front()->SetRmsFactorImage(std::move(image));
   } else {
     rms_image_ = std::move(image);
   }
@@ -203,7 +203,7 @@ void ParallelDeconvolution::RunSubImage(
   if (!rms_image_.Empty()) {
     Image sub_rms_image = rms_image_.TrimBox(sub_image.x, sub_image.y,
                                              sub_image.width, sub_image.height);
-    algorithms_[sub_image.index]->SetRMSFactorImage(std::move(sub_rms_image));
+    algorithms_[sub_image.index]->SetRmsFactorImage(std::move(sub_rms_image));
   }
 
   // If a forced spectral image is active, trim it to the subimage size
@@ -255,7 +255,7 @@ void ParallelDeconvolution::RunSubImage(
 
   // Since this was an RMS image specifically for this subimage size, we free it
   // immediately
-  algorithms_[sub_image.index]->SetRMSFactorImage(Image());
+  algorithms_[sub_image.index]->SetRmsFactorImage(Image());
 
   if (track_per_scale_masks_) {
     const std::lock_guard<std::mutex> lock(mutex);

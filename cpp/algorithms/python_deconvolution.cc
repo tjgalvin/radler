@@ -257,7 +257,7 @@ float PythonDeconvolution::ExecuteMajorIteration(
     result = (*_deconvolveFunction)(std::move(pyResiduals), std::move(pyModel),
                                     std::move(pyPsfs), &meta);
 
-    iteration_number_ = meta.iteration_number;
+    SetIterationNumber(meta.iteration_number);
   }
 
   // Extract the results

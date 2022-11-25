@@ -113,10 +113,10 @@ class DeconvolutionAlgorithm {
     return *spectral_fitter_;
   }
 
-  void SetRMSFactorImage(aocommon::Image&& image) {
+  void SetRmsFactorImage(aocommon::Image&& image) {
     rms_factor_image_ = std::move(image);
   }
-  const aocommon::Image& RMSFactorImage() const { return rms_factor_image_; }
+  const aocommon::Image& RmsFactorImage() const { return rms_factor_image_; }
 
   /**
    * Fit an array of values to a curve, and replace those values
@@ -133,9 +133,7 @@ class DeconvolutionAlgorithm {
 
   DeconvolutionAlgorithm(const DeconvolutionAlgorithm&);
 
-  size_t iteration_number_;
-  aocommon::Image rms_factor_image_;
-  aocommon::LogReceiver* log_receiver_;
+  aocommon::LogReceiver& LogReceiver() { return *log_receiver_; };
 
  private:
   // Using a settings struct simplifies the constructors.
@@ -152,8 +150,11 @@ class DeconvolutionAlgorithm {
     size_t thread_count = 0;
   } settings_;
 
+  aocommon::LogReceiver* log_receiver_ = nullptr;
   std::vector<float> fitting_scratch_;
   std::unique_ptr<schaapcommon::fitters::SpectralFitter> spectral_fitter_;
+  aocommon::Image rms_factor_image_;
+  size_t iteration_number_ = 0;
   size_t n_polarizations_ = 1;
 };
 

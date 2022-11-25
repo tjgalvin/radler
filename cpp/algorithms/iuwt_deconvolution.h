@@ -25,10 +25,12 @@ class IuwtDeconvolution final : public DeconvolutionAlgorithm {
         data_image.Width(), data_image.Height(), MinorLoopGain(),
         MajorLoopGain(), CleanBorderRatio(), AllowNegativeComponents(),
         CleanMask(), Threshold());
+    size_t iteration_number = IterationNumber();
     float val = algorithm.PerformMajorIteration(
-        iteration_number_, MaxIterations(), model_image, data_image, psf_images,
+        iteration_number, MaxIterations(), model_image, data_image, psf_images,
         reached_major_threshold);
-    if (iteration_number_ >= MaxIterations()) reached_major_threshold = false;
+    SetIterationNumber(iteration_number);
+    if (IterationNumber() >= MaxIterations()) reached_major_threshold = false;
     return val;
   }
 

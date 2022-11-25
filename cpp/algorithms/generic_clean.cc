@@ -32,7 +32,7 @@ float GenericClean::ExecuteMajorIteration(
     const std::vector<aocommon::Image>& psfs, bool& reached_major_threshold) {
   const size_t width = dirty_set.Width();
   const size_t height = dirty_set.Height();
-  const size_t iterationCounterAtStart = iteration_number_;
+  const size_t iterationCounterAtStart = IterationNumber();
   if (StopOnNegativeComponents()) SetAllowNegativeComponents(true);
   convolution_width_ = std::ceil(convolution_padding_ * width);
   convolution_height_ = std::ceil(convolution_padding_ * height);
@@ -48,41 +48,40 @@ float GenericClean::ExecuteMajorIteration(
   std::optional<float> maxValue =
       FindPeak(integrated, scratchA.Data(), componentX, componentY);
   if (!maxValue) {
-    log_receiver_->Info << "No peak found.\n";
+    LogReceiver().Info << "No peak found.\n";
     reached_major_threshold = false;
     return 0.0;
   }
-  log_receiver_->Info << "Initial peak: "
-                      << peakDescription(integrated, componentX, componentY)
-                      << '\n';
+  LogReceiver().Info << "Initial peak: "
+                     << peakDescription(integrated, componentX, componentY)
+                     << '\n';
   float firstThreshold = Threshold();
   float majorIterThreshold =
       std::max<float>(MajorIterationThreshold(),
                       std::fabs(*maxValue) * (1.0 - MajorLoopGain()));
   if (majorIterThreshold > firstThreshold) {
     firstThreshold = majorIterThreshold;
-    log_receiver_->Info << "Next major iteration at: "
-                        << FluxDensity::ToNiceString(majorIterThreshold)
-                        << '\n';
+    LogReceiver().Info << "Next major iteration at: "
+                       << FluxDensity::ToNiceString(majorIterThreshold) << '\n';
   } else if (MajorLoopGain() != 1.0) {
-    log_receiver_->Info
+    LogReceiver().Info
         << "Major iteration threshold reached global threshold of "
         << FluxDensity::ToNiceString(Threshold())
         << ": final major iteration.\n";
   }
 
   if (use_sub_minor_optimization_) {
-    size_t startIteration = iteration_number_;
+    size_t startIteration = IterationNumber();
     SubMinorLoop subMinorLoop(width, height, convolution_width_,
-                              convolution_height_, *log_receiver_);
-    subMinorLoop.SetIterationInfo(iteration_number_, MaxIterations());
+                              convolution_height_, LogReceiver());
+    subMinorLoop.SetIterationInfo(IterationNumber(), MaxIterations());
     subMinorLoop.SetThreshold(firstThreshold, firstThreshold * 0.99);
     subMinorLoop.SetGain(MinorLoopGain());
     subMinorLoop.SetAllowNegativeComponents(AllowNegativeComponents());
     subMinorLoop.SetStopOnNegativeComponent(StopOnNegativeComponents());
     subMinorLoop.SetParentAlgorithm(this);
-    if (!rms_factor_image_.Empty()) {
-      subMinorLoop.SetRmsFactorImage(rms_factor_image_);
+    if (!RmsFactorImage().Empty()) {
+      subMinorLoop.SetRmsFactorImage(RmsFactorImage());
     }
     if (CleanMask()) subMinorLoop.SetMask(CleanMask());
     const size_t horBorderSize = std::round(width * CleanBorderRatio());
@@ -92,11 +91,11 @@ float GenericClean::ExecuteMajorIteration(
 
     maxValue = subMinorLoop.Run(dirty_set, psfs);
 
-    iteration_number_ = subMinorLoop.CurrentIteration();
+    SetIterationNumber(subMinorLoop.CurrentIteration());
 
-    log_receiver_->Info
-        << "Performed " << iteration_number_ << " iterations in total, "
-        << (iteration_number_ - startIteration)
+    LogReceiver().Info
+        << "Performed " << IterationNumber() << " iterations in total, "
+        << (IterationNumber() - startIteration)
         << " in this major iteration with sub-minor optimization.\n";
 
     for (size_t imageIndex = 0; imageIndex != dirty_set.Size(); ++imageIndex) {
@@ -119,15 +118,16 @@ float GenericClean::ExecuteMajorIteration(
     aocommon::UVector<float> peakValues(dirty_set.Size());
 
     while (maxValue && std::fabs(*maxValue) > firstThreshold &&
-           iteration_number_ < MaxIterations() &&
+           IterationNumber() < MaxIterations() &&
            !(maxValue < 0.0f && StopOnNegativeComponents())) {
-      if (iteration_number_ <= 10 ||
-          (iteration_number_ <= 100 && iteration_number_ % 10 == 0) ||
-          (iteration_number_ <= 1000 && iteration_number_ % 100 == 0) ||
-          iteration_number_ % 1000 == 0) {
-        log_receiver_->Info
-            << "Iteration " << iteration_number_ << ": "
-            << peakDescription(integrated, componentX, componentY) << '\n';
+      if (IterationNumber() <= 10 ||
+          (IterationNumber() <= 100 && IterationNumber() % 10 == 0) ||
+          (IterationNumber() <= 1000 && IterationNumber() % 100 == 0) ||
+          IterationNumber() % 1000 == 0) {
+        LogReceiver().Info << "Iteration " << IterationNumber() << ": "
+                           << peakDescription(integrated, componentX,
+                                              componentY)
+                           << '\n';
       }
 
       for (size_t i = 0; i != dirty_set.Size(); ++i) {
@@ -151,36 +151,36 @@ float GenericClean::ExecuteMajorIteration(
 
       peakIndex = componentX + componentY * width;
 
-      ++iteration_number_;
+      SetIterationNumber(IterationNumber() + 1);
     }
   }
   if (maxValue) {
-    log_receiver_->Info << "Stopped on peak "
-                        << FluxDensity::ToNiceString(*maxValue) << ", because ";
-    const bool maxIterReached = iteration_number_ >= MaxIterations();
+    LogReceiver().Info << "Stopped on peak "
+                       << FluxDensity::ToNiceString(*maxValue) << ", because ";
+    const bool maxIterReached = IterationNumber() >= MaxIterations();
     const bool finalThresholdReached =
         std::fabs(*maxValue) <= Threshold() || maxValue == 0.0f;
     const bool negativeReached = maxValue < 0.0f && StopOnNegativeComponents();
     const bool mgainReached = std::fabs(*maxValue) <= majorIterThreshold;
-    const bool didWork = (iteration_number_ - iterationCounterAtStart) != 0;
+    const bool didWork = (IterationNumber() - iterationCounterAtStart) != 0;
 
     if (maxIterReached) {
-      log_receiver_->Info << "maximum number of iterations was reached.\n";
+      LogReceiver().Info << "maximum number of iterations was reached.\n";
     } else if (finalThresholdReached) {
-      log_receiver_->Info << "the threshold was reached.\n";
+      LogReceiver().Info << "the threshold was reached.\n";
     } else if (negativeReached) {
-      log_receiver_->Info << "a negative component was found.\n";
+      LogReceiver().Info << "a negative component was found.\n";
     } else if (!didWork) {
-      log_receiver_->Info << "no iterations could be performed.\n";
+      LogReceiver().Info << "no iterations could be performed.\n";
     } else {
-      log_receiver_->Info << "the minor-loop threshold was reached. Continuing "
-                             "cleaning after inversion/prediction round.\n";
+      LogReceiver().Info << "the minor-loop threshold was reached. Continuing "
+                            "cleaning after inversion/prediction round.\n";
     }
     reached_major_threshold =
         mgainReached && didWork && !negativeReached && !finalThresholdReached;
     return *maxValue;
   } else {
-    log_receiver_->Info << "Deconvolution aborted.\n";
+    LogReceiver().Info << "Deconvolution aborted.\n";
     reached_major_threshold = false;
     return 0.0;
   }
@@ -190,10 +190,10 @@ std::optional<float> GenericClean::FindPeak(const aocommon::Image& image,
                                             float* scratch_buffer, size_t& x,
                                             size_t& y) {
   const float* actual_image = image.Data();
-  if (!rms_factor_image_.Empty()) {
+  if (!RmsFactorImage().Empty()) {
     std::copy_n(image.Data(), image.Size(), scratch_buffer);
     for (size_t i = 0; i != image.Size(); ++i) {
-      scratch_buffer[i] *= rms_factor_image_[i];
+      scratch_buffer[i] *= RmsFactorImage()[i];
     }
     actual_image = scratch_buffer;
   }
