@@ -32,15 +32,23 @@ struct WorkTableEntry {
   aocommon::PolarizationEnum polarization = aocommon::PolarizationEnum::StokesI;
 
   /**
-   * Entries with equal original channel indices are 'joinedly' deconvolved by
-   * adding their squared flux density values together. Normally, all the
-   * polarizations from a single channel / timestep form such a group.
+   * In joined polarization mode, entries with equal original channel indices
+   * are 'joinedly' deconvolved by adding their squared flux density values
+   * together. Normally, all the polarizations from a single channel / timestep
+   * form such a group.
    *
    * When the number of deconvolution channels is less than the number of
    * original channels, entries in multiple groups are 'joinedly' deconvolved.
    */
   size_t original_channel_index = 0;
   size_t original_interval_index = 0;
+
+  /**
+   * When a mask is used, this value represents the channel index for the mask
+   * cube. This is relevant only when the mask is a 3D cube instead of a 2D
+   * frequency independent image.
+   */
+  size_t mask_channel_index = 0;
 
   /**
    * A number that scales with the estimated inverse-variance of the image. It
@@ -77,6 +85,7 @@ struct WorkTableEntry {
                   << aocommon::Polarization::TypeToShortString(
                          entry.polarization)
                   << " " << std::setw(2) << entry.original_channel_index << " "
+                  << std::setw(4) << entry.mask_channel_index << " "
                   << std::setw(8) << entry.original_interval_index << " "
                   << std::setw(6) << entry.image_weight << " "
                   << round(entry.band_start_frequency * 1e-6) << "-"

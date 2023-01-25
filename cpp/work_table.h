@@ -206,7 +206,7 @@ class WorkTable {
            << '\n';
 
     if (!work_table.entries_.empty()) {
-      output << "   # Pol Ch Interval Weight Freq(MHz)\n";
+      output << "   # Pol Ch Mask Interval Weight Freq(MHz)\n";
 
       for (const auto& entry : work_table.entries_) {
         output << *entry;

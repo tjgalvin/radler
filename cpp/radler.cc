@@ -399,10 +399,9 @@ void Radler::ReadMask(const WorkTable& group_table) {
       mask_reader.Read(mask_data.data());
     } else if (mask_reader.NFrequencies() == settings_.channels_out) {
       Logger::Debug << "Reading mask '" << settings_.fits_mask << "' ("
-                    << (group_table.Front().original_channel_index + 1)
-                    << ")...\n";
+                    << (group_table.Front().mask_channel_index + 1) << ")...\n";
       mask_reader.ReadIndex(mask_data.data(),
-                            group_table.Front().original_channel_index);
+                            group_table.Front().mask_channel_index);
     } else {
       std::stringstream msg;
       msg << "The number of frequencies in the specified fits mask ("

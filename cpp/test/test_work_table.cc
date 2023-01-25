@@ -132,13 +132,13 @@ BOOST_AUTO_TEST_CASE(print_entries_no_psfs) {
   WorkTable table({}, 3, 1);
   table.AddEntry(std::make_unique<WorkTableEntry>(
       WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
-                     aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234}));
+                     aocommon::PolarizationEnum::StokesQ, 0, 4, 12, 1.234}));
   table.AddEntry(std::make_unique<WorkTableEntry>(
       WorkTableEntry{1, 1'000'000.0, 2'000'000.0,
-                     aocommon::PolarizationEnum::StokesI, 1, 8, 1.01}));
+                     aocommon::PolarizationEnum::StokesI, 1, 8, 13, 1.01}));
   table.AddEntry(std::make_unique<WorkTableEntry>(
       WorkTableEntry{1, 100'000'000.0, 200'000'000.0,
-                     aocommon::PolarizationEnum::StokesU, 0, 16, 1.1}));
+                     aocommon::PolarizationEnum::StokesU, 0, 16, 12, 1.1}));
 
   std::stringstream output;
   output << table;
@@ -147,10 +147,10 @@ BOOST_AUTO_TEST_CASE(print_entries_no_psfs) {
 Original groups       3
 Deconvolution groups  1
 Channel index         0
-   # Pol Ch Interval Weight Freq(MHz)
-   0   Q  0        4  1.234 5-10
-   1   I  1        8   1.01 1-2
-   2   U  0       16    1.1 100-200
+   # Pol Ch Mask Interval Weight Freq(MHz)
+   0   Q  0   12        4  1.234 5-10
+   1   I  1   13        8   1.01 1-2
+   2   U  0   12       16    1.1 100-200
 )");
 }
 
@@ -158,13 +158,13 @@ BOOST_AUTO_TEST_CASE(print_entries_psfs) {
   WorkTable table({PsfOffset{1, 2}, PsfOffset{3, 4}}, 3, 1);
   table.AddEntry(std::make_unique<WorkTableEntry>(
       WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
-                     aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234}));
+                     aocommon::PolarizationEnum::StokesQ, 0, 4, 12, 1.234}));
   table.AddEntry(std::make_unique<WorkTableEntry>(
       WorkTableEntry{1, 1'000'000.0, 2'000'000.0,
-                     aocommon::PolarizationEnum::StokesI, 1, 8, 1.01}));
+                     aocommon::PolarizationEnum::StokesI, 1, 8, 13, 1.01}));
   table.AddEntry(std::make_unique<WorkTableEntry>(
       WorkTableEntry{1, 100'000'000.0, 200'000'000.0,
-                     aocommon::PolarizationEnum::StokesU, 0, 16, 1.1}));
+                     aocommon::PolarizationEnum::StokesU, 0, 16, 12, 1.1}));
 
   std::stringstream output;
   output << table;
@@ -173,10 +173,10 @@ BOOST_AUTO_TEST_CASE(print_entries_psfs) {
 Original groups       3
 Deconvolution groups  1
 Channel index         0
-   # Pol Ch Interval Weight Freq(MHz)
-   0   Q  0        4  1.234 5-10
-   1   I  1        8   1.01 1-2
-   2   U  0       16    1.1 100-200
+   # Pol Ch Mask Interval Weight Freq(MHz)
+   0   Q  0   12        4  1.234 5-10
+   1   I  1   13        8   1.01 1-2
+   2   U  0   12       16    1.1 100-200
 === PSFs ===
 [x: 1, y: 2]
 [x: 3, y: 4]
@@ -194,7 +194,7 @@ BOOST_AUTO_TEST_CASE(validate_psfs_valid_single_entry) {
     WorkTable table({PsfOffset{1, 1}}, 1, 1);
     auto entry = std::make_unique<WorkTableEntry>(
         WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
-                       aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234});
+                       aocommon::PolarizationEnum::StokesQ, 0, 4, 12, 1.234});
     entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(4, 6));
     table.AddEntry(std::move(entry));
     table.ValidatePsfs();
@@ -203,7 +203,7 @@ BOOST_AUTO_TEST_CASE(validate_psfs_valid_single_entry) {
     WorkTable table(std::vector<PsfOffset>(n_psfs), 1, 1);
     auto entry = std::make_unique<WorkTableEntry>(
         WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
-                       aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234});
+                       aocommon::PolarizationEnum::StokesQ, 0, 4, 12, 1.234});
 
     for (int i = 0; i < n_psfs; ++i) {
       entry->psf_accessors.emplace_back(
@@ -252,7 +252,7 @@ BOOST_AUTO_TEST_CASE(validate_psfs_too_few_accessors) {
   WorkTable table({}, 1, 1);
   table.AddEntry(std::make_unique<WorkTableEntry>(
       WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
-                     aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234}));
+                     aocommon::PolarizationEnum::StokesQ, 0, 4, 12, 1.234}));
 
   BOOST_CHECK_THROW(table.ValidatePsfs(), std::runtime_error);
 }
@@ -261,7 +261,7 @@ BOOST_AUTO_TEST_CASE(validate_psfs_too_many_accessors) {
   WorkTable table({PsfOffset{1, 1}}, 1, 1);
   auto entry = std::make_unique<WorkTableEntry>(
       WorkTableEntry{0, 5'000'000.0, 10'000'000.0,
-                     aocommon::PolarizationEnum::StokesQ, 0, 4, 1.234});
+                     aocommon::PolarizationEnum::StokesQ, 0, 4, 12, 1.234});
   entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(4, 5));
   entry->psf_accessors.emplace_back(std::make_unique<SizeOnlyAccessor>(6, 7));
   table.AddEntry(std::move(entry));
