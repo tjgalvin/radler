@@ -93,7 +93,7 @@ def test_multiple_deconvolution_groups(
         n_sub_groups = n_original_groups // min(
             n_original_groups, n_deconvolution_groups
         )
-        for (i, sub_table) in enumerate(work_table.deconvolution_groups):
+        for i, sub_table in enumerate(work_table.deconvolution_groups):
             ref_list = list(range(i * n_sub_groups, (i + 1) * n_sub_groups))
             assert sub_table == ref_list
 
@@ -204,7 +204,7 @@ def test_add_entries():
         model_read = entries[1].model
 
     assert len(work_table) == 0
-    for (i, entry) in enumerate(entries):
+    for i, entry in enumerate(entries):
         entry.image_weight = i
         entry.original_channel_index = i % 2
         entry.band_end_frequency = float(i + 1) * 1e6
@@ -217,7 +217,7 @@ def test_add_entries():
     assert len(work_table.original_groups[2]) == 0
 
     # Check iterator
-    for (i, entry) in enumerate(work_table):
+    for i, entry in enumerate(work_table):
         assert entry.image_weight == i
         assert entry.central_frequency == (0.5 * float(i + 1) * 1e6)
 

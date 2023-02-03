@@ -437,7 +437,7 @@ def test_ndeconvolution_is_noriginal(settings, algorithm):
             residual, np.zeros_like(residual), atol=2e-6
         )
 
-    for (i, model) in enumerate(models):
+    for i, model in enumerate(models):
         check_model_image_point_source(
             model, scales[i], shifts[i][0], shifts[i][1]
         )
