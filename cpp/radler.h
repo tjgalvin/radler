@@ -83,6 +83,7 @@ class Radler {
   void InitializeDeconvolutionAlgorithm(std::unique_ptr<WorkTable> table);
 
   void ReadMask(const WorkTable& group_table);
+  void ReadForcedSpectrumImages();
 
   const Settings settings_;
 

@@ -311,7 +311,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
     beam_size_ = 0.0;
   }
 
-  std::unique_ptr<class algorithms::DeconvolutionAlgorithm> algorithm;
+  std::unique_ptr<algorithms::DeconvolutionAlgorithm> algorithm;
 
   switch (settings_.algorithm_type) {
     case AlgorithmType::kPython:
@@ -352,19 +352,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
   parallel_deconvolution_->SetAlgorithm(std::move(algorithm));
 
   if (settings_.spectral_fitting.mode == SpectralFittingMode::kForcedTerms) {
-    Logger::Debug << "Reading " << settings_.spectral_fitting.forced_filename
-                  << ".\n";
-    FitsReader reader(settings_.spectral_fitting.forced_filename);
-    if (reader.ImageWidth() != image_width_ ||
-        reader.ImageHeight() != image_height_) {
-      throw std::runtime_error(
-          "The image width of the forced spectrum fits file does not match the "
-          "imaging size");
-    }
-    std::vector<Image> terms(1);
-    terms[0] = Image(image_width_, image_height_);
-    reader.Read(terms[0].Data());
-    parallel_deconvolution_->SetSpectrallyForcedImages(std::move(terms));
+    ReadForcedSpectrumImages();
   }
 
   ReadMask(*table_);
@@ -381,6 +369,25 @@ bool Radler::IsInitialized() const {
 
 size_t Radler::IterationNumber() const {
   return parallel_deconvolution_->FirstAlgorithm().IterationNumber();
+}
+
+void Radler::ReadForcedSpectrumImages() {
+  Logger::Debug << "Reading " << settings_.spectral_fitting.forced_filename
+                << ".\n";
+  FitsReader reader(settings_.spectral_fitting.forced_filename, false, true);
+  if (reader.ImageWidth() != image_width_ ||
+      reader.ImageHeight() != image_height_) {
+    throw std::runtime_error(
+        "The image width of the forced spectrum fits file does not match the "
+        "imaging size");
+  }
+  std::vector<Image> terms(reader.NImages());
+  for (size_t spectral_term = 0; spectral_term != reader.NImages();
+       ++spectral_term) {
+    terms[spectral_term] = Image(image_width_, image_height_);
+    reader.ReadIndex(terms[spectral_term].Data(), spectral_term);
+  }
+  parallel_deconvolution_->SetSpectrallyForcedImages(std::move(terms));
 }
 
 void Radler::ReadMask(const WorkTable& group_table) {
