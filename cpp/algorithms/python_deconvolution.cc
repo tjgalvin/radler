@@ -112,9 +112,18 @@ PythonDeconvolution::PythonDeconvolution(const std::string& filename)
     : _filename(filename), _guard(new pybind11::scoped_interpreter()) {
   pybind11::module main = pybind11::module::import("__main__");
   pybind11::object scope = main.attr("__dict__");
-  pybind11::eval_file(_filename, scope);
-  _deconvolveFunction = std::make_unique<pybind11::function>(
-      main.attr("deconvolve").cast<pybind11::function>());
+  try {
+    pybind11::eval_file(_filename, scope);
+    _deconvolveFunction = std::make_unique<pybind11::function>(
+        main.attr("deconvolve").cast<pybind11::function>());
+  } catch (pybind11::error_already_set& e) {
+    // If python throws an exception, the exception will contain references to
+    // Python objects. This object can't leave the scope, because they would
+    // be destructed, causing a segmentation fault. We therefore catch the
+    // exception at this point and rethrow it as a common runtime_error.
+    const std::string what = e.what();
+    throw std::runtime_error(what);
+  }
 
   pybind11::class_<PyChannel>(main, "Channel")
       .def_readwrite("frequency", &PyChannel::frequency)
@@ -253,9 +262,18 @@ float PythonDeconvolution::ExecuteMajorIteration(
     meta.mgain = MajorLoopGain();
     meta.final_threshold = Threshold();
 
-    // Run the python code
-    result = (*_deconvolveFunction)(std::move(pyResiduals), std::move(pyModel),
-                                    std::move(pyPsfs), &meta);
+    try {
+      // Run the python code
+      result = (*_deconvolveFunction)(
+          std::move(pyResiduals), std::move(pyModel), std::move(pyPsfs), &meta);
+    } catch (pybind11::error_already_set& e) {
+      // If python throws an exception, the exception will contain references to
+      // Python objects -- see explanation above.
+      const std::string what = e.what();
+      throw std::runtime_error(
+          "Error occurred while executing python deconvolution function: " +
+          what);
+    }
 
     SetIterationNumber(meta.iteration_number);
   }
