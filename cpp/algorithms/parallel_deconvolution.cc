@@ -234,17 +234,26 @@ void ParallelDeconvolution::RunSubImage(
     if (!scale_masks_.empty()) {
       // Here we set the scale mask for the multiscale algorithm.
       // The maximum number of scales in the previous iteration can be found by
-      // scale_masks_.size() Not all msAlgs might have used that many scales, so
-      // we have to take this into account
+      // scale_masks_.size(). Not all multi_scale_algorithms might have used
+      // that many scales, so we have to take this into account
       multi_scale_algorithm.SetScaleMaskCount(std::max(
           multi_scale_algorithm.GetScaleMaskCount(), scale_masks_.size()));
       for (size_t i = 0; i != multi_scale_algorithm.GetScaleMaskCount(); ++i) {
-        aocommon::UVector<bool>& output = multi_scale_algorithm.GetScaleMask(i);
-        output.assign(sub_image.width * sub_image.height, false);
+        aocommon::UVector<bool>& scale_mask =
+            multi_scale_algorithm.GetScaleMask(i);
+        scale_mask.assign(sub_image.width * sub_image.height, false);
         if (i < scale_masks_.size()) {
-          Image::TrimBox(output.data(), sub_image.x, sub_image.y,
+          Image::TrimBox(scale_mask.data(), sub_image.x, sub_image.y,
                          sub_image.width, sub_image.height,
                          scale_masks_[i].data(), width, height);
+          // If the scale-independent mask is set, we'll have to take the
+          // intersection between that mask and the scale mask. Values in the
+          // scale dependent mask may be true values that fall outside the
+          // boundary, hence they should not be cleaned. Multiscale ignores the
+          // scale-independent mask when scale masks are set.
+          for (size_t i = 0; i != scale_mask.size(); ++i) {
+            scale_mask[i] = scale_mask[i] && sub_image.mask[i];
+          }
         }
       }
     }
