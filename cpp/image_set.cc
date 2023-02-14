@@ -347,8 +347,13 @@ void ImageSet::GetSquareIntegratedWithNormalChannels(Image& dest,
               }
             }
           }
-          scratch.Sqrt();
+          if (is_first_polarization)
+            scratch = 0.0;
+          else
+            scratch.Sqrt();
         }
+      } else {
+        scratch = 0.0;
       }
 
       if (is_first_channel) {
