@@ -11,6 +11,8 @@
 
 #include <mutex>
 
+using schaapcommon::fitters::SpectralFittingMode;
+
 namespace radler::algorithms {
 
 struct PyChannel {
@@ -24,15 +26,9 @@ class PySpectralFitter {
 
   pybind11::array_t<double> fit(pybind11::array_t<double> values, size_t x,
                                 size_t y) {
-    if (values.ndim() != 1) {
-      throw std::runtime_error(
-          "spectral_fitter.fit(): Invalid dimensions of values array");
-    }
-    if (static_cast<size_t>(values.shape()[0]) !=
-        _fitter.Frequencies().size()) {
-      throw std::runtime_error(
-          "spectral_fitter.fit(): Incorrect size of values array");
-    }
+    if (_fitter.Mode() == SpectralFittingMode::kNoFitting)
+      throw std::runtime_error("fit() called but no fitting mode selected");
+    CheckInput(values);
     aocommon::UVector<float> vec(_fitter.Frequencies().size());
     pybind11::buffer_info info = values.request();
     const unsigned char* buffer = static_cast<const unsigned char*>(info.ptr);
@@ -55,6 +51,37 @@ class PySpectralFitter {
 
   pybind11::array_t<double> fit_and_evaluate(pybind11::array_t<double> values,
                                              size_t x, size_t y) {
+    if (_fitter.Mode() == SpectralFittingMode::kNoFitting) {
+      return values;
+    } else {
+      CheckInput(values);
+      aocommon::UVector<float> vec(_fitter.Frequencies().size());
+      pybind11::buffer_info info = values.request();
+      const unsigned char* buffer = static_cast<const unsigned char*>(info.ptr);
+      for (size_t i = 0; i != _fitter.Frequencies().size(); ++i) {
+        vec[i] = *reinterpret_cast<const double*>(buffer + info.strides[0] * i);
+      }
+
+      std::vector<float> fittingScratch;
+      _fitter.FitAndEvaluate(vec.data(), x, y, fittingScratch);
+
+      pybind11::buffer_info resultBuf(
+          nullptr,  // ask NumPy to allocate
+          sizeof(double), pybind11::format_descriptor<double>::value, 1,
+          {static_cast<ptrdiff_t>(_fitter.Frequencies().size())},
+          {sizeof(double)}  // Stride
+      );
+      pybind11::array_t<double> pyResult(resultBuf);
+      std::copy_n(vec.data(), _fitter.Frequencies().size(),
+                  static_cast<double*>(pyResult.request(true).ptr));
+      return pyResult;
+    }
+  }
+
+ private:
+  const schaapcommon::fitters::SpectralFitter& _fitter;
+
+  void CheckInput(const pybind11::array_t<double>& values) const {
     if (values.ndim() != 1) {
       throw std::runtime_error(
           "spectral_fitter.fit_and_evaluate(): Invalid dimensions of values "
@@ -63,32 +90,11 @@ class PySpectralFitter {
     if (static_cast<size_t>(values.shape()[0]) !=
         _fitter.Frequencies().size()) {
       throw std::runtime_error(
-          "spectral_fitter.fit_and_evaluate(): Incorrect size of values array");
+          "spectral_fitter.fit(): Incorrect size of values array (got " +
+          std::to_string(values.shape()[0]) + ", need " +
+          std::to_string(_fitter.Frequencies().size()) + ")");
     }
-    aocommon::UVector<float> vec(_fitter.Frequencies().size());
-    pybind11::buffer_info info = values.request();
-    const unsigned char* buffer = static_cast<const unsigned char*>(info.ptr);
-    for (size_t i = 0; i != _fitter.Frequencies().size(); ++i) {
-      vec[i] = *reinterpret_cast<const double*>(buffer + info.strides[0] * i);
-    }
-
-    std::vector<float> fittingScratch;
-    _fitter.FitAndEvaluate(vec.data(), x, y, fittingScratch);
-
-    pybind11::buffer_info resultBuf(
-        nullptr,  // ask NumPy to allocate
-        sizeof(double), pybind11::format_descriptor<double>::value, 1,
-        {static_cast<ptrdiff_t>(_fitter.Frequencies().size())},
-        {sizeof(double)}  // Stride
-    );
-    pybind11::array_t<double> pyResult(resultBuf);
-    std::copy_n(vec.data(), _fitter.Frequencies().size(),
-                static_cast<double*>(pyResult.request(true).ptr));
-    return pyResult;
   }
-
- private:
-  const schaapcommon::fitters::SpectralFitter& _fitter;
 };
 
 struct PyMetaData {
