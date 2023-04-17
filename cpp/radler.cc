@@ -135,7 +135,6 @@ void Radler::Perform(bool& reached_major_threshold,
 
   Logger::Info.Flush();
   Logger::Info << " == Deconvolving (" << major_iteration_number << ") ==\n";
-
   ImageSet residual_set(*table_, settings_.squared_joins,
                         settings_.linked_polarizations, image_width_,
                         image_height_);
@@ -154,6 +153,10 @@ void Radler::Perform(bool& reached_major_threshold,
   double stddev = integrated.StdDevFromMAD();
   Logger::Info << "Estimated standard deviation of background noise: "
                << FluxDensity::ToNiceString(stddev) << '\n';
+  if (settings_.force_mask_rounds != 0 && (settings_.force_mask_rounds >= major_iteration_number)){
+    Logger::Info << "Forcing a new mask to be derived...\n";
+    auto_mask_is_finished_ = false;
+  }
   if (settings_.auto_mask_sigma && auto_mask_is_finished_) {
     // When we are in the second phase of automasking, don't use
     // the RMS background anymore
@@ -258,7 +261,7 @@ void Radler::Perform(bool& reached_major_threshold,
     auto_mask_is_finished_ = true;
     reached_major_threshold = true;
   }
-
+  
   if (settings_.major_iteration_count != 0 &&
       major_iteration_number >= settings_.major_iteration_count) {
     reached_major_threshold = false;

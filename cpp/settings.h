@@ -199,6 +199,17 @@ struct Settings {
   std::optional<double> auto_mask_sigma = std::nullopt;
 
   /**
+   * @brief Force a mask to be derived for some set of major cycles
+   * 
+   * If set, this will force a new mask to be produced for a set of major cycles
+   * using the prescribed masking mode. This will happened even if the internal
+   * major cleaning cycle threshold that governs deep cleaning has been reached. 
+   * 
+   * If unset, the deep cleaning mode will be behave as normal
+   */
+  size_t force_mask_rounds = 0;
+
+  /**
    * If @c true, maintain a list of components while performing deconvolution.
    * This works with the @ref AlgorithmType::kGenericClean and @ref
    * AlgorithmType::kMultiscale algorithms. This is off by default, to prevent
