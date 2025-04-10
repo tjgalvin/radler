@@ -108,11 +108,11 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
                                      const std::vector<aocommon::Image>& psfs,
                                      size_t image_index,
                                      size_t scale_index) const;
-  void RunFullComponentFitter(ImageSet& residual_set, ImageSet& model_set,
-                              const std::vector<aocommon::Image>& psfs) const;
-  void RunFullComponentFitter(ImageSet& residual_set, ImageSet& model_set,
-                              const std::vector<aocommon::Image>& psfs,
-                              size_t image_index) const;
+  void RunComponentOptimization(ImageSet& residual_set, ImageSet& model_set,
+                                const std::vector<aocommon::Image>& psfs) const;
+  void RunComponentOptimization(ImageSet& residual_set, ImageSet& model_set,
+                                const std::vector<aocommon::Image>& psfs,
+                                size_t image_index) const;
 };
 
 /**

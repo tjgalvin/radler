@@ -239,8 +239,9 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
     throw std::runtime_error("Error in RMS factor image dimensions!");
   }
 
-  if (ComponentOptimizationAlgorithm() != OptimizationAlgorithm::kClean) {
-    RunFullComponentFitter(data_image, model_image, psf_images);
+  if (use_per_scale_masks_ &&
+      ComponentOptimizationAlgorithm() != OptimizationAlgorithm::kClean) {
+    RunComponentOptimization(data_image, model_image, psf_images);
     DeconvolutionResult result;
     return result;
   }
@@ -834,7 +835,7 @@ void MultiScaleAlgorithm::RunScaleIndepedentComponentOptimization(
   ApplySpectralConstraintsToComponents(*component_list_);
 }
 
-void MultiScaleAlgorithm::RunFullComponentFitter(
+void MultiScaleAlgorithm::RunComponentOptimization(
     ImageSet& residual_set, ImageSet& model_set,
     const std::vector<aocommon::Image>& psfs, size_t image_index) const {
   const size_t width = residual_set.Width();
@@ -855,12 +856,17 @@ void MultiScaleAlgorithm::RunFullComponentFitter(
     ms_transforms.Transform(convolved_psfs.back(), scratch,
                             scale_infos_[scale_index].scale);
 
-    const size_t n_components = component_list_->ComponentCount(scale_index);
     std::vector<std::pair<size_t, size_t>>& list_for_scale =
         list.emplace_back();
-    for (size_t i = 0; i != n_components; ++i) {
-      list_for_scale.emplace_back(
-          component_list_->GetComponentPosition(scale_index, i));
+    aocommon::UVector<bool>::const_iterator mask_iter =
+        scale_masks_[scale_index].begin();
+    for (size_t y = 0; y != height; ++y) {
+      for (size_t x = 0; x != width; ++x) {
+        if (*mask_iter) {
+          list_for_scale.emplace_back(x, y);
+        }
+        ++mask_iter;
+      }
     }
   }
 
@@ -883,21 +889,23 @@ void MultiScaleAlgorithm::RunFullComponentFitter(
           "Unsupported optimization algorithm for multiscale clean algorithm");
   }
 
-  aocommon::Image& model = model_set[image_index];
-
-  Logger::Info << "Updating component list...\n";
-  for (size_t scale_index = 0; scale_index != scale_infos_.size();
-       ++scale_index) {
-    const size_t n_components = component_list_->ComponentCount(scale_index);
-    for (size_t i = 0; i != n_components; ++i) {
-      const std::pair<size_t, size_t>& position =
-          component_list_->GetComponentPosition(scale_index, i);
-      const float value = model.Value(position.first, position.second);
-      component_list_->GetSingleValue(scale_index, i, image_index) += value;
+  if (track_components_) {
+    Logger::Info << "Updating component list...\n";
+    for (size_t scale_index = 0; scale_index != scale_infos_.size();
+         ++scale_index) {
+      const size_t n_components = component_list_->ComponentCount(scale_index);
+      const aocommon::Image& scale_delta = delta[scale_index];
+      for (size_t i = 0; i != n_components; ++i) {
+        const std::pair<size_t, size_t>& position =
+            component_list_->GetComponentPosition(scale_index, i);
+        const float value = scale_delta.Value(position.first, position.second);
+        component_list_->GetSingleValue(scale_index, i, image_index) += value;
+      }
     }
   }
 
   Logger::Info << "Updating model...\n";
+  aocommon::Image& model = model_set[image_index];
   for (size_t scale_index = 0; scale_index != scale_infos_.size();
        ++scale_index) {
     ms_transforms.Transform(delta[scale_index], scratch,
@@ -917,16 +925,19 @@ void MultiScaleAlgorithm::RunFullComponentFitter(
   Logger::Info << "Finished optimization, RMS now " << residual.RMS() << '\n';
 }
 
-void MultiScaleAlgorithm::RunFullComponentFitter(
+void MultiScaleAlgorithm::RunComponentOptimization(
     ImageSet& residual_set, ImageSet& model_set,
     const std::vector<aocommon::Image>& psfs) const {
   for (size_t image_index = 0; image_index != residual_set.Size();
        ++image_index) {
-    RunFullComponentFitter(residual_set, model_set, psfs, image_index);
+    RunComponentOptimization(residual_set, model_set, psfs, image_index);
   }
 
-  Logger::Info << "Applying spectral constraints...\n";
-  ApplySpectralConstraintsToComponents(*component_list_);
+  if (track_components_) {
+    Logger::Info << "Applying spectral constraints...\n";
+    ApplySpectralConstraintsToComponents(*component_list_);
+    // TODO model should also be updated
+  }
 }
 
 }  // namespace radler::algorithms
