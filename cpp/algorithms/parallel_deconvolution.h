@@ -76,7 +76,8 @@ class ParallelDeconvolution {
    * Set the multiscale auto-masking mode. This method requires that the class
    * is initialized with the multiscale algorithm.
    */
-  void SetAutoMaskMode(bool track_per_scale_masks, bool use_per_scale_masks);
+  void SetMultiscaleAutoMaskMode(bool track_per_scale_masks,
+                                 bool use_per_scale_masks);
 
   void SetComponentOptimization(OptimizationAlgorithm algorithm);
 

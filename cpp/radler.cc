@@ -127,6 +127,33 @@ const algorithms::DeconvolutionAlgorithm& Radler::MaxScaleCountAlgorithm()
   return parallel_deconvolution_->MaxScaleCountAlgorithm();
 }
 
+void Radler::SetAutoMaskMode(ImageSet& model_set, bool use_mask) {
+  if (settings_.algorithm_type == AlgorithmType::kMultiscale) {
+    parallel_deconvolution_->SetMultiscaleAutoMaskMode(!use_mask, use_mask);
+  } else {
+    if (use_mask) {
+      if (auto_mask_.empty()) {
+        // Generate the auto-mask from the model image(s)
+        auto_mask_.assign(image_width_ * image_height_, false);
+        for (size_t image_index = 0; image_index != model_set.Size();
+             ++image_index) {
+          const aocommon::Image& image = model_set[image_index];
+          for (size_t i = 0; i != image_width_ * image_height_; ++i) {
+            if (std::isfinite(image[i]) && image[i] != 0.0)
+              auto_mask_[i] = true;
+          }
+        }
+      }
+      parallel_deconvolution_->SetCleanMask(auto_mask_.data());
+    } else {
+      if (clean_mask_.empty())
+        parallel_deconvolution_->SetCleanMask(nullptr);
+      else
+        parallel_deconvolution_->SetCleanMask(clean_mask_.data());
+    }
+  }
+}
+
 void Radler::Perform(bool& another_iteration_required,
                      size_t major_iteration_number) {
   /**
@@ -241,30 +268,8 @@ void Radler::Perform(bool& another_iteration_required,
   const std::vector<std::vector<aocommon::Image>> psf_images =
       residual_set.LoadAndAveragePsfs();
 
-  if (settings_.algorithm_type == AlgorithmType::kMultiscale) {
-    if (auto_mask_is_enabled) {
-      if (auto_mask_is_finished_) {
-        parallel_deconvolution_->SetAutoMaskMode(false, true);
-      } else {
-        parallel_deconvolution_->SetAutoMaskMode(true, false);
-      }
-    }
-  } else {
-    if (auto_mask_is_enabled && auto_mask_is_finished_) {
-      if (auto_mask_.empty()) {
-        // Generate the auto-mask from the model image(s)
-        auto_mask_.assign(image_width_ * image_height_, false);
-        for (size_t image_index = 0; image_index != model_set.Size();
-             ++image_index) {
-          const aocommon::Image& image = model_set[image_index];
-          for (size_t i = 0; i != image_width_ * image_height_; ++i) {
-            if (std::isfinite(image[i]) && image[i] != 0.0)
-              auto_mask_[i] = true;
-          }
-        }
-      }
-      parallel_deconvolution_->SetCleanMask(auto_mask_.data());
-    }
+  if (auto_mask_is_enabled) {
+    SetAutoMaskMode(model_set, auto_mask_is_finished_);
   }
 
   const algorithms::ParallelDeconvolutionResult result =
@@ -308,6 +313,22 @@ void Radler::Perform(bool& another_iteration_required,
     Logger::Info
         << "Maximum number of minor deconvolution iterations was reached: not "
            "continuing deconvolution.\n";
+  }
+
+  if (settings_.major_iteration_strategy != MajorIterationStrategy::kNormal &&
+      another_iteration_required && auto_mask_is_enabled &&
+      !auto_mask_is_finished_) {
+    Logger::Info << "Continuing image-based deconvolution with auto-mask.\n";
+    double continued_loop_gain = settings_.major_loop_gain;
+    if (settings_.major_iteration_strategy == MajorIterationStrategy::kFull) {
+      continued_loop_gain = 1.0;
+    }
+    if (continued_loop_gain != 0.0) {
+      SetAutoMaskMode(model_set, true);
+      parallel_deconvolution_->ExecuteMajorIteration(
+          residual_set, model_set, psf_images, table_->PsfOffsets(),
+          continued_loop_gain);
+    }
   }
 
   residual_set.AssignAndStoreResidual();

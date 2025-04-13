@@ -89,6 +89,8 @@ class Radler {
   void ReadMask(const WorkTable& group_table);
   void ReadForcedSpectrumImages();
 
+  void SetAutoMaskMode(ImageSet& model_set, bool use_mask);
+
   const Settings settings_;
 
   std::unique_ptr<WorkTable> table_;

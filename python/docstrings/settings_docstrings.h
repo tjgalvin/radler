@@ -77,6 +77,21 @@ x window min).)doc";
 
 static const char *__doc_radler_LocalRmsMethod_kRmsWindow = R"doc(Spatially varying RMS image.)doc";
 
+static const char *__doc_radler_MajorIterationStrategy = R"doc()doc";
+
+static const char *__doc_radler_MajorIterationStrategy_kDual =
+R"doc(First, clean until the major iteration gain. Then, repeat this clean
+step with the same major gain value, while using the auto-mask for
+cleaning. Once the major gain value has been reached for the second
+time, the algorithm returns for a prediction-gridding round. This
+repeats as long as the auto-mask threshold has not been reached.)doc";
+
+static const char *__doc_radler_MajorIterationStrategy_kFull = R"doc(Like kDual, but clean until the final threshold in the second step.)doc";
+
+static const char *__doc_radler_MajorIterationStrategy_kNormal =
+R"doc(Clean until the major iteration gain, then return for a prediction-
+gridding round.)doc";
+
 static const char *__doc_radler_MultiscaleShape = R"doc(Shape used in multi-scale deconvolution.)doc";
 
 static const char *__doc_radler_MultiscaleShape_kGaussianShape =
@@ -355,6 +370,11 @@ static const char *__doc_radler_Settings_major_iteration_count =
 R"doc(Stopping criterion on the total number of major iterations. Radler
 will take this into account to determine the
 ``reached_major_threshold`` value returned by Radler::Perform().)doc";
+
+static const char *__doc_radler_Settings_major_iteration_strategy =
+R"doc(After reaching the major gain threshold in one major iteration,
+continue cleaning with the auto-mask. This makes auto-masking converge
+faster, thereby allowing slightly deeper major gain values.)doc";
 
 static const char *__doc_radler_Settings_major_loop_gain =
 R"doc(Gain value for major loop iterations.

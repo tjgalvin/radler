@@ -257,13 +257,13 @@ void ParallelDeconvolution::SetMinorLoopGain(double gain) {
   for (auto& alg : algorithms_) alg->SetMinorLoopGain(gain);
 }
 
-void ParallelDeconvolution::SetAutoMaskMode(bool track_per_scale_masks,
-                                            bool use_per_scale_masks) {
+void ParallelDeconvolution::SetMultiscaleAutoMaskMode(
+    bool track_per_scale_masks, bool use_per_scale_masks) {
   track_per_scale_masks_ = track_per_scale_masks;
   use_per_scale_masks_ = use_per_scale_masks;
   for (auto& alg : algorithms_) {
-    class MultiScaleAlgorithm& algorithm =
-        static_cast<class MultiScaleAlgorithm&>(*alg);
+    assert(dynamic_cast<MultiScaleAlgorithm*>(alg.get()));
+    MultiScaleAlgorithm& algorithm = static_cast<MultiScaleAlgorithm&>(*alg);
     algorithm.SetAutoMaskMode(track_per_scale_masks, use_per_scale_masks);
   }
 }

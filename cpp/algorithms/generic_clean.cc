@@ -75,7 +75,7 @@ DeconvolutionResult GenericClean::ExecuteMajorIteration(
       FindPeak(integrated, scratchA.Data(), componentX, componentY);
   DeconvolutionResult result;
   result.starting_peak_value = maxValue;
-  result.final_peak_value = maxValue.ValueOr(0);
+  result.final_peak_value = maxValue.ValueOr(0.0);
   if (!maxValue) {
     LogReceiver().Info << "No peak found.\n";
     return result;

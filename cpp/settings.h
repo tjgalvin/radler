@@ -128,6 +128,27 @@ enum class OptimizationAlgorithm {
    */
   kRegularizedGradientDescent
 };
+
+enum class MajorIterationStrategy {
+  /**
+   * Clean until the major iteration gain, then return for a prediction-gridding
+   * round.
+   */
+  kNormal,
+  /**
+   * First, clean until the major iteration gain. Then, repeat this clean step
+   * with the same major gain value, while using the auto-mask for cleaning.
+   * Once the major gain value has been reached for the second time, the
+   * algorithm returns for a prediction-gridding round. This repeats as long as
+   * the auto-mask threshold has not been reached.
+   */
+  kDual,
+  /**
+   * Like @ref kDual, but clean until the final threshold in the second step.
+   */
+  kFull
+};
+
 /// Class to collect and set (Radler) deconvolution related settings.
 struct Settings {
   /// Trimmed image width.
@@ -241,6 +262,14 @@ struct Settings {
    * If unset, automatic masking is not used.
    */
   std::optional<double> auto_mask_sigma = std::nullopt;
+
+  /**
+   * After reaching the major gain threshold in one major iteration, continue
+   * cleaning with the auto-mask. This makes auto-masking converge faster,
+   * thereby allowing slightly deeper major gain values.
+   */
+  MajorIterationStrategy major_iteration_strategy =
+      MajorIterationStrategy::kDual;
 
   /**
    * @brief Like @ref auto_mask_sigma, but instead specifies an absolute
