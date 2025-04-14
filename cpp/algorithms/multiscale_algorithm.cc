@@ -297,6 +297,7 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
   const float initial_peak_value =
       std::fabs(scale_infos_[scaleWithPeak].max_unnormalized_image_value *
                 scale_infos_[scaleWithPeak].bias_factor);
+  result.starting_peak_value = initial_peak_value;
   float mGainThreshold = initial_peak_value * (1.0 - MajorLoopGain());
   mGainThreshold = std::max(mGainThreshold, MajorIterationThreshold());
   float firstThreshold = mGainThreshold;

@@ -252,6 +252,17 @@ void Radler::Perform(bool& another_iteration_required,
   // change the behaviour for non-squared joins.
   const double threshold_bias =
       settings_.squared_joins ? median_and_stddev.first : 0.0;
+
+  // The threshold at which deconvolution is fully finished (including the
+  // automasking stage)
+  double final_threshold;
+  if (settings_.auto_threshold_sigma) {
+    final_threshold =
+        std::max(stddev * (*settings_.auto_threshold_sigma) + threshold_bias,
+                 settings_.absolute_threshold);
+  } else {
+    final_threshold = settings_.absolute_threshold;
+  }
   if (auto_mask_is_enabled && !auto_mask_is_finished_) {
     const double combined_auto_mask_threshold = std::max(
         stddev * settings_.auto_mask_sigma.value_or(0.0) + threshold_bias,
@@ -259,9 +270,7 @@ void Radler::Perform(bool& another_iteration_required,
     parallel_deconvolution_->SetThreshold(
         std::max(combined_auto_mask_threshold, settings_.absolute_threshold));
   } else if (settings_.auto_threshold_sigma) {
-    parallel_deconvolution_->SetThreshold(
-        std::max(stddev * (*settings_.auto_threshold_sigma) + threshold_bias,
-                 settings_.absolute_threshold));
+    parallel_deconvolution_->SetThreshold(final_threshold);
   }
 
   Logger::Debug << "Loading PSFs...\n";
@@ -278,6 +287,7 @@ void Radler::Perform(bool& another_iteration_required,
           settings_.major_loop_gain);
   another_iteration_required = result.another_iteration_required;
 
+  bool auto_mask_finished_now = false;
   if (!another_iteration_required && auto_mask_is_enabled &&
       !auto_mask_is_finished_) {
     Logger::Info << "Auto-masking threshold reached; continuing next major "
@@ -285,6 +295,7 @@ void Radler::Perform(bool& another_iteration_required,
     auto_mask_is_finished_ = true;
     another_iteration_required = true;
     auto_mask_finishing_iteration = major_iteration_number;
+    auto_mask_finished_now = true;
   }
 
   if (another_iteration_required && settings_.major_iteration_count != 0 &&
@@ -317,11 +328,29 @@ void Radler::Perform(bool& another_iteration_required,
 
   if (settings_.major_iteration_strategy != MajorIterationStrategy::kNormal &&
       another_iteration_required && auto_mask_is_enabled &&
-      !auto_mask_is_finished_) {
+      (!auto_mask_is_finished_ || auto_mask_finished_now)) {
     Logger::Info << "Continuing image-based deconvolution with auto-mask.\n";
     double continued_loop_gain = settings_.major_loop_gain;
     if (settings_.major_iteration_strategy == MajorIterationStrategy::kFull) {
       continued_loop_gain = 1.0;
+    } else if (auto_mask_finished_now) {
+      if (result.end_peak && result.start_peak && result.end_peak != 0.0f &&
+          result.start_peak != 0.0f) {
+        const double achieved_gain = std::max(
+            0.0f, 1.0f - std::abs(*result.end_peak / *result.start_peak));
+        continued_loop_gain =
+            std::max(0.0, 1.0 - (1.0 - settings_.major_loop_gain) /
+                                    (1.0 - achieved_gain));
+        Logger::Info << "Peak was decreased by "
+                     << std::round(100.0 * achieved_gain)
+                     << "% in this iteration; using major loop gain of "
+                     << continued_loop_gain << " to finish this iteration.\n";
+        parallel_deconvolution_->SetThreshold(final_threshold);
+      } else {
+        continued_loop_gain = 0.0;
+      }
+    } else {
+      continued_loop_gain = settings_.major_loop_gain;
     }
     if (continued_loop_gain != 0.0) {
       SetAutoMaskMode(model_set, true);
