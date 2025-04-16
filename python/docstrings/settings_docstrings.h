@@ -306,6 +306,21 @@ in the image.
 
 If unset, automatic thresholding is not used.)doc";
 
+static const char *__doc_radler_Settings_boost_initial_iterations =
+R"doc(Setting this option to ``True`` will use a more agressive (i.e.
+higher) major loop gain ('mgain') during the first and second
+iterations. This is often possible because only a few strong sources
+are deconvolved in the first iterations. They are also often more in
+the centre, so they are less affected by w-term or beam effects, and
+can therefore be more agressively deconvolved. Boosting will save
+approximately 0.75 major iterations.
+
+In the first iteration, the mgain will be set to: 1 - (1 - mgain) ^
+1.5. In the second iteration, the mgain will be set to: 1 - (1 -
+mgain) ^ 1.25. For a typical mgain value of 0.8, this result in 0.91
+and 0.87 for the first and second major iterations, respectively. For
+an mgain value of 0.94, it will result in 0.94 and 0.91.)doc";
+
 static const char *__doc_radler_Settings_border_ratio =
 R"doc(Size of border to avoid in the deconvolution, as a fraction of the
 image size. Example: a value of 0.1 means that the border is 10% on
