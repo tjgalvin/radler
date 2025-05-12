@@ -272,20 +272,20 @@ struct Settings {
       MajorIterationStrategy::kDual;
 
   /**
-   * Setting this option to @c true will use a more agressive (i.e. higher)
-   * major loop gain ('mgain') during the first and second iterations. This is
-   * often possible because only a few strong sources are deconvolved in the
-   * first iterations. They are also often more in the centre, so they are less
-   * affected by w-term or beam effects, and can therefore be more agressively
-   * deconvolved. Boosting will save approximately 0.75 major iterations.
+   * This option can be set to configure the agressiveness by changing the
+   * major loop gain ('mgain') during the first and second iterations. A higher
+   * gain during the first two iterations is often possible because only a few
+   * strong sources are deconvolved in the first iterations. They are also often
+   * more in the centre, so they are less affected by w-term or beam effects,
+   * and can therefore be more agressively deconvolved. Boosting with a value
+   * of 1.5 will save approximately 0.75 major iterations.
    *
-   * In the first iteration, the mgain will be set to: 1 - (1 - mgain) ^ 1.5. In
-   * the second iteration, the mgain will be set to: 1 - (1 - mgain) ^ 1.25. For
-   * a typical mgain value of 0.8, this result in 0.91 and 0.87 for the first
-   * and second major iterations, respectively. For an mgain value of 0.94, it
-   * will result in 0.94 and 0.91.
+   * In the first iteration, the mgain will be set to: 1 - (1 - mgain) ^ value.
+   * In the second iteration, 0.5 * (value-1) + 1 will be used as value. For a
+   * typical mgain value of 0.8 and a boost value of 1.2, this result in 0.85
+   * and 0.83 for the first and second major iterations, respectively.
    */
-  bool boost_initial_iterations = true;
+  double initial_iteration_boost = 1.2;
 
   /**
    * @brief Like @ref auto_mask_sigma, but instead specifies an absolute

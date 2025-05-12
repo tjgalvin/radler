@@ -24,6 +24,7 @@
 #include "algorithms/simple_clean.h"
 
 #include "image_set.h"
+#include "math/gain_calculations.h"
 #include "math/rms_image.h"
 #include "utils/casa_mask_reader.h"
 #include "utils/load_image_accessor.h"
@@ -278,17 +279,12 @@ void Radler::Perform(bool& another_iteration_required,
     SetAutoMaskMode(model_set, auto_mask_is_finished_);
   }
 
-  double major_loop_gain = settings_.major_loop_gain;
-  if (settings_.boost_initial_iterations) {
-    if (major_iteration_number < 2) {
-      major_loop_gain = 1.0 - std::pow(1.0 - major_loop_gain, 1.5);
-      Logger::Info << "First major iteration: boosting major loop gain to "
-                   << major_loop_gain << '\n';
-    } else if (major_iteration_number == 2) {
-      major_loop_gain = 1.0 - std::pow(1.0 - major_loop_gain, 1.25);
-      Logger::Info << "Second major iteration: boosting major loop gain to "
-                   << major_loop_gain << '\n';
-    }
+  const double major_loop_gain = math::gain_calculations::CalculateBoostedGain(
+      settings_.major_loop_gain, settings_.initial_iteration_boost,
+      major_iteration_number);
+  if (major_loop_gain != settings_.major_loop_gain) {
+    Logger::Info << "Iteration " << major_iteration_number
+                 << ": boosting major loop gain to " << major_loop_gain << '\n';
   }
 
   const algorithms::ParallelDeconvolutionResult result =
@@ -340,27 +336,24 @@ void Radler::Perform(bool& another_iteration_required,
       another_iteration_required && auto_mask_is_enabled &&
       (!auto_mask_is_finished_ || auto_mask_finished_now)) {
     Logger::Info << "Continuing image-based deconvolution with auto-mask.\n";
-    double continued_loop_gain = settings_.major_loop_gain;
-    if (settings_.major_iteration_strategy == MajorIterationStrategy::kFull) {
-      continued_loop_gain = 1.0;
-    } else if (auto_mask_finished_now) {
-      if (result.end_peak && result.start_peak && result.end_peak != 0.0f &&
-          result.start_peak != 0.0f) {
-        const double achieved_gain = std::max(
-            0.0f, 1.0f - std::abs(*result.end_peak / *result.start_peak));
-        continued_loop_gain =
-            std::max(0.0, 1.0 - (1.0 - settings_.major_loop_gain) /
-                                    (1.0 - achieved_gain));
+
+    double continued_loop_gain;
+    double achieved_gain;
+    std::tie(achieved_gain, continued_loop_gain) =
+        math::gain_calculations::CalculateContinuedLoopGain(
+            settings_.major_loop_gain, settings_.major_iteration_strategy,
+            result, auto_mask_finished_now);
+    if (continued_loop_gain != 0.0) {
+      if (auto_mask_finished_now) {
         Logger::Info << "Peak was decreased by "
                      << std::round(100.0 * achieved_gain)
                      << "% in this iteration; using major loop gain of "
                      << continued_loop_gain << " to finish this iteration.\n";
+        // Because the auto-mask wasn't finished in the previous iteration, the
+        // threshold is still set to the auto-mask instead of auto-threshold
+        // value.
         parallel_deconvolution_->SetThreshold(final_threshold);
-      } else {
-        continued_loop_gain = 0.0;
       }
-    }
-    if (continued_loop_gain != 0.0) {
       SetAutoMaskMode(model_set, true);
       parallel_deconvolution_->ExecuteMajorIteration(
           residual_set, model_set, psf_images, table_->PsfOffsets(),

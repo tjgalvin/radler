@@ -306,21 +306,6 @@ in the image.
 
 If unset, automatic thresholding is not used.)doc";
 
-static const char *__doc_radler_Settings_boost_initial_iterations =
-R"doc(Setting this option to ``True`` will use a more agressive (i.e.
-higher) major loop gain ('mgain') during the first and second
-iterations. This is often possible because only a few strong sources
-are deconvolved in the first iterations. They are also often more in
-the centre, so they are less affected by w-term or beam effects, and
-can therefore be more agressively deconvolved. Boosting will save
-approximately 0.75 major iterations.
-
-In the first iteration, the mgain will be set to: 1 - (1 - mgain) ^
-1.5. In the second iteration, the mgain will be set to: 1 - (1 -
-mgain) ^ 1.25. For a typical mgain value of 0.8, this result in 0.91
-and 0.87 for the first and second major iterations, respectively. For
-an mgain value of 0.94, it will result in 0.94 and 0.91.)doc";
-
 static const char *__doc_radler_Settings_border_ratio =
 R"doc(Size of border to avoid in the deconvolution, as a fraction of the
 image size. Example: a value of 0.1 means that the border is 10% on
@@ -368,6 +353,22 @@ Leaving the optional value unset disables horizon masking.)doc";
 static const char *__doc_radler_Settings_horizon_mask_filename =
 R"doc(The filename for storing the horizon mask FITS image. If unset/empty,
 Radler uses: prefix_name + "-horizon-mask.fits".)doc";
+
+static const char *__doc_radler_Settings_initial_iteration_boost =
+R"doc(This option can be set to configure the agressiveness by changing the
+major loop gain ('mgain') during the first and second iterations. A
+higher gain during the first two iterations is often possible because
+only a few strong sources are deconvolved in the first iterations.
+They are also often more in the centre, so they are less affected by
+w-term or beam effects, and can therefore be more agressively
+deconvolved. Boosting with a value of 1.5 will save approximately 0.75
+major iterations.
+
+In the first iteration, the mgain will be set to: 1 - (1 - mgain) ^
+value. In the second iteration, 0.5 * (value-1) + 1 will be used as
+value. For a typical mgain value of 0.8 and a boost value of 1.2, this
+result in 0.85 and 0.83 for the first and second major iterations,
+respectively.)doc";
 
 static const char *__doc_radler_Settings_linked_polarizations =
 R"doc(List of polarizations that is integrated over when performing peak
