@@ -13,7 +13,10 @@ option(BUILD_DOCUMENTATION "Build documentation" OFF)
 option(BUILD_DOCSTRINGS "Build docstrings (implies BUILD_DOCUMENTATION)" OFF)
 
 set(RADLER_VERSION 0.0.0)
-project(radler VERSION ${RADLER_VERSION})
+project(
+  radler
+  VERSION ${RADLER_VERSION}
+  LANGUAGES CXX)
 if(RADLER_VERSION MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)")
   set(RADLER_VERSION_MAJOR "${CMAKE_MATCH_1}")
   set(RADLER_VERSION_MINOR "${CMAKE_MATCH_2}")
@@ -139,7 +142,7 @@ endif()
 # Find and include HDF5
 find_package(
   HDF5
-  COMPONENTS C CXX
+  COMPONENTS CXX
   REQUIRED)
 add_definitions(${HDF5_DEFINITIONS} -DH5_USE_110_API)
 
