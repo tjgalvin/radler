@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: LGPL-3.0-only
+
+# base
+FROM ubuntu:22.04
+# libclang, llvm just needed for docstrings (for development only)
+RUN export DEBIAN_FRONTEND="noninteractive" \
+    && apt-get update \
+    && apt-get install -y \
+        bison \
+        build-essential \
+        black \
+        clang-format-14 \
+        clang-tidy \
+        cmake \
+        doxygen \
+        flex \
+        g++ \
+        gcovr \
+        gfortran \
+        git \
+        libblas-dev \
+        libboost-date-time-dev \
+        libboost-filesystem-dev \
+        libboost-program-options-dev \
+        libboost-python-dev \
+        libboost-system-dev \
+        libboost-test-dev \
+        libcfitsio-dev \
+        libfftw3-dev \
+        libgsl-dev \
+        libhdf5-serial-dev \
+        liblapack-dev \
+        libpython3-dev \
+        libreadline-dev \
+        llvm \
+        locales \
+        make \
+        ninja-build \
+        pkg-config \
+        python3-breathe \
+        python3-dev \
+        python3-numpy \
+        python3-pip \
+        python3-pytest \
+        python3-sphinx \
+        python3-sphinx-rtd-theme \
+        wcslib-dev \
+        wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install WSRT Measures (extra casacore data, for integration tests)
+# Note: The file on the ftp site is updated daily. When warnings regarding leap
+# seconds appear, ignore them or regenerate the docker image.
+RUN wget --tries 1 -nv -O /WSRT_Measures.ztar https://www.astron.nl/iers/WSRT_Measures.ztar \
+    && mkdir -p /var/lib/casacore/data \
+    && cd /var/lib/casacore/data \
+    && tar xfz /WSRT_Measures.ztar \
+    && rm /WSRT_Measures.ztar
+# Casacore
+RUN mkdir /external \
+    && cd /external \
+    && git clone https://github.com/casacore/casacore.git \
+    && cd /external/casacore \
+    && mkdir build \
+    && cd build \
+    && cmake .. -DBUILD_PYTHON=OFF -DBUILD_TESTING=OFF -DDATA_DIR=/var/lib/casacore/data \
+    && make -j$(nproc) \
+    && make install -j$(nproc) \
+    && cd /external \
+    && rm -rf /external/casacore
+
+# Pin clang version to the clang version in Ubuntu 22.04.
+# Otherwise they are incompatible and the docstring CI job fails.
+RUN python3 -m pip install \
+    cmake-format \
+    isort \
+    clang==14.0.0 \
+    pybind11-mkdoc
+RUN locale-gen en_US.UTF-8 # Necessary for creating docstrings (Högbom)
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:UTF-8
+ENV LC_ALL=en_US.UTF-8

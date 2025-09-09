@@ -31,7 +31,7 @@ versioning:
   script:
     # Unshallowing ensures that 'git log' works
     - git fetch --unshallow
-    - echo BASE_IMAGE_2004=${CI_REGISTRY_IMAGE}/base_2004:$(git log -n 1 --pretty=format:%H -- docker/ubuntu_20_04_base) > versions.env
+    - echo BASE_IMAGE_2204=${CI_REGISTRY_IMAGE}/base_2204:$(git log -n 1 --pretty=format:%H -- docker/ubuntu_22_04_base) > versions.env
     - echo BASE_IMAGE_2404=${CI_REGISTRY_IMAGE}/base_2404:$(git log -n 1 --pretty=format:%H -- docker/ubuntu_24_04_base) >> versions.env
     - cat versions.env
   artifacts:
@@ -64,11 +64,11 @@ versioning:
   #  - changes:
   #    - $DOCKER_FILE
 
-prepare-base-2004:
+prepare-base-2204:
   extends: .prepare
   variables:
-    DOCKER_IMAGE: $BASE_IMAGE_2004
-    DOCKER_FILE: docker/ubuntu_20_04_base
+    DOCKER_IMAGE: $BASE_IMAGE_2204
+    DOCKER_FILE: docker/ubuntu_22_04_base
 
 prepare-base-2404:
   extends: .prepare
@@ -76,12 +76,12 @@ prepare-base-2404:
     DOCKER_IMAGE: $BASE_IMAGE_2404
     DOCKER_FILE: docker/ubuntu_24_04_base
 
-.needs-2004:
+.needs-2204:
   needs:
     - job: versioning
-    - job: prepare-base-2004
+    - job: prepare-base-2204
       optional: true
-  image: $BASE_IMAGE_2004
+  image: $BASE_IMAGE_2204
 
 .needs-2404:
   needs:
@@ -118,8 +118,8 @@ clang-tidy:
     - cmake -DBUILD_PYTHON_BINDINGS=ON ..
     - make -j`nproc`
 
-build-2004:
-  extends: [".needs-2004",".build"]
+build-2204:
+  extends: [".needs-2204",".build"]
 
 build-2404:
   extends: [".needs-2404",".build"]
@@ -141,8 +141,8 @@ build-2404:
     - python3 -c "import site; print(site.getsitepackages()[0])"
     - cd && python3 -c "import radler"
 
-test-2004:
-  extends: [".needs-2004",".test"]
+test-2204:
+  extends: [".needs-2204",".test"]
   after_script:
     - gcovr -j`nproc` -e 'external/.*' -e '.*/CompilerIdCXX/.*' -e '.*/test/.*' build/
   coverage: /^TOTAL.*\s+(\d+\%)$/
