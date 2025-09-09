@@ -53,7 +53,7 @@ endif()
 
 if(NOT COMPILE_AS_EXTERNAL_PROJECT)
   # Include submodules
-  set(ExternalSubmoduleDirectories aocommon pybind11 schaapcommon)
+  set(ExternalSubmoduleDirectories aocommon schaapcommon)
   foreach(ExternalSubmodule ${ExternalSubmoduleDirectories})
     if(NOT EXISTS ${CMAKE_SOURCE_DIR}/external/${ExternalSubmodule})
       message(
@@ -106,16 +106,9 @@ if(COMPILE_AS_EXTERNAL_PROJECT)
         "SCHAAPCOMMON_SOURCE_DIR not specified. Please add -DSCHAAPCOMMON_SOURCE_DIR to the CMAKE_ARGS."
     )
   endif()
-  if(NOT DEFINED PYBIND11_SOURCE_DIR)
-    message(
-      FATAL_ERROR
-        "PYBIND11_SOURCE_DIR not specified. Please add -DPYBIND11_SOURCE_DIR to the CMAKE_ARGS."
-    )
-  endif()
 else()
   set(AOCOMMON_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/external/aocommon/include)
   set(SCHAAPCOMMON_SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/schaapcommon)
-  set(PYBIND11_SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/pybind11)
 endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
@@ -158,14 +151,14 @@ find_package(PythonInterp REQUIRED) # Call before finding PythonLibs!
 find_package(PythonLibs 3 REQUIRED)
 message(STATUS "Using python version ${PYTHON_VERSION_STRING}")
 
+find_package(pybind11 CONFIG REQUIRED)
+
 set(SCHAAPCOMMON_MODULES fitters math)
 if(COMPILE_AS_EXTERNAL_PROJECT)
   add_subdirectory(${SCHAAPCOMMON_SOURCE_DIR}
                    ${PROJECT_BINARY_DIR}/schaapcommon)
-  add_subdirectory(${PYBIND11_SOURCE_DIR} ${PROJECT_BINARY_DIR}/pybind11)
 else()
   add_subdirectory(${SCHAAPCOMMON_SOURCE_DIR})
-  add_subdirectory(${PYBIND11_SOURCE_DIR})
 endif()
 target_include_directories(schaapcommon PUBLIC ${AOCOMMON_INCLUDE_DIR})
 
