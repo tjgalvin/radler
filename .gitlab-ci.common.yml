@@ -25,7 +25,9 @@ stages:
 # See https://confluence.skatelescope.org/display/SE/Caching+Docker+images+using+GitLab+CI+registry
 versioning:
   stage: versioning
-  image: bitnami/git
+  image:
+    name: alpine/git
+    entrypoint: [""]
   variables:
     GIT_SUBMODULE_STRATEGY: none
   script:
