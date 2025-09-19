@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.18)
 include(ExternalProject)
 
 # When Radler is compiled as an ExternalProject inside another project, set this
@@ -12,7 +12,7 @@ option(BUILD_PYTHON_BINDINGS "Build python bindings" OFF)
 option(BUILD_DOCUMENTATION "Build documentation" OFF)
 option(BUILD_DOCSTRINGS "Build docstrings (implies BUILD_DOCUMENTATION)" OFF)
 
-set(RADLER_VERSION 0.0.0)
+set(RADLER_VERSION 0.1.0) # Keep in sync with `pyproject.toml` file
 project(
   radler
   VERSION ${RADLER_VERSION}
@@ -146,12 +146,21 @@ find_package(Casacore REQUIRED COMPONENTS fits casa ms tables measures)
 # CFitsio
 find_package(CFITSIO REQUIRED)
 
-# Python3
-find_package(PythonInterp REQUIRED) # Call before finding PythonLibs!
-find_package(PythonLibs 3 REQUIRED)
-message(STATUS "Using python version ${PYTHON_VERSION_STRING}")
+# Python
+if(DEFINED ENV{CIBUILDWHEEL})
+  find_package(
+    Python
+    COMPONENTS Interpreter Development.Module
+    REQUIRED)
+else()
+  find_package(
+    Python
+    COMPONENTS Interpreter Development
+    REQUIRED)
+endif()
+message(STATUS "Using python version ${Python_VERSION}")
 
-find_package(pybind11 CONFIG REQUIRED)
+find_package(pybind11 CONFIG REQUIRED HINTS ${Python_SITELIB})
 
 set(SCHAAPCOMMON_MODULES fitters math)
 if(COMPILE_AS_EXTERNAL_PROJECT)

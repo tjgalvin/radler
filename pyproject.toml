@@ -1,0 +1,90 @@
+####################
+# project settings #
+####################
+
+[project]
+name = "radler"
+version = "0.1.0"  # Keep in sync with top-level `CMakeLists.txt` file
+description="Radio Astronomical Deconvolution Library"
+readme = {file = "README.md", content-type = "text/markdown"}
+requires-python = ">=3.9"
+authors = [
+    { name = "Andre Offringa", email = "offringa@astron.nl" },
+    { name = "Maik Nijhuis", email = "maik.nijhuis@triopsys.nl" },
+    { name = "Jakob Maljaars", email = "jakob.maljaars@stcorp.nl" },
+    { name = "Tammo Jan Dijkema", email = "dijkema@astron.nl" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+dependencies = [
+    "astropy",
+    "numpy",
+]
+maintainers = [
+    { name = "Marcel Loose", email = "loose@astron.nl" },
+    { name = "Tammo Jan Dijkema", email = "dijkema@astron.nl" },
+]
+
+[project.urls]
+Documentation = "https://radler.readthedocs.io/"
+Repository = "https://git.astron.nl/RD/radler.git"
+
+
+#########################
+# build-system settings #
+#########################
+
+[build-system]
+requires = [
+    "numpy",
+    "pybind11<3",
+    "scikit-build-core>=0.10",
+]
+build-backend = "scikit_build_core.build"
+
+
+#########################
+# cibuildwheel settings #
+#########################
+
+[tool.cibuildwheel]
+before-all = "cibuildwheel/before_all.sh"
+build = "cp3{9,10,11,12,13}-*"
+build-verbosity = 1
+environment = """ \
+    CASACORE_VERSION="3.7.1" \
+    CXXFLAGS="-Dcasacore=radler::casacore" \
+    PYBIND11_VERSION="2.11.1" \
+"""
+test-command = "pytest -v {package}/python/test"
+test-requires = "pytest"
+
+# We currently do not have a MacOS CI/CD system available.
+# This should work, but is untested.
+[tool.cibuildwheel.macos]
+repair-wheel-command = """\
+    DYLD_LIBRARY_PATH=${BOOST_INSTALL_DIR}/lib delocate-wheel \
+    --require-archs {delocate_archs} -w {dest_dir} -v {wheel}\
+"""
+
+[tool.cibuildwheel.linux]
+skip = ["*-musllinux_*", "*_i686"]
+
+
+#########################
+# scikit-build settings #
+#########################
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.18"
+build.verbose = true
+logging.level = "INFO"
+install.components = ["python"]
+
+[tool.scikit-build.cmake.define]
+BUILD_PYTHON_BINDINGS = "ON"
+BUILD_TESTING = "OFF"
