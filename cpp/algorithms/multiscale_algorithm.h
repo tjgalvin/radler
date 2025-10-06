@@ -61,6 +61,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     float kernel_peak = 0.0;
     float bias_factor = 0.0;
     float gain = 0.0;
+    size_t scale_index = 0;
 
     /**
      * The difference between the normalized and unnormalized value is
@@ -76,6 +77,37 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     float total_flux_cleaned = 0.0;
   };
 
+  void SetScaleBitMask(const float* scale_bit_mask){
+    scale_bit_mask_ = scale_bit_mask;
+  }
+
+  const float* GetScaleBitMask() {
+    return scale_bit_mask_;
+  }
+
+  void SummaryScaleMask(size_t nr_scales, ImageSet& data_image) {
+    // The mask is unset so we do nothing
+    const float* scale_bit_mask = GetScaleBitMask();
+    if(!scale_bit_mask){
+      std::cout << "Scale bit mask is empty\n";
+       return;
+    }
+
+    std::cout >> "Scale \t Total";
+    // get the imade dimensions from somwhere
+    size_t image_size=data_image.Width()*data_image.Height();
+    for (size_t scale = 0; scale < nr_scales; scale++)
+    {
+      size_t total = 0;
+      for(size_t pix=0; pix<image_size; pix++){
+        if((static_cast<int>(scale_bit_mask[pix])>>scale)==1) {
+          total += 1;
+        }
+      }
+      std::cout << scale << " \t" << total << "\n";
+    }
+  }
+
  private:
   const Settings::Multiscale& settings_;
   double beam_size_in_pixels_;
@@ -87,6 +119,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   bool track_components_;
   std::vector<aocommon::UVector<bool>> scale_masks_;
   aocommon::cloned_ptr<ComponentList> component_list_;
+  const float* scale_bit_mask_ = nullptr;
 
   void FindActiveScaleConvolvedMaxima(const ImageSet& image_set,
                                       aocommon::Image& integrated_scratch,

@@ -92,12 +92,14 @@ void InitializeScales(std::vector<MultiScaleAlgorithm::ScaleInfo>& scales,
                       MultiscaleShape shape, size_t max_scales,
                       const std::vector<double>& scale_list,
                       aocommon::LogReceiver& log) {
+  std::cout << "Creating new scales\n";
   if (scale_list.empty()) {
     if (scales.empty()) {
       size_t scale_index = 0;
       double scale = beam_size_in_pixels * 2.0;
       do {
         MultiScaleAlgorithm::ScaleInfo& new_entry = scales.emplace_back();
+        new_entry.scale_index = scale_index;
         if (scale_index == 0) {
           new_entry.scale = 0.0;
         } else {
