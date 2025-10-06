@@ -70,7 +70,8 @@ DeconvolutionResult AspAlgorithm::ExecuteMajorIteration(
   Image integrated(width, height);
   data_image.GetIntegratedPsf(integrated, psf_images);
   Ellipse psf_parameters = schaapcommon::fitters::Fit2DGaussianCentred(
-      integrated.Data(), width, height, beam_size_in_pixels_);
+      integrated.Data(), false, width, height, beam_size_in_pixels_, 10.0,
+      false);
 
   std::vector<std::vector<Image>> convolved_psfs(data_image.PsfCount());
   ConvolvePsfs(convolved_psfs[0], integrated, scratch_a, true, scale_infos_,

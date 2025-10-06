@@ -46,7 +46,8 @@ void IuwtDeconvolutionAlgorithm::MeasureRMSPerScale(
   imageIUWT.Decompose(image, scratch, false);
 
   schaapcommon::math::Ellipse ellipse =
-      schaapcommon::fitters::Fit2DGaussianCentred(image, width_, height_, 2.0);
+      schaapcommon::fitters::Fit2DGaussianCentred(image, false, width_, height_,
+                                                  2.0, 10.0, false);
 
   double fl = 0.0;
   double v = 1.0, x = width_ / 2, y = height_ / 2;
