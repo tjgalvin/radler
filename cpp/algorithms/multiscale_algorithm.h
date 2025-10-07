@@ -93,14 +93,14 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
        return;
     }
 
-    std::cout >> "Scale \t Total";
+    std::cout << "Scale \t Total";
     // get the imade dimensions from somwhere
     size_t image_size=data_image.Width()*data_image.Height();
     for (size_t scale = 0; scale < nr_scales; scale++)
     {
       size_t total = 0;
       for(size_t pix=0; pix<image_size; pix++){
-        if((static_cast<int>(scale_bit_mask[pix])>>scale)==1) {
+        if(((static_cast<int>(scale_bit_mask[pix])>>scale)&1)==1) {
           total += 1;
         }
       }
