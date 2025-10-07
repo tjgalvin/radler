@@ -37,6 +37,15 @@ class ThreadedDeconvolutionTools {
       float borderRatio, const aocommon::Image& rmsFactorImage,
       bool calculateRMS);
 
+  void FindMultiScalePeakScaleMask(
+      multiscale::MultiScaleTransforms* ms_transforms,
+      const aocommon::Image& image, const aocommon::UVector<float>& scales,
+      std::vector<PeakData>& results, bool allowNegativeComponents,
+      const float* bit_mask, const std::vector<aocommon::UVector<bool>>& scaleMasks,
+      float borderRatio, const aocommon::Image& rmsFactorImage,
+      bool calculateRMS, std::vector<size_t> activateIndex);
+
+
   static float RMS(const aocommon::Image& image, size_t n) {
     float result = 0.0;
     for (size_t i = 0; i != n; ++i) result += image[i] * image[i];
