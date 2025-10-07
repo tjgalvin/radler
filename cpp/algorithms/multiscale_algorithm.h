@@ -62,6 +62,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     float bias_factor = 0.0;
     float gain = 0.0;
     size_t scale_index = 0;
+    bool* clean_bit_mask = nullptr;
 
     /**
      * The difference between the normalized and unnormalized value is
@@ -85,6 +86,28 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     return scale_bit_mask_;
   }
 
+  void UpdateScaleMask(size_t nr_scales, ImageSet& data_image) {
+    // Pre-compute the scale masks per scale
+  const float* scale_bit_mask = GetScaleBitMask();
+  if(!scale_bit_mask){
+    std::cout << "Scale bit mask is empty\n";
+    return;
+  }
+  std::vector<aocommon::UVector<bool>> per_scale_clean_masks;
+  for(size_t scale = 0; scale < nr_scales; ++scale){
+    aocommon::UVector<bool> _scale_clean_mask;
+    std::cout << "Adding " << scale << "\n";
+    _scale_clean_mask.assign(data_image.Size(), false);
+    for(size_t pix = 0; pix < data_image.Size(); ++pix){
+       _scale_clean_mask[pix] = (
+        (static_cast<int>(scale_bit_mask[pix])>>scale)&1
+       );
+    }
+    per_scale_clean_masks.push_back(_scale_clean_mask);
+  }
+  std::cout << "Number of extracted scales " << per_scale_clean_masks.size() << "\n";
+  return;
+  }
   void SummaryScaleMask(size_t nr_scales, ImageSet& data_image) {
     // The mask is unset so we do nothing
     const float* scale_bit_mask = GetScaleBitMask();

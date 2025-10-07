@@ -49,40 +49,21 @@ void ThreadedDeconvolutionTools::FindMultiScalePeak(
   });
 }
 
-void ThreadedDeconvolutionTools::FindMultiScalePeakScaleMask(
-      multiscale::MultiScaleTransforms* ms_transforms,
-      const aocommon::Image& image, const aocommon::UVector<float>& scales,
-      std::vector<PeakData>& results, bool allow_negative_components,
-      const float* bit_mask, const std::vector<aocommon::UVector<bool>>& scale_masks,
-      float border_ratio, const aocommon::Image& rms_factor_image,
-      bool calculate_rms, std::vector<size_t> activeIndex) {
-  // Extract the clean mask per activate scale
+void ThreadedDeconvolutionTools::FindMultiScalePeakPerScaleMask(
+    multiscale::MultiScaleTransforms* ms_transforms, const Image& image,
+    const aocommon::UVector<float>& scales,
+    std::vector<ThreadedDeconvolutionTools::PeakData>& results,
+    bool allow_negative_components, std::vector<bool*> mask,
+    const std::vector<aocommon::UVector<bool>>& scale_masks, float border_ratio,
+    const Image& rms_factor_image, bool calculate_rms) {
   const size_t n_scales = scales.size();
   results.resize(n_scales);
 
   aocommon::DynamicFor<size_t> loop;
   loop.Run(0, n_scales, [&](size_t scale_index) {
     Image image_copy(image);
-    
-    const bool* selected_mask;
-    if(!bit_mask) {
-      // Not set, so blank it
-      selected_mask = scale_masks.empty() ? nullptr : scale_masks[scale_index].data();
-    } else {
-      //THIS IS COMPLETE TRASH
-      //THE BETTER WAY WILL BE TO COMPUTE OUTSIDE, PASS IN
-      //ALONG WITH SCALE INFO
-
-      // Now we make up the per scale mask
-      std::vector<uint8_t> extract_mask(image.Size());
-      // std::vector<bool> extract_mask(image.Size());
-      size_t _activeIndex = activeIndex[scale_index];
-      for(size_t pix=0; pix < image.Size(); ++pix){
-        extract_mask.push_back(((static_cast<int>(bit_mask[pix])>>_activeIndex)&1));
-      }
-      selected_mask = reinterpret_cast<bool*>(extract_mask.data());
-    }
-
+    const bool* selected_mask =
+        scale_masks.empty() ? mask[scale_index] : scale_masks[scale_index].data();
     results[scale_index] =
         FindSingleScalePeak(ms_transforms, image_copy, scales[scale_index],
                             allow_negative_components, selected_mask,
