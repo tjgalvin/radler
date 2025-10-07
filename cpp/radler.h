@@ -91,6 +91,8 @@ class Radler {
 
   void SetAutoMaskMode(ImageSet& model_set, bool use_mask);
 
+  void ReadBitMask();
+
   const Settings settings_;
 
   std::unique_ptr<WorkTable> table_;
@@ -98,6 +100,7 @@ class Radler {
   std::unique_ptr<algorithms::ParallelDeconvolution> parallel_deconvolution_;
 
   aocommon::UVector<bool> clean_mask_;
+  aocommon::UVector<float> bit_clean_mask_;
 
   bool auto_mask_is_finished_ = false;
   size_t auto_mask_finishing_iteration = 0;
