@@ -99,13 +99,13 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     std::cout << "Adding " << scale << "\n";
     _scale_clean_mask.assign(data_image.Size(), false);
     for(size_t pix = 0; pix < data_image.Size(); ++pix){
-       _scale_clean_mask[pix] = (
-        (static_cast<int>(scale_bit_mask[pix])>>scale)&1
-       );
+       _scale_clean_mask[pix] = (((static_cast<int>(scale_bit_mask[pix])>>scale)&1)==1);
+       
     }
     per_scale_clean_masks.push_back(_scale_clean_mask);
   }
   std::cout << "Number of extracted scales " << per_scale_clean_masks.size() << "\n";
+  per_scale_clean_masks_ = per_scale_clean_masks;
   return;
   }
   void SummaryScaleMask(size_t nr_scales, ImageSet& data_image) {
@@ -143,6 +143,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   std::vector<aocommon::UVector<bool>> scale_masks_;
   aocommon::cloned_ptr<ComponentList> component_list_;
   const float* scale_bit_mask_ = nullptr;
+  std::vector<aocommon::UVector<bool>> per_scale_clean_masks_;
 
   void FindActiveScaleConvolvedMaxima(const ImageSet& image_set,
                                       aocommon::Image& integrated_scratch,

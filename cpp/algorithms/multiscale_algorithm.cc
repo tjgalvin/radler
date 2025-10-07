@@ -590,9 +590,12 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
   aocommon::UVector<float> transformScales;
   aocommon::UVector<size_t> transformIndices;
   std::vector<aocommon::UVector<bool>> transformScaleMasks;
+  std::vector<bool*> perScaleBitMasks;
+
   for (size_t scaleIndex = 0; scaleIndex != scale_infos_.size(); ++scaleIndex) {
     ScaleInfo& scaleEntry = scale_infos_[scaleIndex];
     if (scaleEntry.is_active) {
+      
       if (scaleEntry.scale == 0) {
         // Don't convolve scale 0: this is the delta function scale
         FindPeakDirect(integrated_scratch, scratch, scaleIndex);
@@ -603,6 +606,10 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
       } else {
         transformScales.push_back(scaleEntry.scale);
         transformIndices.push_back(scaleIndex);
+        
+        // TJG: Prepare the precomputed masks
+        std::cout << "Scale index " << scaleEntry.scale_index << " is active\n";
+        perScaleBitMasks.push_back(per_scale_clean_masks_[scaleEntry.scale_index].data());
         if (use_per_scale_masks_) {
           transformScaleMasks.push_back(scale_masks_[scaleIndex]);
         }
@@ -611,10 +618,18 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
   }
   std::vector<ThreadedDeconvolutionTools::PeakData> results;
 
-  tools.FindMultiScalePeak(&msTransforms, integrated_scratch, transformScales,
+  if(!GetScaleBitMask()){
+    tools.FindMultiScalePeak(&msTransforms, integrated_scratch, transformScales,
                            results, AllowNegativeComponents(), CleanMask(),
                            transformScaleMasks, CleanBorderRatio(),
                            RmsFactorImage(), report_rms);
+  } else {
+     tools.FindMultiScalePeakPerScaleMask(&msTransforms, integrated_scratch, transformScales,
+                           results, AllowNegativeComponents(), perScaleBitMasks,
+                           transformScaleMasks, CleanBorderRatio(),
+                           RmsFactorImage(), report_rms);
+  }
+
 
   for (size_t i = 0; i != results.size(); ++i) {
     ScaleInfo& scaleEntry = scale_infos_[transformIndices[i]];
