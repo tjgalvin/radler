@@ -213,6 +213,7 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
                    settings_.shape, settings_.max_scales, settings_.scale_list,
                    LogReceiver());
 
+  SummaryScaleMask(scale_infos_.size(), data_image);
   if (track_per_scale_masks_) {
     // Note that in a second round the nr of scales can be different (due to
     // different width/height, e.g. caused by a different subdivision in
