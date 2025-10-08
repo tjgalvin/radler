@@ -584,6 +584,11 @@ void Radler::ReadBitMask() {
 
   bool has_mask = false;
   if (!settings_.scale_fits_mask.empty()) {
+    std::ifstream file(settings_.scale_fits_mask);
+    if(!file.good()){
+      std::cout << "WARNING: FITS scale mask " << settings_.scale_fits_mask << " does not exist. ignoring.\n";
+      return;
+    }
     FitsReader mask_reader(settings_.scale_fits_mask, true, true);
     if (mask_reader.ImageWidth() != image_width_ ||
         mask_reader.ImageHeight() != image_height_) {

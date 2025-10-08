@@ -96,7 +96,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   std::vector<aocommon::UVector<bool>> per_scale_clean_masks;
   for(size_t scale = 0; scale < nr_scales; ++scale){
     aocommon::UVector<bool> _scale_clean_mask;
-    std::cout << "Adding " << scale << " for image size " << data_image.Width() * data_image.Height() << "\n";
+    // std::cout << "Adding " << scale << " for image size " << data_image.Width() * data_image.Height() << "\n";
     _scale_clean_mask.assign(data_image.Width() * data_image.Height(), false);
     for(size_t pix = 0; pix < data_image.Width() * data_image.Height(); ++pix){
        _scale_clean_mask[pix] = (((static_cast<int>(scale_bit_mask[pix])>>scale)&1)==1);
