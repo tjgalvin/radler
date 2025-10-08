@@ -412,7 +412,7 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
       } else if (CleanMask()) {
         subLoop.SetMask(CleanMask());
       } else if (GetScaleBitMask()) {
-        std::cout << "Adding subminor loop mask for " << scaleWithPeak << "\n";
+        // std::cout << "Adding subminor loop mask for " << scaleWithPeak << "\n";
         subLoop.SetMask(per_scale_clean_masks_[scaleWithPeak].data());
       }
       subLoop.SetParentAlgorithm(this);
