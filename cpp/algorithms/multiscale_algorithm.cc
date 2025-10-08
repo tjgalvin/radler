@@ -411,6 +411,9 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
         subLoop.SetMask(scale_masks_[scaleWithPeak].data());
       } else if (CleanMask()) {
         subLoop.SetMask(CleanMask());
+      } else if (GetScaleBitMask()) {
+        std::cout << "Adding subminor loop mask for " << scaleWithPeak << "\n";
+        subLoop.SetMask(per_scale_clean_masks_[scaleWithPeak].data());
       }
       subLoop.SetParentAlgorithm(this);
 
@@ -740,16 +743,29 @@ void MultiScaleAlgorithm::FindPeakDirect(const aocommon::Image& image,
         scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
         image.Height(), scale_masks_[scale_index].data(), horBorderSize,
         vertBorderSize);
-  } else if (!CleanMask()) {
-    maxValue = math::peak_finder::Find(
-        actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
-        scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
-        image.Height(), horBorderSize, vertBorderSize);
-  } else {
-    maxValue = math::peak_finder::FindWithMask(
+  } else if (CleanMask()) {
+          maxValue = math::peak_finder::FindWithMask(
         actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
         scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
         image.Height(), CleanMask(), horBorderSize, vertBorderSize);
+      } else if(GetScaleBitMask()) {
+        const bool* scale_clean_mask = per_scale_clean_masks_[scale_index].data();
+        // TJG: Some Sanity
+        // size_t total = 0;
+        // for(size_t pix=0; pix < image.Width() * image.Height(); ++pix){
+        //   if(scale_clean_mask[pix]) total++;
+        // }
+        // std::cout << "Per scale mask " << scale_index << " with total " << total << "\n";
+        maxValue = math::peak_finder::FindWithMask(
+          actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
+          scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
+          image.Height(), scale_clean_mask, horBorderSize, vertBorderSize);
+      } else {
+      maxValue = math::peak_finder::Find(
+        actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
+        scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
+        image.Height(), horBorderSize, vertBorderSize);
+  
   }
 
   if (maxValue) {
