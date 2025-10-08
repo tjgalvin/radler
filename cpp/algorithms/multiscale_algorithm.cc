@@ -215,6 +215,7 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
 
   SummaryScaleMask(scale_infos_.size(), data_image);
   UpdateScaleMask(scale_infos_.size(), data_image);
+  SummaryStoredBitMasks();
   if (track_per_scale_masks_) {
     // Note that in a second round the nr of scales can be different (due to
     // different width/height, e.g. caused by a different subdivision in
@@ -606,10 +607,9 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
       } else {
         transformScales.push_back(scaleEntry.scale);
         transformIndices.push_back(scaleIndex);
-        
-        // TJG: Prepare the precomputed masks
-        std::cout << "Scale index " << scaleEntry.scale_index << " is active\n";
-        perScaleBitMasks.push_back(per_scale_clean_masks_[scaleEntry.scale_index].data());
+        if(GetScaleBitMask())
+          perScaleBitMasks.push_back(per_scale_clean_masks_[scaleEntry.scale_index].data());
+
         if (use_per_scale_masks_) {
           transformScaleMasks.push_back(scale_masks_[scaleIndex]);
         }

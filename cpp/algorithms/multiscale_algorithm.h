@@ -96,11 +96,10 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   std::vector<aocommon::UVector<bool>> per_scale_clean_masks;
   for(size_t scale = 0; scale < nr_scales; ++scale){
     aocommon::UVector<bool> _scale_clean_mask;
-    std::cout << "Adding " << scale << "\n";
-    _scale_clean_mask.assign(data_image.Size(), false);
-    for(size_t pix = 0; pix < data_image.Size(); ++pix){
+    std::cout << "Adding " << scale << " for image size " << data_image.Width() * data_image.Height() << "\n";
+    _scale_clean_mask.assign(data_image.Width() * data_image.Height(), false);
+    for(size_t pix = 0; pix < data_image.Width() * data_image.Height(); ++pix){
        _scale_clean_mask[pix] = (((static_cast<int>(scale_bit_mask[pix])>>scale)&1)==1);
-       
     }
     per_scale_clean_masks.push_back(_scale_clean_mask);
   }
@@ -108,6 +107,24 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   per_scale_clean_masks_ = per_scale_clean_masks;
   return;
   }
+  void SummaryStoredBitMasks() {
+    // Sanity check that have stored bits properly
+    if(!GetScaleBitMask()) return;
+
+    std::cout << "Checking the stored bit scales are constucted\n";
+
+    for(size_t scale = 0; scale < per_scale_clean_masks_.size(); ++scale) {
+      size_t total = 0;
+      for(size_t pix = 0; pix < per_scale_clean_masks_[scale].size(); ++pix){
+        if(per_scale_clean_masks_[scale].data()[pix] == true) {
+          total++;
+        }
+      }
+      std::cout << scale << " " << total << " of " << per_scale_clean_masks_[scale].size() << "\n";
+    }
+  }
+
+
   void SummaryScaleMask(size_t nr_scales, ImageSet& data_image) {
     // The mask is unset so we do nothing
     const float* scale_bit_mask = GetScaleBitMask();
