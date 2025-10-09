@@ -159,7 +159,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
           total += 1;
         }
       }
-      std::cout << scale << "\t" << scale_infos_[scale].scale << " pix \t" << total << "\n";
+      std::cout << scale << "\t" << scale_infos_[scale].scale << " pix \t" << scale_infos_[scale].scale_index << "\t" << total << "\n";
     }
   }
 

@@ -100,6 +100,7 @@ void InitializeScales(std::vector<MultiScaleAlgorithm::ScaleInfo>& scales,
       do {
         MultiScaleAlgorithm::ScaleInfo& new_entry = scales.emplace_back();
         new_entry.scale_index = scale_index;
+        std::cout << "Init " << scale_index << "\n";
         if (scale_index == 0) {
           new_entry.scale = 0.0;
         } else {
@@ -213,9 +214,9 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
                    settings_.shape, settings_.max_scales, settings_.scale_list,
                    LogReceiver());
 
-  // SummaryScaleMask(scale_infos_.size(), data_image);
+  SummaryScaleMask(scale_infos_.size(), data_image);
   UpdateScaleMask(scale_infos_.size(), data_image);
-  // SummaryStoredBitMasks();
+  SummaryStoredBitMasks();
   if (track_per_scale_masks_) {
     // Note that in a second round the nr of scales can be different (due to
     // different width/height, e.g. caused by a different subdivision in
@@ -412,7 +413,12 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
       } else if (CleanMask()) {
         subLoop.SetMask(CleanMask());
       } else if (GetScaleBitMask()) {
-        // std::cout << "Adding subminor loop mask for " << scaleWithPeak << "\n";
+        std::cout << "  -- " << scaleWithPeak 
+                  << " " << scale_infos_[scaleWithPeak].scale_index 
+                  << " " << scale_infos_[scaleWithPeak].scale << " pix" 
+                  << " " << TotalForScaleBit(scale_infos_[scaleWithPeak].scale_index) 
+                  << "\n";
+        
         subLoop.SetMask(per_scale_clean_masks_[scale_infos_[scaleWithPeak].scale_index].data());
       }
       subLoop.SetParentAlgorithm(this);
