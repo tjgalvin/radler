@@ -62,8 +62,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     float bias_factor = 0.0;
     float gain = 0.0;
     size_t scale_index = 0;
-    bool* clean_bit_mask = nullptr;
-
+    
     /**
      * The difference between the normalized and unnormalized value is
      * that the unnormalized value is relative to the RMS factor.
@@ -96,12 +95,21 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   std::vector<aocommon::UVector<bool>> per_scale_clean_masks;
   for(size_t scale = 0; scale < nr_scales; ++scale){
     aocommon::UVector<bool> _scale_clean_mask;
-    // std::cout << "Adding " << scale << " for image size " << data_image.Width() * data_image.Height() << "\n";
     _scale_clean_mask.assign(data_image.Width() * data_image.Height(), false);
+    size_t total = 0;
+    bool pix_scale_state = false;
     for(size_t pix = 0; pix < data_image.Width() * data_image.Height(); ++pix){
-       _scale_clean_mask[pix] = (((static_cast<int>(scale_bit_mask[pix])>>scale)&1)==1);
+       pix_scale_state = (((static_cast<int>(scale_bit_mask[pix])>>scale)&1)==1);
+      if(pix_scale_state){
+        _scale_clean_mask[pix] = true;
+        total++;  
+      }
     }
     per_scale_clean_masks.push_back(_scale_clean_mask);
+    if(total==0) {
+      std::cout << "Disabling scale " << scale << " as scale clean mask is all inactive\n"; 
+      scale_infos_[scale].is_active = false;
+    }
   }
   std::cout << "Number of extracted scales " << per_scale_clean_masks.size() << "\n";
   per_scale_clean_masks_ = per_scale_clean_masks;

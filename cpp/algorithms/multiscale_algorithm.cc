@@ -667,6 +667,20 @@ void MultiScaleAlgorithm::ActivateScales(size_t scale_with_last_peak) {
                                         .max_unnormalized_image_value) *
                               (1.0 - MinorLoopGain()) *
                               scale_infos_[scale_with_last_peak].bias_factor;
+    
+   if(doActivate && GetScaleBitMask()){
+      // Ensure actual pixels to clean
+      size_t total = 0;
+      aocommon::UVector scale_bit_mask = per_scale_clean_masks_[i];
+      for (size_t pix=0; pix < scale_bit_mask.size(); ++pix) {
+        if (scale_bit_mask.data()[pix]) total++;
+      }
+      if(total==0) {
+         doActivate=false;
+         LogReceiver().Debug << "Scale " << scale_infos_[i].scale << " has no pixels in per-scale clean mask, therefore not activating\n";
+      }
+    }
+
     if (!scale_infos_[i].is_active && doActivate) {
       LogReceiver().Debug << "Scale " << scale_infos_[i].scale
                           << " is now significant and is activated.\n";
