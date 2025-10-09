@@ -131,8 +131,15 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
       std::cout << scale << " " << total << " of " << per_scale_clean_masks_[scale].size() << "\n";
     }
   }
-
-
+  size_t TotalForScaleBit(int scale_index) {
+    // Count and return the number of enabled pixels
+    size_t total = 0;
+    aocommon::UVector scale_mask = per_scale_clean_masks_[scale_index];
+    for (size_t pix=0; pix < scale_mask.size(); ++pix) {
+      if (scale_mask.data()[pix]) total++;
+    }
+  return total;
+  }
   void SummaryScaleMask(size_t nr_scales, ImageSet& data_image) {
     // The mask is unset so we do nothing
     const float* scale_bit_mask = GetScaleBitMask();

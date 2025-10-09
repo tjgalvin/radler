@@ -413,7 +413,7 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
         subLoop.SetMask(CleanMask());
       } else if (GetScaleBitMask()) {
         // std::cout << "Adding subminor loop mask for " << scaleWithPeak << "\n";
-        subLoop.SetMask(per_scale_clean_masks_[scaleWithPeak].data());
+        subLoop.SetMask(per_scale_clean_masks_[scale_infos_[scaleWithPeak].scale_index].data());
       }
       subLoop.SetParentAlgorithm(this);
 
@@ -425,12 +425,13 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
                                      initial_peak_value * DivergenceLimit();
       }
       if (!peak_value) {
-        LogReceiver().Error << "Could not continue multi-scale clean, because "
+        LogReceiver().Error << "Could not continue multi-scale clean for , because "
                                "the sub-minor loop failed to find\n"
                                "components. This may be caused by combining "
                                "multi-scale with squared-channel joining.\n"
                                "It may help to turn off the sub-minor loop "
                                "optimization with -no-fast-subminor.\n";
+        LogReceiver().Error << " -- Scale index " << scaleWithPeak << " " << scale_infos_[scaleWithPeak].scale << " pix " << TotalForScaleBit(scaleWithPeak) << " pixs enabled\n";
         break;
       }
 
