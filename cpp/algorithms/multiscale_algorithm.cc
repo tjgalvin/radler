@@ -413,13 +413,14 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
       } else if (CleanMask()) {
         subLoop.SetMask(CleanMask());
       } else if (GetScaleBitMask()) {
-        std::cout << "  -- " << scaleWithPeak 
+        LogReceiver().Debug << "  -- " << scaleWithPeak 
                   << " " << scale_infos_[scaleWithPeak].scale_index 
                   << " " << scale_infos_[scaleWithPeak].scale << " pix" 
                   << " " << TotalForScaleBit(scale_infos_[scaleWithPeak].scale_index) 
                   << "\n";
         
-        subLoop.SetMask(per_scale_clean_masks_[scale_infos_[scaleWithPeak].scale_index].data());
+        subLoop.SetMask(per_scale_clean_masks_[scaleWithPeak].data());
+        // subLoop.SetMask(per_scale_clean_masks_[scale_infos_[scaleWithPeak].scale_index].data());
       }
       subLoop.SetParentAlgorithm(this);
 
@@ -618,7 +619,8 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
         transformScales.push_back(scaleEntry.scale);
         transformIndices.push_back(scaleIndex);
         if(GetScaleBitMask())
-          perScaleBitMasks.push_back(per_scale_clean_masks_[scaleEntry.scale_index].data());
+          // perScaleBitMasks.push_back(per_scale_clean_masks_[scaleEntry.scale_index].data());
+          perScaleBitMasks.push_back(per_scale_clean_masks_[scaleIndex].data());
 
         if (use_per_scale_masks_) {
           transformScaleMasks.push_back(scale_masks_[scaleIndex]);
