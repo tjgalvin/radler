@@ -88,6 +88,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     size_t nr_active = 0;
   }
 
+  // TODO: Set this to a aocommon::UVector in place of float*
   void SetScaleBitMask(const float* scale_bit_mask){
     scale_bit_mask_ = scale_bit_mask;
   }
@@ -96,39 +97,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     return scale_bit_mask_;
   }
 
-  void UpdateScaleMask(size_t nr_scales, ImageSet& data_image) {
-    // Pre-compute the scale masks per scale
-  const float* scale_bit_mask = GetScaleBitMask();
-  if(!scale_bit_mask){
-    SetLogReceiver().Info << "Scale bit mask is empty\n";
-    return;
-  }
-
-  std::vector<aocommon::UVector<BitScaleInfo>> per_scale_clean_masks;
-    for(size_t scale = 0; scale < nr_scales; ++scale){
-      aocommon::UVector<bool> _scale_clean_mask;
-      _scale_clean_mask.assign(data_image.Width() * data_image.Height(), false);
-      size_t total = 0;
-      for(size_t pix = 0; pix < data_image.Width() * data_image.Height(); ++pix){
-        if((((static_cast<int>(scale_bit_mask[pix])>>scale)&1)==1)){
-          _scale_clean_mask[pix] = true;
-          total++;  
-        }
-      }
-
-      BitScaleInfo _bit_scale_info;
-      _bit_scale_info.mask _scale_clean_mask;
-      _bit_scale_info.total = total;
-      per_scale_clean_masks.push_back(_bit_scale_info);
-
-      if(total==0) {
-        LogReceiver().Debug << "Disabling scale " << scale << " as scale clean mask is all inactive\n"; 
-        scale_infos_[scale].is_active = false;
-      }
-    }
-    per_scale_clean_masks_ = per_scale_clean_masks;
-    return;
-  }
+  void UpdateScaleMask(size_t nr_scales, ImageSet& data_image)
 
   size_t TotalForScaleBit(int scale_index) {
     return per_scale_clean_masks_[scale_index].total;
