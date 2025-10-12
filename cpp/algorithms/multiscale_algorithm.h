@@ -83,10 +83,10 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
      * information should a bit-mask clean mask be specified.
      */
     // The per-pixel boolean array, true indicating a ppixel can be cleaned
-    aocommon::UVcector<bool> mask;
+    aocommon::UVector<bool> mask;
     // Number of activate pixels in the mask
     size_t nr_active = 0;
-  }
+  };
 
   // TODO: Set this to a aocommon::UVector in place of float*
   void SetScaleBitMask(const float* scale_bit_mask){
@@ -97,21 +97,13 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     return scale_bit_mask_;
   }
 
-  void UpdateScaleMask(size_t nr_scales, ImageSet& data_image)
+  void UpdateScaleMask(ImageSet& data_image);
 
   size_t TotalForScaleBit(int scale_index) {
-    return per_scale_clean_masks_[scale_index].total;
+    return per_scale_clean_masks_[scale_index].nr_active;
   }
 
-  void SummaryScaleMask(size_t nr_scales, ImageSet& data_image) {
-    // A simple summary output to indicate the per-scale mask is activate
-    if(per_scale_clean_masks_.empty()) return;
-    
-    LogReceiver().Debug << "Index \t Scale \t Total\n";
-    for(size_t i=0; i<per_scale_clean_masks_.size(); ++i) {
-      LogReceiver().Debug << i << "\t" << scale_infos_[i].scale << " pix \t" << per_scale_clean_masks_[i].nr_active << "\n";
-    }
-  }
+    void SummaryScaleMasks();
 
  private:
   const Settings::Multiscale& settings_;
