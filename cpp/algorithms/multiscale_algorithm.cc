@@ -412,15 +412,9 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
         subLoop.SetMask(scale_masks_[scaleWithPeak].data());
       } else if (CleanMask()) {
         subLoop.SetMask(CleanMask());
-      } else if (GetScaleBitMask()) {
-        LogReceiver().Debug << "  -- " << scaleWithPeak 
-                  << " " << scale_infos_[scaleWithPeak].scale_index 
-                  << " " << scale_infos_[scaleWithPeak].scale << " pix" 
-                  << " " << TotalForScaleBit(scale_infos_[scaleWithPeak].scale_index) 
-                  << "\n";
+      } else if (!per_scale_clean_masks_.empty()) {
         
-        subLoop.SetMask(per_scale_clean_masks_[scaleWithPeak].data());
-        // subLoop.SetMask(per_scale_clean_masks_[scale_infos_[scaleWithPeak].scale_index].data());
+        subLoop.SetMask(per_scale_clean_masks_[scaleWithPeak].mask.data());
       }
       subLoop.SetParentAlgorithm(this);
 
@@ -618,9 +612,8 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
       } else {
         transformScales.push_back(scaleEntry.scale);
         transformIndices.push_back(scaleIndex);
-        if(GetScaleBitMask())
-          // perScaleBitMasks.push_back(per_scale_clean_masks_[scaleEntry.scale_index].data());
-          perScaleBitMasks.push_back(per_scale_clean_masks_[scaleIndex].data());
+        if(!per_scale_clean_mask_.empty())
+          perScaleBitMasks.push_back(per_scale_clean_masks_[scaleIndex].mask.data());
 
         if (use_per_scale_masks_) {
           transformScaleMasks.push_back(scale_masks_[scaleIndex]);
@@ -630,7 +623,7 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
   }
   std::vector<ThreadedDeconvolutionTools::PeakData> results;
 
-  if(!GetScaleBitMask()){
+  if(per_scale_clean_masks.empty()){
     tools.FindMultiScalePeak(&msTransforms, integrated_scratch, transformScales,
                            results, AllowNegativeComponents(), CleanMask(),
                            transformScaleMasks, CleanBorderRatio(),
@@ -677,14 +670,10 @@ void MultiScaleAlgorithm::ActivateScales(size_t scale_with_last_peak) {
                               (1.0 - MinorLoopGain()) *
                               scale_infos_[scale_with_last_peak].bias_factor;
     
-   if(doActivate && GetScaleBitMask()){
-      // Ensure actual pixels to clean
-      size_t total = 0;
-      aocommon::UVector scale_bit_mask = per_scale_clean_masks_[i];
-      for (size_t pix=0; pix < scale_bit_mask.size(); ++pix) {
-        if (scale_bit_mask.data()[pix]) total++;
-      }
-      if(total==0) {
+   if(doActivate && !per_scale_clean_masks_.empty()){
+      // Ensure actual pixels to clean. If there are no activate pixels in the 
+      // clean mask for that scale ensure the scale is marked as inactivate.
+      if(per_scale_bit_masks_[i].nr_activate == 0) {
          doActivate=false;
          LogReceiver().Debug << "Scale " << scale_infos_[i].scale << " has no pixels in per-scale clean mask, therefore not activating\n";
       }
@@ -771,14 +760,8 @@ void MultiScaleAlgorithm::FindPeakDirect(const aocommon::Image& image,
         actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
         scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
         image.Height(), CleanMask(), horBorderSize, vertBorderSize);
-      } else if(GetScaleBitMask()) {
-        const bool* scale_clean_mask = per_scale_clean_masks_[scale_index].data();
-        // TJG: Some Sanity
-        // size_t total = 0;
-        // for(size_t pix=0; pix < image.Width() * image.Height(); ++pix){
-        //   if(scale_clean_mask[pix]) total++;
-        // }
-        // std::cout << "Per scale mask " << scale_index << " with total " << total << "\n";
+      } else if(!per_scale_clean_masks_.empty()) {
+        const bool* scale_clean_mask = per_scale_clean_masks_[scale_index].mask.data();
         maxValue = math::peak_finder::FindWithMask(
           actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
           scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,

@@ -77,7 +77,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     float total_flux_cleaned = 0.0;
   };
 
-  struct BitScaleInfo bit_scale_info_{
+  struct BitScaleInfo {
     /**
      * Simple container to hold the per-scale clean mask
      * information should a bit-mask clean mask be specified.
