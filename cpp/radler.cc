@@ -443,7 +443,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
   }
 
   ReadMask(*table_);
-  ReadBitMask();
+  ReadBitMask(*table_);
 }
 
 void Radler::FreeDeconvolutionAlgorithms() {
@@ -578,10 +578,13 @@ void Radler::ReadMask(const WorkTable& group_table) {
   if (has_mask) parallel_deconvolution_->SetCleanMask(clean_mask_.data());
 }
 
-void Radler::ReadBitMask() {
+void Radler::ReadBitMask(const WorkTable& group_table) {
   // Head in the fits image that ahs the bit mask scales
   // Have removed the per spectral channel check / reading
-
+  // TODO: This couple perhaps be merged with the alternative read
+  // mask function described above. Or this could be moved through
+  // to the multiscale algorithm since this per-scale mask only makes
+  // sense there?
   bool has_mask = false;
   if (!settings_.fits_scale_mask.empty()) {
     std::ifstream file(settings_.fits_scale_mask);
@@ -597,17 +600,30 @@ void Radler::ReadBitMask() {
           "image!");
     }
     aocommon::UVector<float> mask_data(image_width_ * image_height_);
-    Logger::Debug << "Reading mask '" << settings_.fits_scale_mask << "'...\n";
-    mask_reader.Read(mask_data.data());
-    
+    if(mask_reader.NFrequencies() == 1) {
+      Logger::Debug << "Reading mask '" << settings_.fits_scale_mask << "'...\n";
+      mask_reader.Read(mask_data.data());
+    } else if(mask_reader.NFrequencies() == settings_.channels_out) {
+      Logger::Debug << "Reading mask '" << settings_.fits_scale_mask << "' ("
+                    << (group_table.Front().mask_channel_index + 1) << ")...\n";
+      mask_reader.ReadIndex(mask_data.data(),
+                            group_table.Front().mask_channel_index);
+    } else {
+        std::stringstream msg;
+      msg << "The number of frequencies in the specified fits mask ("
+          << mask_reader.NFrequencies()
+          << ") does not match the number of requested output channels ("
+          << settings_.channels_out << ")";
+      throw std::runtime_error(msg.str());
+    }
 
-    bit_clean_mask_.assign(image_width_ * image_height_, false);
+    bit_clean_mask_.assign(image_width_ * image_height_, 0.0);
     for (size_t i = 0; i != image_width_ * image_height_; ++i) {
       bit_clean_mask_[i] = mask_data[i];
     }
 
     has_mask = true;
-  
+
   }
 
   if(has_mask) parallel_deconvolution_->SetScaleBitCleanMask(bit_clean_mask_.data());

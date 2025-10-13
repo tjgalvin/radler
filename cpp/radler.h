@@ -91,7 +91,7 @@ class Radler {
 
   void SetAutoMaskMode(ImageSet& model_set, bool use_mask);
 
-  void ReadBitMask();
+  void ReadBitMask(const WorkTable& group_table);
 
   const Settings settings_;
 
