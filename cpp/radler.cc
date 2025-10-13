@@ -492,6 +492,7 @@ void Radler::ReadMask(const WorkTable& group_table) {
     std::string fileToRead = (settings_.fits_scale_mask.empty()) ? settings_.fits_mask : settings_.fits_scale_mask;
     isSimpleMask = fileToRead == settings_.fits_mask;
 
+    Logger::Info << "Reading " << fileToRead << "\n";
     FitsReader mask_reader(fileToRead, true, true);
     if (mask_reader.ImageWidth() != image_width_ ||
         mask_reader.ImageHeight() != image_height_) {
