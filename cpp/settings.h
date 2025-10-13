@@ -380,9 +380,11 @@ struct Settings {
 
   /**
    * Filename path to a mask with per-scale clean regions defined.
-   * If empty no mask is used.
+   * If empty no mask is used. Each pixel encodes a bit-mask, where 
+   * the n'th scale is stored as the n'th bit. If a pixel for the n'th
+   * scale is to be cleaned, its bit is set to 1. 
    */
-  std::string scale_fits_mask = "/scratch3/gal16b/test_wsclean/SB57928.RACS_1821-14.beam15.i.MFS.image.mask.fits";
+  std::string fits_scale_mask = "/scratch3/gal16b/test_wsclean/SB57928.RACS_1821-14.beam15.i.MFS.image.mask.fits";
 
   /**
    * Filename path of a Casa mask file to be used during deconvolution.
