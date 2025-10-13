@@ -11,6 +11,10 @@ default:
   services:
     - docker:20.10-dind
 
+# At SKAO, the cibuild-python-wheels job needs this custom configuration.
+.cibuildwheels-custom:
+  extends: .dind-requester
+
 include:
   - local: .gitlab-ci.common.yml
   # Create Gitlab CI badges from CI metrics

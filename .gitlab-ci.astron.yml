@@ -7,4 +7,10 @@
   tags:
     - dind
 
+# At Astron, the cibuild-python-wheels job needs this custom configuration.
+.cibuildwheels-custom:
+  extends: .dind-requester
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+
 include: .gitlab-ci.common.yml
