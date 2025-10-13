@@ -601,11 +601,10 @@ void Radler::ReadMask(const WorkTable& group_table) {
     }
     writer.Write(filename, image.Data());
   }
+  }
 
   if (has_mask) parallel_deconvolution_->SetCleanMask(clean_mask_.data());
   if(has_scale_mask) parallel_deconvolution_->SetScaleBitCleanMask(bit_clean_mask_.data());
-
-}
 
 }
 }  // namespace radler
