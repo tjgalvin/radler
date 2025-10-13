@@ -586,7 +586,7 @@ void Radler::ReadBitMask() {
   if (!settings_.fits_scale_mask.empty()) {
     std::ifstream file(settings_.fits_scale_mask);
     if(!file.good()){
-      std::cout << "WARNING: FITS scale mask " << settings_.scale_fits_mask << " does not exist. ignoring.\n";
+      std::cout << "WARNING: FITS scale mask " << settings_.fits_scale_mask << " does not exist. ignoring.\n";
       return;
     }
     FitsReader mask_reader(settings_.fits_scale_mask, true, true);
