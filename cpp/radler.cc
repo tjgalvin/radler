@@ -443,7 +443,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
   }
 
   ReadMask(*table_);
-  ReadBitMask(*table_);
+  // ReadBitMask(*table_);
 }
 
 void Radler::FreeDeconvolutionAlgorithms() {
@@ -485,8 +485,14 @@ void Radler::ReadForcedSpectrumImages() {
 
 void Radler::ReadMask(const WorkTable& group_table) {
   bool has_mask = false;
-  if (!settings_.fits_mask.empty()) {
-    FitsReader mask_reader(settings_.fits_mask, true, true);
+  bool has_scale_mask = false;
+  bool isSimpleMask = true;
+  if (!settings_.fits_mask.empty() or !settings_.fits_scale_mask.empty()) {
+    // Figure out which file to read in
+    std::string fileToRead = (settings_.fits_scale_mask.empty()) ? settings_.fits_mask : settings_.fits_scale_mask;
+    isSimpleMask = fileToRead == settings_.fits_mask;
+
+    FitsReader mask_reader(fileToRead, true, true);
     if (mask_reader.ImageWidth() != image_width_ ||
         mask_reader.ImageHeight() != image_height_) {
       throw std::runtime_error(
@@ -495,7 +501,7 @@ void Radler::ReadMask(const WorkTable& group_table) {
     }
     aocommon::UVector<float> mask_data(image_width_ * image_height_);
     if (mask_reader.NFrequencies() == 1) {
-      Logger::Debug << "Reading mask '" << settings_.fits_mask << "'...\n";
+      Logger::Debug << "Reading mask '" << fileToRead << "'...\n";
       mask_reader.Read(mask_data.data());
     } else if (mask_reader.NFrequencies() == settings_.channels_out) {
       Logger::Debug << "Reading mask '" << settings_.fits_mask << "' ("
@@ -510,12 +516,19 @@ void Radler::ReadMask(const WorkTable& group_table) {
           << settings_.channels_out << ")";
       throw std::runtime_error(msg.str());
     }
-    clean_mask_.assign(image_width_ * image_height_, false);
-    for (size_t i = 0; i != image_width_ * image_height_; ++i) {
-      clean_mask_[i] = (mask_data[i] != 0.0);
+    if(isSimpleMask) {
+      clean_mask_.assign(image_width_ * image_height_, false);
+      for (size_t i = 0; i != image_width_ * image_height_; ++i) {
+        clean_mask_[i] = (mask_data[i] != 0.0);
+      }
+      has_mask = true;
+    } else {
+      bit_clean_mask_.assign(image_width_ * image_height_, 0.0);
+      for (size_t i = 0; i != image_width_ * image_height_; ++i) {
+        bit_clean_mask_[i] = mask_data[i];
+      }
+      has_scale_mask = true;
     }
-
-    has_mask = true;
   } else if (!settings_.casa_mask.empty()) {
     if (clean_mask_.empty()) {
       Logger::Info << "Reading CASA mask '" << settings_.casa_mask << "'...\n";
@@ -548,21 +561,34 @@ void Radler::ReadMask(const WorkTable& group_table) {
     }
     fov_sq = fov_sq * fov_sq;
     bool* ptr = clean_mask_.data();
+    float* ptrscale = (!isSimpleMask) ? bit_clean_mask_.data() : nullptr;
 
     for (size_t y = 0; y != image_height_; ++y) {
       for (size_t x = 0; x != image_width_; ++x) {
         double l, m;
         ImageCoordinates::XYToLM(x, y, pixel_scale_x_, pixel_scale_y_,
                                  image_width_, image_height_, l, m);
-        if (l * l + m * m >= fov_sq) *ptr = false;
-        ++ptr;
+        if (l * l + m * m >= fov_sq) {
+          if(isSimpleMask) {
+          *ptr = false; 
+          ++ptr;
+        } else {
+          *ptrscale = 0.0;
+          ++ptrscale;
+        }
       }
     }
 
     Logger::Info << "Saving horizon mask...\n";
     Image image(image_width_, image_height_);
     for (size_t i = 0; i != image_width_ * image_height_; ++i) {
-      image[i] = clean_mask_[i] ? 1.0 : 0.0;
+      if(isSimpleMask) {
+        image[i] = clean_mask_[i] ? 1.0 : 0.0;
+      } else {
+        // Im not familar enough with Image to know if I can
+        // provide simple float*
+        image[i] = bit_clean_mask_[i];
+      }
     }
 
     FitsWriter writer;
@@ -576,58 +602,9 @@ void Radler::ReadMask(const WorkTable& group_table) {
   }
 
   if (has_mask) parallel_deconvolution_->SetCleanMask(clean_mask_.data());
-}
-
-void Radler::ReadBitMask(const WorkTable& group_table) {
-  // Head in the fits image that ahs the bit mask scales
-  // Have removed the per spectral channel check / reading
-  // TODO: This couple perhaps be merged with the alternative read
-  // mask function described above. Or this could be moved through
-  // to the multiscale algorithm since this per-scale mask only makes
-  // sense there?
-  bool has_mask = false;
-  if (!settings_.fits_scale_mask.empty()) {
-    std::ifstream file(settings_.fits_scale_mask);
-    if(!file.good()){
-      std::cout << "WARNING: FITS scale mask " << settings_.fits_scale_mask << " does not exist. ignoring.\n";
-      return;
-    }
-    FitsReader mask_reader(settings_.fits_scale_mask, true, true);
-    if (mask_reader.ImageWidth() != image_width_ ||
-        mask_reader.ImageHeight() != image_height_) {
-      throw std::runtime_error(
-          "Specified Fits file mask did not have same dimensions as output "
-          "image!");
-    }
-    aocommon::UVector<float> mask_data(image_width_ * image_height_);
-    if(mask_reader.NFrequencies() == 1) {
-      Logger::Debug << "Reading mask '" << settings_.fits_scale_mask << "'...\n";
-      mask_reader.Read(mask_data.data());
-    } else if(mask_reader.NFrequencies() == settings_.channels_out) {
-      Logger::Debug << "Reading mask '" << settings_.fits_scale_mask << "' ("
-                    << (group_table.Front().mask_channel_index + 1) << ")...\n";
-      mask_reader.ReadIndex(mask_data.data(),
-                            group_table.Front().mask_channel_index);
-    } else {
-        std::stringstream msg;
-      msg << "The number of frequencies in the specified fits mask ("
-          << mask_reader.NFrequencies()
-          << ") does not match the number of requested output channels ("
-          << settings_.channels_out << ")";
-      throw std::runtime_error(msg.str());
-    }
-
-    bit_clean_mask_.assign(image_width_ * image_height_, 0.0);
-    for (size_t i = 0; i != image_width_ * image_height_; ++i) {
-      bit_clean_mask_[i] = mask_data[i];
-    }
-
-    has_mask = true;
-
-  }
-
-  if(has_mask) parallel_deconvolution_->SetScaleBitCleanMask(bit_clean_mask_.data());
+  if(has_scale_mask) parallel_deconvolution_->SetScaleBitCleanMask(bit_clean_mask_.data());
 
 }
 
+}
 }  // namespace radler
