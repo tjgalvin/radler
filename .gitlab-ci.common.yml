@@ -201,7 +201,7 @@ build-docstrings-2404:
     - build/doc/docstrings
 
 cibuild-python-wheels:
-  extends: [ .needs-2404, .cibuildwheels-custom ]
+  extends: .cibuildwheels-custom
   stage: deploy
   image: python:3.12
   variables:
@@ -212,8 +212,8 @@ cibuild-python-wheels:
   script:
     - cibuildwheel --output-dir wheelhouse
   rules:
-    # Since cibuildwheel takes ~10 minutes, only run it when building a tag,
-    # the default branch, or when explicitly asked.
+    # Since cibuildwheel takes ~10 minutes, only run it when building a
+    # release tag, the default branch, or when triggered manually.
     - if: $CI_COMMIT_TAG || $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: always
     - when: manual
@@ -221,3 +221,40 @@ cibuild-python-wheels:
   artifacts:
     paths:
       - wheelhouse/*.whl
+
+.deploy-python-wheels:
+  stage: deploy
+  needs:
+    - cibuild-python-wheels
+  image: python:3.12
+  before_script:
+    - pip install twine
+  script:
+    - python -m twine upload --verbose wheelhouse/*.whl
+  rules:
+    # Only deploy when building a release tag, or when requested explicitly.
+    - if: '$CI_COMMIT_TAG && $CI_COMMIT_REF_PROTECTED == "true"'
+
+deploy_on_gitlab:
+  extends: .deploy-python-wheels
+  environment: gitlab
+  variables:
+    TWINE_USERNAME: gitlab-ci-token
+    TWINE_PASSWORD: ${CI_JOB_TOKEN}
+    TWINE_REPOSITORY_URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi
+
+deploy_on_test_pypi:
+  extends: .deploy-python-wheels
+  environment: pypi-test
+  variables:
+    TWINE_USERNAME: __token__
+    TWINE_PASSWORD: ${TESTPYPI_TOKEN}
+    TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
+
+deploy_on_pypi:
+  extends: .deploy-python-wheels
+  environment: pypi
+  variables:
+    TWINE_USERNAME: __token__
+    TWINE_PASSWORD: ${PYPI_TOKEN}
+    TWINE_REPOSITORY_URL: https://upload.pypi.org/legacy/
