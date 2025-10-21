@@ -775,6 +775,11 @@ void MultiScaleAlgorithm::UpdateScaleMask(ImageSet& data_image) {
     return;
   }
 
+  if(per_scale_clean_masks_.size() == scale_infos_.size()) {
+    LogReceiver().Debug << "Internal per-scale clean masks already set. \n";
+    return;
+  }
+
   for(size_t scale = 0; scale < scale_infos_.size(); ++scale){
     aocommon::UVector<bool> _scale_clean_mask;
     _scale_clean_mask.assign(data_image.Width() * data_image.Height(), false);
