@@ -55,6 +55,10 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   aocommon::UVector<bool>& GetScaleMask(size_t index) {
     return scale_masks_[index];
   }
+  const float* GetScaleBitMask() {
+    return scale_bit_mask_;
+  }
+
 
  private:
   const Settings::Multiscale& settings_;
@@ -102,6 +106,34 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   bool track_components_;
   std::vector<aocommon::UVector<bool>> scale_masks_;
   aocommon::cloned_ptr<ComponentList> component_list_;
+  
+  
+  struct BitScaleInfo {
+    /**
+     * Simple container to hold the per-scale clean mask
+     * information should a bit-mask clean mask be specified.
+     */
+    // The per-pixel boolean array, true indicating a ppixel can be cleaned
+    aocommon::UVector<bool> mask;
+    // Number of activate pixels in the mask
+    size_t nr_active = 0;
+  };
+
+  // TODO: Set this to a aocommon::UVector in place of float*
+  void SetScaleBitMask(const float* scale_bit_mask){
+    scale_bit_mask_ = scale_bit_mask;
+  }
+
+  std::vector<BitScaleInfo> per_scale_clean_masks_;
+
+
+  void UpdateScaleMask(ImageSet& data_image);
+
+  size_t TotalForScaleBit(int scale_index) {
+    return per_scale_clean_masks_[scale_index].nr_active;
+  }
+
+  void SummaryScaleMasks();
 
   void InitializeScaleInfo(size_t min_width_height);
   void ConvolvePsfs(std::unique_ptr<aocommon::Image[]>& convolved_psfs,

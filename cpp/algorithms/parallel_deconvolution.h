@@ -57,6 +57,8 @@ class ParallelDeconvolution {
 
   void SetCleanMask(const bool* mask);
 
+  void SetScaleBitCleanMask(const float* mask);
+
   void SetSpectrallyForcedImages(std::vector<aocommon::Image>&& images);
 
   /** @param psf_images @see @ref ImageSet::LoadAndAveragePsfs. */

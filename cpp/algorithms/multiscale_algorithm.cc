@@ -81,6 +81,9 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
 
   InitializeScaleInfo(std::min(width, height));
 
+  UpdateScaleMask(data_image);
+  SummaryScaleMasks();
+
   if (track_per_scale_masks_) {
     // Note that in a second round the nr of scales can be different (due to
     // different width/height, e.g. caused by a different subdivision in
@@ -256,6 +259,9 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
         subLoop.SetMask(scale_masks_[scaleWithPeak].data());
       } else if (CleanMask()) {
         subLoop.SetMask(CleanMask());
+      } else if (!per_scale_clean_masks_.empty()) {
+        
+        subLoop.SetMask(per_scale_clean_masks_[scaleWithPeak].mask.data());
       }
       subLoop.SetParentAlgorithm(this);
 
@@ -596,6 +602,15 @@ void MultiScaleAlgorithm::ActivateScales(size_t scale_with_last_peak) {
                                         .max_unnormalized_image_value) *
                               (1.0 - MinorLoopGain()) *
                               scale_infos_[scale_with_last_peak].bias_factor;
+    if(doActivate && !per_scale_clean_masks_.empty()){
+      // Ensure actual pixels to clean. If there are no activate pixels in the 
+      // clean mask for that scale ensure the scale is marked as inactivate.
+      if(per_scale_clean_masks_[i].nr_active == 0) {
+         doActivate=false;
+         LogReceiver().Debug << "Scale " << scale_infos_[i].scale << " has no pixels in per-scale clean mask, therefore not activating\n";
+      }
+    }
+    
     if (!scale_infos_[i].is_active && doActivate) {
       LogReceiver().Debug << "Scale " << scale_infos_[i].scale
                           << " is now significant and is activated.\n";
@@ -731,5 +746,47 @@ void MultiScaleAlgorithm::GetConvolutionDimensions(
   height_result = ceil(settings_.convolution_padding * (scale * 1.5 + height));
   width_result = calculateGoodFFTSize(width_result);
   height_result = calculateGoodFFTSize(height_result);
+}
+
+void MultiScaleAlgorithm::UpdateScaleMask(ImageSet& data_image) {
+  // Pre-compute the scale masks per scale
+  const float* scale_bit_mask = GetScaleBitMask();
+  if(!scale_bit_mask){
+    LogReceiver().Info << "Scale bit mask is empty\n";
+    return;
+  }
+
+  for(size_t scale = 0; scale < scale_infos_.size(); ++scale){
+    aocommon::UVector<bool> _scale_clean_mask;
+    _scale_clean_mask.assign(data_image.Width() * data_image.Height(), false);
+    size_t total = 0;
+    for(size_t pix = 0; pix < data_image.Width() * data_image.Height(); ++pix){
+      if((((static_cast<int>(scale_bit_mask[pix])>>scale)&1)==1)){
+        _scale_clean_mask[pix] = true;
+        total++;  
+      }
+    }
+
+    BitScaleInfo _bit_scale_info;
+    _bit_scale_info.mask = _scale_clean_mask;
+    _bit_scale_info.nr_active = total;
+    per_scale_clean_masks_.push_back(_bit_scale_info);
+
+    if(total==0) {
+      LogReceiver().Debug << "Disabling scale " << scale << " as scale clean mask is all inactive\n"; 
+      scale_infos_[scale].is_active = false;
+    }
+  }
+  return;
+}
+
+void MultiScaleAlgorithm::SummaryScaleMasks() {
+  // A simple summary output to indicate the per-scale mask is activate
+  if(per_scale_clean_masks_.empty()) return;
+  
+  LogReceiver().Debug << "Index \t Scale \t Total\n";
+  for(size_t i=0; i<per_scale_clean_masks_.size(); ++i) {
+    LogReceiver().Debug << i << "\t" << scale_infos_[i].scale << " pix \t" << per_scale_clean_masks_[i].nr_active << "\n";
+  }
 }
 }  // namespace radler::algorithms
