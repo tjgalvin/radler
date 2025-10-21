@@ -538,6 +538,7 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
         transformScales.push_back(scaleEntry.scale);
         transformIndices.push_back(scaleIndex);
         if(!per_scale_clean_masks_.empty()) {
+          std::cout << "Adding " << scaleIndex << "\n";
           perScaleBitMasks.push_back(per_scale_clean_masks_[scaleIndex].mask.data());
         }
         if (use_per_scale_masks_) {
@@ -554,7 +555,8 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
                            transformScaleMasks, CleanBorderRatio(),
                            RmsFactorImage(), report_rms);
   } else {
-     tools.FindMultiScalePeakPerScaleMask(&msTransforms, integrated_scratch, transformScales,
+    std::cout << "Per scale bit masks searching " << perScaleBitMasks.size() << "\n"; 
+    tools.FindMultiScalePeakPerScaleMask(&msTransforms, integrated_scratch, transformScales,
                            results, AllowNegativeComponents(), perScaleBitMasks,
                            transformScaleMasks, CleanBorderRatio(),
                            RmsFactorImage(), report_rms);
@@ -699,16 +701,23 @@ void MultiScaleAlgorithm::FindPeakDirect(const aocommon::Image& image,
         scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
         image.Height(), scale_masks_[scale_index].data(), horBorderSize,
         vertBorderSize);
-  } else if (!CleanMask()) {
-    maxValue = math::peak_finder::Find(
-        actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
-        scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
-        image.Height(), horBorderSize, vertBorderSize);
-  } else {
-    maxValue = math::peak_finder::FindWithMask(
+  } else if (CleanMask()) {
+          maxValue = math::peak_finder::FindWithMask(
         actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
         scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
         image.Height(), CleanMask(), horBorderSize, vertBorderSize);
+      } else if(!per_scale_clean_masks_.empty()) {
+        const bool* scale_clean_mask = per_scale_clean_masks_[scale_index].mask.data();
+        maxValue = math::peak_finder::FindWithMask(
+          actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
+          scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
+          image.Height(), scale_clean_mask, horBorderSize, vertBorderSize);
+      } else {
+      maxValue = math::peak_finder::Find(
+        actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
+        scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
+        image.Height(), horBorderSize, vertBorderSize);
+  
   }
 
   if (maxValue) {
