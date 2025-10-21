@@ -287,7 +287,7 @@ struct Settings {
    * Filename path to a mask with per-scale clean regions defined.
    * If empty no mask is used.
    */
-  std::string scale_fits_mask = "/scratch3/gal16b/test_wsclean/SB57928.RACS_1821-14.beam15.i.MFS.image.mask.fits";
+  std::string scale_fits_mask = "/tones-work/work/example/SB55248.VAST_0530-68.beam15.round1.i.MFS.image.mask.fits";
 
   /**
    * Filename path of a Casa mask file to be used during deconvolution.
