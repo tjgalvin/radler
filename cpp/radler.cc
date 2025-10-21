@@ -371,6 +371,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
   }
 
   ReadMask(*table_);
+  ReadBitMask();
 }
 
 void Radler::FreeDeconvolutionAlgorithms() {
