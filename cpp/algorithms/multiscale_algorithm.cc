@@ -808,9 +808,9 @@ void MultiScaleAlgorithm::SummaryScaleMasks() {
   // A simple summary output to indicate the per-scale mask is activate
   if(per_scale_clean_masks_.empty()) return;
   
-  LogReceiver().Info << "Index \t Scale \t Total\n";
+  LogReceiver().Info << "Scale Mask Info\n";
   for(size_t i=0; i<per_scale_clean_masks_.size(); ++i) {
-    LogReceiver().Info << i << "\t" << scale_infos_[i].scale << " pix \t" << per_scale_clean_masks_[i].nr_active << "\n";
+    LogReceiver().Info << "- Scale " << scale_infos_[i].scale << ", mask activate pix. " << per_scale_clean_masks_[i].nr_active << "\n";
   }
 }
 }  // namespace radler::algorithms
