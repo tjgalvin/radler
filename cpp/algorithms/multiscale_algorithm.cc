@@ -522,6 +522,8 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
   aocommon::UVector<float> transformScales;
   aocommon::UVector<size_t> transformIndices;
   std::vector<aocommon::UVector<bool>> transformScaleMasks;
+  std::vector<bool*> perScaleBitMasks;
+  
   for (size_t scaleIndex = 0; scaleIndex != scale_infos_.size(); ++scaleIndex) {
     ScaleInfo& scaleEntry = scale_infos_[scaleIndex];
     if (scaleEntry.is_active) {
@@ -535,6 +537,9 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
       } else {
         transformScales.push_back(scaleEntry.scale);
         transformIndices.push_back(scaleIndex);
+        if(!per_scale_clean_masks_.empty()) {
+          perScaleBitMasks.push_back(per_scale_clean_masks_[scaleIndex].mask.data());
+        }
         if (use_per_scale_masks_) {
           transformScaleMasks.push_back(scale_masks_[scaleIndex]);
         }
@@ -543,10 +548,17 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
   }
   std::vector<ThreadedDeconvolutionTools::PeakData> results;
 
-  tools.FindMultiScalePeak(&msTransforms, integrated_scratch, transformScales,
+  if(per_scale_clean_masks_.empty()){
+    tools.FindMultiScalePeak(&msTransforms, integrated_scratch, transformScales,
                            results, AllowNegativeComponents(), CleanMask(),
                            transformScaleMasks, CleanBorderRatio(),
                            RmsFactorImage(), report_rms);
+  } else {
+     tools.FindMultiScalePeakPerScaleMask(&msTransforms, integrated_scratch, transformScales,
+                           results, AllowNegativeComponents(), perScaleBitMasks,
+                           transformScaleMasks, CleanBorderRatio(),
+                           RmsFactorImage(), report_rms);
+  }
 
   for (size_t i = 0; i != results.size(); ++i) {
     ScaleInfo& scaleEntry = scale_infos_[transformIndices[i]];
@@ -784,9 +796,9 @@ void MultiScaleAlgorithm::SummaryScaleMasks() {
   // A simple summary output to indicate the per-scale mask is activate
   if(per_scale_clean_masks_.empty()) return;
   
-  LogReceiver().Debug << "Index \t Scale \t Total\n";
+  LogReceiver().Info << "Index \t Scale \t Total\n";
   for(size_t i=0; i<per_scale_clean_masks_.size(); ++i) {
-    LogReceiver().Debug << i << "\t" << scale_infos_[i].scale << " pix \t" << per_scale_clean_masks_[i].nr_active << "\n";
+    LogReceiver().Info << i << "\t" << scale_infos_[i].scale << " pix \t" << per_scale_clean_masks_[i].nr_active << "\n";
   }
 }
 }  // namespace radler::algorithms

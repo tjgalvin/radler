@@ -49,6 +49,28 @@ void ThreadedDeconvolutionTools::FindMultiScalePeak(
   });
 }
 
+void ThreadedDeconvolutionTools::FindMultiScalePeakPerScaleMask(
+    multiscale::MultiScaleTransforms* ms_transforms, const Image& image,
+    const aocommon::UVector<float>& scales,
+    std::vector<ThreadedDeconvolutionTools::PeakData>& results,
+    bool allow_negative_components, std::vector<bool*> mask,
+    const std::vector<aocommon::UVector<bool>>& scale_masks, float border_ratio,
+    const Image& rms_factor_image, bool calculate_rms) {
+  const size_t n_scales = scales.size();
+  results.resize(n_scales);
+
+  aocommon::DynamicFor<size_t> loop;
+  loop.Run(0, n_scales, [&](size_t scale_index) {
+    Image image_copy(image);
+    const bool* selected_mask =
+        scale_masks.empty() ? mask[scale_index] : scale_masks[scale_index].data();
+    results[scale_index] =
+        FindSingleScalePeak(ms_transforms, image_copy, scales[scale_index],
+                            allow_negative_components, selected_mask,
+                            border_ratio, rms_factor_image, calculate_rms);
+  });
+}
+
 ThreadedDeconvolutionTools::PeakData
 ThreadedDeconvolutionTools::FindSingleScalePeak(
     multiscale::MultiScaleTransforms* ms_transforms, Image& image, float scale,
