@@ -106,6 +106,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   bool track_components_;
   std::vector<aocommon::UVector<bool>> scale_masks_;
   aocommon::cloned_ptr<ComponentList> component_list_;
+  const float* scale_bit_mask_ = nullptr;
   
   
   struct BitScaleInfo {
