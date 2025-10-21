@@ -538,7 +538,6 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
         transformScales.push_back(scaleEntry.scale);
         transformIndices.push_back(scaleIndex);
         if(!per_scale_clean_masks_.empty()) {
-          std::cout << "Adding " << scaleIndex << "\n";
           perScaleBitMasks.push_back(per_scale_clean_masks_[scaleIndex].mask.data());
         }
         if (use_per_scale_masks_) {
@@ -555,7 +554,6 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
                            transformScaleMasks, CleanBorderRatio(),
                            RmsFactorImage(), report_rms);
   } else {
-    std::cout << "Per scale bit masks searching " << perScaleBitMasks.size() << "\n"; 
     tools.FindMultiScalePeakPerScaleMask(&msTransforms, integrated_scratch, transformScales,
                            results, AllowNegativeComponents(), perScaleBitMasks,
                            transformScaleMasks, CleanBorderRatio(),
