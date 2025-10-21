@@ -59,6 +59,9 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     return scale_bit_mask_;
   }
 
+  void SetScaleBitMask(const float* scale_bit_mask){
+    scale_bit_mask_ = scale_bit_mask;
+  }
 
  private:
   const Settings::Multiscale& settings_;
@@ -120,10 +123,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     size_t nr_active = 0;
   };
 
-  // TODO: Set this to a aocommon::UVector in place of float*
-  void SetScaleBitMask(const float* scale_bit_mask){
-    scale_bit_mask_ = scale_bit_mask;
-  }
+
 
   std::vector<BitScaleInfo> per_scale_clean_masks_;
 
