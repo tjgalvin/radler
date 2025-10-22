@@ -63,22 +63,22 @@ void ThreadedDeconvolutionTools::FindMultiScalePeakPerScaleMask(
   aocommon::DynamicFor<size_t> loop;
   loop.Run(0, n_scales, [&](size_t scale_index) {
     Image image_copy(image);
-    const bool* selected_mask =
-        scale_masks.empty() ? mask.data()[scale_index] : scale_masks[scale_index].data();
-    
-    // size_t total = 0, first_pix=0, last_pix=0;
-    // bool first=false;
-    // for(size_t pix = 0; pix < image_copy.Width() * image_copy.Height(); ++pix){
-    //   if(selected_mask[pix]) {
-    //     total++;
-    //     last_pix=pix;
-    //     if(!first){
-    //       first=true;
-    //       first_pix=pix;
-    //     }
-    //   }
-    // }
-    // std::cout << "Scale " << scales[scale_index] << " " << total << " " << first_pix << " " << last_pix << "\n";
+    // const bool* selected_mask =
+    //     scale_masks.empty() ? mask.data()[scale_index] : scale_masks[scale_index].data();
+    const bool* selected_mask = mask.data()[scale_index];
+    size_t total = 0, first_pix=0, last_pix=0;
+    bool first=false;
+    for(size_t pix = 0; pix < image_copy.Width() * image_copy.Height(); ++pix){
+      if(selected_mask[pix]) {
+        total++;
+        last_pix=pix;
+        if(!first){
+          first=true;
+          first_pix=pix;
+        }
+      }
+    }
+    std::cout << "More Sanity Scale " << scales[scale_index] << " " << total << " " << first_pix << " " << last_pix << "\n";
         results[scale_index] = 
         FindSingleScalePeak(ms_transforms, image_copy, scales[scale_index],
                             allow_negative_components, selected_mask,

@@ -81,10 +81,6 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
 
   InitializeScaleInfo(std::min(width, height));
 
-  UpdateScaleMask(data_image);
-  SummaryScaleMasks();
-  SummaryScaleMasksCheck(data_image);
-
   if (track_per_scale_masks_) {
     // Note that in a second round the nr of scales can be different (due to
     // different width/height, e.g. caused by a different subdivision in
@@ -144,6 +140,12 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
   multiscale::MultiScaleTransforms msTransforms(width, height, settings_.shape);
 
   size_t scaleWithPeak;
+  
+  UpdateScaleMask(data_image);
+  SummaryScaleMasks();
+  SummaryScaleMasksCheck(data_image);
+
+  
   FindActiveScaleConvolvedMaxima(data_image, integratedScratch, scratch, true,
                                  tools);
   if (!SelectMaximumScale(scaleWithPeak)) {
@@ -261,7 +263,9 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
       } else if (CleanMask()) {
         subLoop.SetMask(CleanMask());
       } else if (GetScaleBitMask()) {
-        subLoop.SetMask(per_scale_clean_masks_.data()[scaleWithPeak].mask.data());
+        subLoop.SetMask(
+            per_scale_clean_masks_[scaleWithPeak].mask_ptr
+        );
       }
       subLoop.SetParentAlgorithm(this);
 
@@ -539,7 +543,7 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
         transformScales.push_back(scaleEntry.scale);
         transformIndices.push_back(scaleIndex);
         if(!per_scale_clean_masks_.empty()) {
-          perScaleBitMasks.push_back(per_scale_clean_masks_[scaleIndex].mask.data());
+          perScaleBitMasks.push_back(per_scale_clean_masks_[scaleIndex].mask_ptr);
         }
         if (use_per_scale_masks_) {
           transformScaleMasks.push_back(scale_masks_[scaleIndex]);
@@ -549,12 +553,28 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
   }
   std::vector<ThreadedDeconvolutionTools::PeakData> results;
 
-  if(!GetScaleBitMask()){
+  if(perScaleBitMasks.empty()){
     tools.FindMultiScalePeak(&msTransforms, integrated_scratch, transformScales,
                            results, AllowNegativeComponents(), CleanMask(),
                            transformScaleMasks, CleanBorderRatio(),
                            RmsFactorImage(), report_rms);
   } else {
+    std::cout << "Passing through " << perScaleBitMasks.size() << "\n";
+    for(size_t i=0; i < perScaleBitMasks.size(); ++i){
+      size_t total = 0, first_pix=0, last_pix=0;
+      bool first = false;
+      for(size_t pix=0; pix < 6192*6192; ++pix){
+        if(perScaleBitMasks.data()[i][pix]){
+          total++;
+          last_pix=pix;
+          if(!first){
+            first=true;
+            first_pix=pix;
+          }
+        }
+      }
+      std::cout << "Sanity " << transformScales[i] << " " << total << " " << first_pix << " " << last_pix << "\n";
+    }
     tools.FindMultiScalePeakPerScaleMask(&msTransforms, integrated_scratch, transformScales,
                            results, AllowNegativeComponents(), perScaleBitMasks,
                            transformScaleMasks, CleanBorderRatio(),
@@ -706,7 +726,7 @@ void MultiScaleAlgorithm::FindPeakDirect(const aocommon::Image& image,
         scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
         image.Height(), CleanMask(), horBorderSize, vertBorderSize);
       } else if(GetScaleBitMask()) {
-        const bool* scale_clean_mask = per_scale_clean_masks_[scale_index].mask.data();
+        const bool* scale_clean_mask = per_scale_clean_masks_[scale_index].mask_ptr;
         maxValue = math::peak_finder::FindWithMask(
           actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
           scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
@@ -782,23 +802,27 @@ void MultiScaleAlgorithm::UpdateScaleMask(ImageSet& data_image) {
   }
 
   for(size_t scale = 0; scale < scale_infos_.size(); ++scale){
-    aocommon::UVector<bool> _scale_clean_mask = *(new aocommon::UVector<bool>());
-    _scale_clean_mask.assign(data_image.Width() * data_image.Height(), false);
+    aocommon::UVector<uint8_t> _scale_clean_mask = *(new aocommon::UVector<uint8_t>());
+    _scale_clean_mask.assign(data_image.Width() * data_image.Height(), 0);
     size_t total = 0;
+    bool* testing = new bool[data_image.Width() * data_image.Height()];
     for(size_t pix = 0; pix < data_image.Width() * data_image.Height(); ++pix){
-      if((((static_cast<int>(scale_bit_mask[pix])>>scale)&1)==1)){
-        _scale_clean_mask[pix] = true;
+      _scale_clean_mask[pix] = ((static_cast<int>(scale_bit_mask[pix])>>scale)&1);
+      if(_scale_clean_mask[pix]==1){
         total++;  
+        testing[pix] = true;
       } else {
-        _scale_clean_mask[pix] = false;
+        _scale_clean_mask[pix] = 0;
+        testing[pix] = false;
       }    
     }
 
     BitScaleInfo _bit_scale_info;
     _bit_scale_info.mask = _scale_clean_mask;
     _bit_scale_info.nr_active = total;
+    _bit_scale_info.mask_ptr = testing;
     per_scale_clean_masks_.push_back(_bit_scale_info);
-
+    
     if(total==0) {
       LogReceiver().Debug << "Disabling scale " << scale << " as scale clean mask is all inactive\n"; 
       scale_infos_[scale].is_active = false;
@@ -824,7 +848,7 @@ void MultiScaleAlgorithm::SummaryScaleMasksCheck(ImageSet& data_image) {
   LogReceiver().Info << "Scale Mask Info (counter)\n";
   for(size_t i=0; i<per_scale_clean_masks_.size(); ++i) {
     size_t total = 0;
-    bool* per_scale_mask = per_scale_clean_masks_[i].mask.data();
+    bool* per_scale_mask = per_scale_clean_masks_[i].mask_ptr;
     bool first = false;
     size_t first_pix = 0, last_pix = 0;
     for(size_t pix = 0; pix < data_image.Width() * data_image.Height(); ++pix){
@@ -838,9 +862,10 @@ void MultiScaleAlgorithm::SummaryScaleMasksCheck(ImageSet& data_image) {
       }
     }
 
-    LogReceiver().Info << "- Scale " << scale_infos_[i].scale << ", nr activate " << total 
+    LogReceiver().Info << "- MPtr Scale " << scale_infos_[i].scale << ", nr activate " << total 
     << " first " << first_pix << " last " << last_pix << "\n";
-  }
+  
+}
 }
 
 

@@ -118,9 +118,10 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
      * information should a bit-mask clean mask be specified.
      */
     // The per-pixel boolean array, true indicating a ppixel can be cleaned
-    aocommon::UVector<bool> mask;
+    aocommon::UVector<uint8_t> mask;
     // Number of activate pixels in the mask
     size_t nr_active = 0;
+    bool* mask_ptr = nullptr;
   };
 
 
