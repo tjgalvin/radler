@@ -525,13 +525,18 @@ void Radler::ReadBitMask() {
           "image!");
     }
     aocommon::UVector<float> mask_data(image_width_ * image_height_);
-    Logger::Debug << "Reading mask '" << settings_.fits_mask << "'...\n";
+    Logger::Debug << "Reading pre-scale mask '" << settings_.scale_fits_mask << "'...\n";
     mask_reader.Read(mask_data.data());
     
 
-    bit_clean_mask_.assign(image_width_ * image_height_, false);
+    bit_clean_mask_.assign(image_width_ * image_height_, 0.0);
+    bool first = false;
     for (size_t i = 0; i != image_width_ * image_height_; ++i) {
       bit_clean_mask_[i] = mask_data[i];
+      if(!first and mask_data[i]!=0.0){
+        first=true;
+        std::cout << "First found at pix " << i << "\n";
+      }
     }
 
     has_mask = true;

@@ -83,6 +83,7 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
 
   UpdateScaleMask(data_image);
   SummaryScaleMasks();
+  SummaryScaleMasksCheck(data_image);
 
   if (track_per_scale_masks_) {
     // Note that in a second round the nr of scales can be different (due to
@@ -259,9 +260,8 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
         subLoop.SetMask(scale_masks_[scaleWithPeak].data());
       } else if (CleanMask()) {
         subLoop.SetMask(CleanMask());
-      } else if (!per_scale_clean_masks_.empty()) {
-        
-        subLoop.SetMask(per_scale_clean_masks_[scaleWithPeak].mask.data());
+      } else if (GetScaleBitMask()) {
+        subLoop.SetMask(per_scale_clean_masks_.data()[scaleWithPeak].mask.data());
       }
       subLoop.SetParentAlgorithm(this);
 
@@ -363,6 +363,7 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
 
     FindActiveScaleConvolvedMaxima(data_image, integratedScratch, scratch,
                                    false, tools);
+    // SummaryScaleMasksCheck(data_image);
 
     if (!SelectMaximumScale(scaleWithPeak)) {
       LogReceiver().Warn << "No peak found in main loop of multi-scale "
@@ -548,7 +549,7 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
   }
   std::vector<ThreadedDeconvolutionTools::PeakData> results;
 
-  if(per_scale_clean_masks_.empty()){
+  if(!GetScaleBitMask()){
     tools.FindMultiScalePeak(&msTransforms, integrated_scratch, transformScales,
                            results, AllowNegativeComponents(), CleanMask(),
                            transformScaleMasks, CleanBorderRatio(),
@@ -704,7 +705,7 @@ void MultiScaleAlgorithm::FindPeakDirect(const aocommon::Image& image,
         actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
         scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
         image.Height(), CleanMask(), horBorderSize, vertBorderSize);
-      } else if(!per_scale_clean_masks_.empty()) {
+      } else if(GetScaleBitMask()) {
         const bool* scale_clean_mask = per_scale_clean_masks_[scale_index].mask.data();
         maxValue = math::peak_finder::FindWithMask(
           actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
@@ -781,14 +782,16 @@ void MultiScaleAlgorithm::UpdateScaleMask(ImageSet& data_image) {
   }
 
   for(size_t scale = 0; scale < scale_infos_.size(); ++scale){
-    aocommon::UVector<bool> _scale_clean_mask;
+    aocommon::UVector<bool> _scale_clean_mask = *(new aocommon::UVector<bool>());
     _scale_clean_mask.assign(data_image.Width() * data_image.Height(), false);
     size_t total = 0;
     for(size_t pix = 0; pix < data_image.Width() * data_image.Height(); ++pix){
       if((((static_cast<int>(scale_bit_mask[pix])>>scale)&1)==1)){
         _scale_clean_mask[pix] = true;
         total++;  
-      }
+      } else {
+        _scale_clean_mask[pix] = false;
+      }    
     }
 
     BitScaleInfo _bit_scale_info;
@@ -813,4 +816,32 @@ void MultiScaleAlgorithm::SummaryScaleMasks() {
     LogReceiver().Info << "- Scale " << scale_infos_[i].scale << ", mask activate pix. " << per_scale_clean_masks_[i].nr_active << "\n";
   }
 }
+
+void MultiScaleAlgorithm::SummaryScaleMasksCheck(ImageSet& data_image) {
+  // A simple summary output to indicate the per-scale mask is activate
+  if(per_scale_clean_masks_.empty()) return;
+  
+  LogReceiver().Info << "Scale Mask Info (counter)\n";
+  for(size_t i=0; i<per_scale_clean_masks_.size(); ++i) {
+    size_t total = 0;
+    bool* per_scale_mask = per_scale_clean_masks_[i].mask.data();
+    bool first = false;
+    size_t first_pix = 0, last_pix = 0;
+    for(size_t pix = 0; pix < data_image.Width() * data_image.Height(); ++pix){
+      if(per_scale_mask[pix]){
+        total++;
+        last_pix=pix;
+        if(!first) {
+          first=true;
+          first_pix=pix;
+        }
+      }
+    }
+
+    LogReceiver().Info << "- Scale " << scale_infos_[i].scale << ", nr activate " << total 
+    << " first " << first_pix << " last " << last_pix << "\n";
+  }
+}
+
+
 }  // namespace radler::algorithms

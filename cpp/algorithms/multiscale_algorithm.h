@@ -135,6 +135,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   }
 
   void SummaryScaleMasks();
+  void SummaryScaleMasksCheck(ImageSet& data_image);
 
   void InitializeScaleInfo(size_t min_width_height);
   void ConvolvePsfs(std::unique_ptr<aocommon::Image[]>& convolved_psfs,
