@@ -259,6 +259,8 @@ float MultiScaleAlgorithm::ExecuteMajorIteration(
         subLoop.SetMask(scale_masks_[scaleWithPeak].data());
       } else if (CleanMask()) {
         subLoop.SetMask(CleanMask());
+      } else if (ScaleCleanMask()) {
+        subLoop.SetMask(bit_scale_masks_[scaleWithPeak].mask.data());
       }
       subLoop.SetParentAlgorithm(this);
 
@@ -519,6 +521,9 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
   aocommon::UVector<float> transformScales;
   aocommon::UVector<size_t> transformIndices;
   std::vector<aocommon::UVector<bool>> transformScaleMasks;
+  
+  // Could this be a std::vector<bool*> ?
+  std::vector<aocommon::UVector<bool>> transformBitScaleMasks;
   for (size_t scaleIndex = 0; scaleIndex != scale_infos_.size(); ++scaleIndex) {
     ScaleInfo& scaleEntry = scale_infos_[scaleIndex];
     if (scaleEntry.is_active) {
@@ -534,6 +539,8 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
         transformIndices.push_back(scaleIndex);
         if (use_per_scale_masks_) {
           transformScaleMasks.push_back(scale_masks_[scaleIndex]);
+        } else if (ScaleCleanMask()) {
+          transformScaleMasks.push_back(bit_scale_masks_[scaleIndex].mask);
         }
       }
     }
@@ -599,7 +606,16 @@ void MultiScaleAlgorithm::ActivateScales(size_t scale_with_last_peak) {
                                         .max_unnormalized_image_value) *
                               (1.0 - MinorLoopGain()) *
                               scale_infos_[scale_with_last_peak].bias_factor;
-    if (!scale_infos_[i].is_active && doActivate) {
+    if(ScaleCleanMask() && doActivate){
+      if(bit_scale_masks_[i].nr_active == 0) {
+        LogReceiver().Debug << "Scale " << scale_infos_[i].scale 
+                            << " was marked as significant and to be activated, but"
+                            << " no available pixels are in the clean mask.\n";
+        doActivate = false;
+      }
+    }
+    
+                              if (!scale_infos_[i].is_active && doActivate) {
       LogReceiver().Debug << "Scale " << scale_infos_[i].scale
                           << " is now significant and is activated.\n";
       scale_infos_[i].is_active = true;
@@ -675,16 +691,22 @@ void MultiScaleAlgorithm::FindPeakDirect(const aocommon::Image& image,
         scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
         image.Height(), scale_masks_[scale_index].data(), horBorderSize,
         vertBorderSize);
-  } else if (!CleanMask()) {
-    maxValue = math::peak_finder::Find(
-        actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
-        scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
-        image.Height(), horBorderSize, vertBorderSize);
-  } else {
+  } else if (CleanMask()) {    
     maxValue = math::peak_finder::FindWithMask(
         actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
         scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
         image.Height(), CleanMask(), horBorderSize, vertBorderSize);
+      } else if (ScaleCleanMask()) {
+    bool* mask = bit_scale_masks_[scale_index].mask.data();
+    maxValue = math::peak_finder::FindWithMask(
+        actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
+        scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
+        image.Height(), mask, horBorderSize, vertBorderSize);
+  } else {
+      maxValue = math::peak_finder::Find(
+        actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
+        scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
+        image.Height(), horBorderSize, vertBorderSize);
   }
 
   if (maxValue) {
@@ -772,7 +794,7 @@ void MultiScaleAlgorithm::InitializeScaleMasks(ImageSet& data_image) {
       scale_infos_[scale].is_active = false;
     }
   }
-  LogReceiver().Info << "Create " << bit_scale_masks_.size() << " per-scale masks\b";
+  LogReceiver().Info << "Created " << bit_scale_masks_.size() << " per-scale masks\n";
   set_up_scale_masks_ = true;
 }
 
@@ -780,7 +802,7 @@ void MultiScaleAlgorithm::SummaryScaleMasks() {
   // A simple summary output to indicate the per-scale mask is activate
   if(bit_scale_masks_.empty()) return;
   
-  LogReceiver().Info << "Scale Mask Info:";
+  LogReceiver().Info << "Scale Mask Info:\n";
   for(size_t i=0; i<bit_scale_masks_.size(); ++i) {
     LogReceiver().Info << "- Scale " << scale_infos_[i].scale << ", total active " << bit_scale_masks_[i].nr_active << "\n";
   }
