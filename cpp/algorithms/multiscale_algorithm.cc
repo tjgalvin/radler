@@ -790,7 +790,7 @@ void MultiScaleAlgorithm::InitializeScaleMasks(ImageSet& data_image) {
     bit_scale_masks_.push_back(scale_mask);
     
     if(total==0){
-      LogReceiver().Info << "Scale " << scale_infos_[scale].scale << " has no valid pixels, marking as inactivate\n";
+      LogReceiver().Debug << "Scale " << scale_infos_[scale].scale << " has no valid pixels, marking as inactivate\n";
       scale_infos_[scale].is_active = false;
     }
   }
