@@ -3,6 +3,7 @@
 #include "radler.h"
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 
 #include <aocommon/fits/fitsreader.h>
@@ -438,6 +439,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
   }
 
   ReadMask(*table_);
+  ReadScaleMask();
 }
 
 void Radler::FreeDeconvolutionAlgorithms() {
@@ -573,6 +575,75 @@ void Radler::ReadMask(const WorkTable& group_table) {
   }
 
   if (has_mask) parallel_deconvolution_->SetCleanMask(clean_mask_.data());
+}
+
+std::vector<utils::CompressedMask> Radler::ExtractScaleMasks(
+    aocommon::Image& mask) {
+  // A float value can represent up to 2^24 integer values exactly, and so it
+  // can represent at most 24 scales.
+  constexpr size_t kMaxNScales = 24;
+  constexpr float kMaxValue = static_cast<float>(size_t{1} << kMaxNScales);
+  size_t n_scales = 0;
+  for (size_t pix = 0; pix != mask.Size(); ++pix) {
+    const float value = mask[pix];
+    if (!std::isfinite(value) || value < 0.0f || value >= kMaxValue ||
+        value != std::floor(value)) {
+      throw std::runtime_error(
+          "Invalid value " + std::to_string(value) +
+          " in manual scale-dependent mask: values should be integers in the "
+          "range [0, 2^24), with the n'th bit selecting the n'th scale");
+    }
+    n_scales =
+        std::max<size_t>(n_scales, std::bit_width(static_cast<size_t>(value)));
+  }
+  if (n_scales == 0)
+    throw std::runtime_error(
+        "A manual scale-dependent mask was supplied with not a single set "
+        "value");
+
+  std::vector<utils::CompressedMask> result;
+  result.reserve(n_scales);
+  aocommon::UVector<bool> mask_data(mask.Size());
+  for (size_t scale = 0; scale != n_scales; ++scale) {
+    for (size_t pix = 0; pix != mask.Size(); ++pix) {
+      mask_data[pix] = (static_cast<size_t>(mask[pix]) >> scale) & 1;
+    }
+    utils::CompressedMask& compressed_mask =
+        result.emplace_back(mask.Width(), mask.Height());
+    compressed_mask.Set(mask_data.data());
+  }
+  log_receiver_.Info << "Initialized " << result.size()
+                     << " per-scale masks.\n";
+  return result;
+}
+
+void Radler::ReadScaleMask() {
+  if (!settings_.multiscale.scale_mask_filename.empty()) {
+    if (settings_.algorithm_type != AlgorithmType::kMultiscale) {
+      throw std::runtime_error(
+          "A per-scale mask can only be used with multi-scale deconvolution");
+    }
+    std::ifstream file(settings_.multiscale.scale_mask_filename);
+    if (!file.good()) {
+      throw std::runtime_error("Failed to open FITS scale mask " +
+                               settings_.multiscale.scale_mask_filename);
+    }
+    FitsReader mask_reader(settings_.multiscale.scale_mask_filename);
+    if (mask_reader.ImageWidth() != image_width_ ||
+        mask_reader.ImageHeight() != image_height_) {
+      throw std::runtime_error("Specified FITS file mask has dimensions of " +
+                               std::to_string(mask_reader.ImageWidth()) +
+                               " x " +
+                               std::to_string(mask_reader.ImageHeight()) +
+                               ", which does not match the output image");
+    }
+    aocommon::Image mask_data(image_width_, image_height_);
+    log_receiver_.Debug << "Reading mask '"
+                        << settings_.multiscale.scale_mask_filename << "'...\n";
+    mask_reader.Read(mask_data.Data());
+
+    parallel_deconvolution_->SetScaleCleanMask(ExtractScaleMasks(mask_data));
+  }
 }
 
 }  // namespace radler

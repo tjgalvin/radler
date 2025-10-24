@@ -15,10 +15,14 @@
 #include "work_table_entry.h"
 
 namespace radler {
+// Forward declarions since these classes aren't part of Radler's public
+// interface.
 namespace algorithms {
-// Forward declared since the class isn't part of Radler's public interface.
 class ParallelDeconvolution;
 }  // namespace algorithms
+namespace utils {
+class CompressedMask;
+}  // namespace utils
 
 /**
  * @brief Main interfacing class of the Radio Astronomical Deconvolution
@@ -92,6 +96,8 @@ class Radler {
   void InitializeDeconvolutionAlgorithm(std::unique_ptr<WorkTable> table);
 
   void ReadMask(const WorkTable& group_table);
+  void ReadScaleMask();
+  std::vector<utils::CompressedMask> ExtractScaleMasks(aocommon::Image& mask);
   void ReadForcedSpectrumImages();
 
   void SetAutoMaskMode(ImageSet& model_set, bool use_mask);
