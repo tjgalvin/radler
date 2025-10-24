@@ -314,7 +314,9 @@ Radler::CreateSpectralFitter() const {
 
 void Radler::InitializeDeconvolutionAlgorithm(
     std::unique_ptr<WorkTable> table) {
-  auto_mask_is_finished_ = false;
+  Logger::Info << "Attempting rework of fits scale mask\n";
+  
+      auto_mask_is_finished_ = false;
   auto_mask_.clear();
   FreeDeconvolutionAlgorithms();
   table_ = std::move(table);
@@ -371,6 +373,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
   }
 
   ReadMask(*table_);
+  ReadScaleMask();
 }
 
 void Radler::FreeDeconvolutionAlgorithms() {
@@ -503,6 +506,41 @@ void Radler::ReadMask(const WorkTable& group_table) {
   }
 
   if (has_mask) parallel_deconvolution_->SetCleanMask(clean_mask_.data());
+}
+
+void Radler::ReadScaleMask() {
+  // Head in the fits image that ahs the bit mask scales
+  // Have removed the per spectral channel check / reading
+
+  bool has_mask = false;
+  if (!settings_.fits_scale_mask.empty()) {
+    std::ifstream file(settings_.fits_scale_mask);
+    if(!file.good()){
+      std::cout << "WARNING: FITS scale mask " << settings_.fits_scale_mask << " does not exist. ignoring.\n";
+      return;
+    }
+    FitsReader mask_reader(settings_.fits_scale_mask, true, true);
+    if (mask_reader.ImageWidth() != image_width_ ||
+        mask_reader.ImageHeight() != image_height_) {
+      throw std::runtime_error(
+          "Specified Fits file mask did not have same dimensions as output "
+          "image!");
+    }
+    aocommon::UVector<float> mask_data(image_width_ * image_height_);
+    Logger::Debug << "Reading mask '" << settings_.fits_scale_mask << "'...\n";
+    mask_reader.Read(mask_data.data());
+    
+
+    scale_clean_mask_.assign(image_width_ * image_height_, 0.0);
+    for (size_t i = 0; i != image_width_ * image_height_; ++i) {
+      scale_clean_mask_[i] = mask_data[i];
+    }
+
+    has_mask = true;
+  }
+
+  if(has_mask) parallel_deconvolution_->SetScaleCleanMask(scale_clean_mask_.data());
+
 }
 
 }  // namespace radler

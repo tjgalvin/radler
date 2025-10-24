@@ -121,6 +121,21 @@ void ParallelDeconvolution::SetCleanMask(const bool* mask) {
   }
 }
 
+void ParallelDeconvolution::SetScaleCleanMask(float* mask) {
+
+  if (!(settings_.algorithm_type == AlgorithmType::kMultiscale)) 
+    return; 
+  
+  std::cout << "Setting the bit scale mask\n";
+
+  MultiScaleAlgorithm* alg =
+    static_cast<MultiScaleAlgorithm*>(algorithms_.front().get());
+
+  std::cout << "Setting scale fits image\n";
+  alg->SetScaleCleanMask(mask);
+
+}
+
 void ParallelDeconvolution::SetSpectrallyForcedImages(
     std::vector<Image>&& images) {
   if (algorithms_.size() == 1) {

@@ -284,6 +284,11 @@ struct Settings {
   std::string fits_mask;
 
   /**
+  * Filename for the per-scale fits mask. 
+  */
+  std::string fits_scale_mask = "/workspaces/wsclean/build/SB55248.VAST_0530-68.beam15.round1.i.MFS.image.mask.fits";
+
+  /**
    * Filename path of a Casa mask file to be used during deconvolution.
    * If empty, no Casa mask is used. Do not use together with @ref fits_mask.
    */

@@ -83,6 +83,7 @@ class Radler {
   void InitializeDeconvolutionAlgorithm(std::unique_ptr<WorkTable> table);
 
   void ReadMask(const WorkTable& group_table);
+  void ReadScaleMask();
   void ReadForcedSpectrumImages();
 
   const Settings settings_;
@@ -92,6 +93,8 @@ class Radler {
   std::unique_ptr<algorithms::ParallelDeconvolution> parallel_deconvolution_;
 
   aocommon::UVector<bool> clean_mask_;
+  aocommon::UVector<float> scale_clean_mask_;
+
 
   bool auto_mask_is_finished_;
   size_t image_width_;

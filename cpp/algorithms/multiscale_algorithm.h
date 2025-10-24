@@ -56,6 +56,12 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     return scale_masks_[index];
   }
 
+  void SetScaleCleanMask(float* scale_clean_mask);
+
+  float* ScaleCleanMask(){
+    return scale_clean_mask_;
+  };
+
  private:
   const Settings::Multiscale& settings_;
   double beam_size_in_pixels_;
@@ -102,6 +108,20 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   bool track_components_;
   std::vector<aocommon::UVector<bool>> scale_masks_;
   aocommon::cloned_ptr<ComponentList> component_list_;
+  
+  struct ScaleMask {
+    ScaleMask() : mask(aocommon::UVector<bool>(1)),
+                   nr_active(0) {}
+    aocommon::UVector<bool> mask;
+    size_t nr_active;
+  };
+  
+  float* scale_clean_mask_ = nullptr; // User defined region
+  std::vector<MultiScaleAlgorithm::ScaleMask> bit_scale_masks_; // Precomputed bit scales
+  bool set_up_scale_masks_ = false; // Established scale masks once
+
+  void InitializeScaleMasks(ImageSet& data_image); // Set up scale clean information
+  void SummaryScaleMasks();
 
   void InitializeScaleInfo(size_t min_width_height);
   void ConvolvePsfs(std::unique_ptr<aocommon::Image[]>& convolved_psfs,
