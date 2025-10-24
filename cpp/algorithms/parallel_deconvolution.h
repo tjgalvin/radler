@@ -95,7 +95,17 @@ class ParallelDeconvolution {
   void FreeDeconvolutionAlgorithms() {
     algorithms_.clear();
     mask_ = nullptr;
+    user_scale_masks_.clear();
   }
+
+  /**
+   * Set user-provided per-scale clean masks, one per scale and each of the
+   * full image size. This method requires that the class is initialized with
+   * the multiscale algorithm. The masks are intersected with the clean mask,
+   * which must therefore be set first. Like the clean mask, these masks are
+   * used until the auto-mask takes over.
+   */
+  void SetScaleCleanMask(std::vector<utils::CompressedMask>&& scale_masks);
 
  private:
   /** @param psf_images @see @ref ImageSet::LoadAndAveragePsfs. */
@@ -124,7 +134,10 @@ class ParallelDeconvolution {
   std::vector<aocommon::Image> spectrally_forced_images_;
   bool track_per_scale_masks_;
   bool use_per_scale_masks_;
+  // Per-scale masks tracked by the auto-mask.
   std::vector<utils::CompressedMask> scale_masks_;
+  // Per-scale masks provided by the user.
+  std::vector<utils::CompressedMask> user_scale_masks_;
   std::unique_ptr<class ComponentList> component_list_;
   aocommon::Image rms_image_;
   aocommon::LogReceiver* log_;

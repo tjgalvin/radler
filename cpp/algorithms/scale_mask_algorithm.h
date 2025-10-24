@@ -71,6 +71,17 @@ class ScaleMaskAlgorithm {
   std::vector<aocommon::UVector<bool>> scale_masks_;
   bool track_per_scale_masks_ = false;
   bool use_per_scale_masks_ = false;
+  
+  const std::vector<utils::CompressedMask>* user_scale_mask_source_ = nullptr;
+  size_t user_scale_mask_x_ = 0;
+  size_t user_scale_mask_y_ = 0;
+  const bool* user_scale_mask_boundary_ = nullptr;
+  // Inflated user scale masks, one per scale. An empty mask means that the
+  // scale is not allowed anywhere.
+  std::vector<aocommon::UVector<bool>> user_scale_masks_;
+  bool user_scale_masks_inflated_ = false;
+  size_t user_scale_masks_width_ = 0;
+  size_t user_scale_masks_height_ = 0;
 };
 
 }  // namespace radler::algorithms
