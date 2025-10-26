@@ -284,11 +284,6 @@ struct Settings {
   std::string fits_mask;
 
   /**
-  * Filename for the per-scale fits mask. 
-  */
-  std::string fits_scale_mask = "/workspaces/wsclean/build/SB55248.VAST_0530-68.beam15.round1.i.MFS.image.mask.fits";
-
-  /**
    * Filename path of a Casa mask file to be used during deconvolution.
    * If empty, no Casa mask is used. Do not use together with @ref fits_mask.
    */
@@ -401,6 +396,14 @@ struct Settings {
      * it is generally recommended to be set to @c true.
      */
     bool fast_sub_minor_loop = true;
+
+    /**
+    * Filename for the per-scale fits mask. Each pixel represents a bit-mappsed
+    * quantity, with the n'th bit corresponding to the n'th scale. For consistency
+    * the data should be of type float
+    */
+    std::string fits_scale_mask;
+
 
     /**
      * Controls how long to keep the scale fixed. The default value of 0.2

@@ -513,13 +513,13 @@ void Radler::ReadScaleMask() {
   // Have removed the per spectral channel check / reading
 
   bool has_mask = false;
-  if (!settings_.fits_scale_mask.empty()) {
-    std::ifstream file(settings_.fits_scale_mask);
+  if (!settings_.multiscale.fits_scale_mask.empty()) {
+    std::ifstream file(settings_.multiscale.fits_scale_mask);
     if(!file.good()){
-      std::cout << "WARNING: FITS scale mask " << settings_.fits_scale_mask << " does not exist. ignoring.\n";
+      std::cout << "WARNING: FITS scale mask " << settings_.multiscale.fits_scale_mask << " does not exist. ignoring.\n";
       return;
     }
-    FitsReader mask_reader(settings_.fits_scale_mask, true, true);
+    FitsReader mask_reader(settings_.multiscale.fits_scale_mask, true, true);
     if (mask_reader.ImageWidth() != image_width_ ||
         mask_reader.ImageHeight() != image_height_) {
       throw std::runtime_error(
@@ -527,7 +527,7 @@ void Radler::ReadScaleMask() {
           "image!");
     }
     aocommon::UVector<float> mask_data(image_width_ * image_height_);
-    Logger::Debug << "Reading mask '" << settings_.fits_scale_mask << "'...\n";
+    Logger::Debug << "Reading mask '" << settings_.multiscale.fits_scale_mask << "'...\n";
     mask_reader.Read(mask_data.data());
     
 
