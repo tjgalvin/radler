@@ -200,6 +200,27 @@ build-docstrings-2404:
     paths:
     - build/doc/docstrings
 
+build-python-source-tarball:
+  stage: deploy
+  image: python:3.12
+  variables:
+    # Start with a clean working copy to avoid including unwanted files in the tarball
+    GIT_STRATEGY: clone
+  before_script:
+    - pip install build
+  script:
+    - python -m build --sdist --outdir dist
+  artifacts:
+    paths:
+      - dist/*.tar.gz
+  rules:
+    # Only run job when building a release tag, the default branch,
+    # or when triggered manually.
+    - if: $CI_COMMIT_TAG || $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: always
+    - when: manual
+      allow_failure: true # Make the manual job optional instead of mandatory
+
 cibuild-python-wheels:
   extends: .cibuildwheels-custom
   stage: deploy
@@ -222,39 +243,24 @@ cibuild-python-wheels:
     paths:
       - wheelhouse/*.whl
 
-.deploy-python-wheels:
+.deploy-python-package:
   stage: deploy
   needs:
+    - build-python-source-tarball
     - cibuild-python-wheels
   image: python:3.12
   before_script:
     - pip install twine
   script:
-    - python -m twine upload --verbose wheelhouse/*.whl
+    - python -m twine upload --verbose dist/*.tar.gz wheelhouse/*.whl
   rules:
     # Only deploy when building a release tag, or when requested explicitly.
     - if: '$CI_COMMIT_TAG && $CI_COMMIT_REF_PROTECTED == "true"'
 
 deploy_on_gitlab:
-  extends: .deploy-python-wheels
+  extends: .deploy-python-package
   environment: gitlab
   variables:
     TWINE_USERNAME: gitlab-ci-token
     TWINE_PASSWORD: ${CI_JOB_TOKEN}
     TWINE_REPOSITORY_URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi
-
-deploy_on_test_pypi:
-  extends: .deploy-python-wheels
-  environment: pypi-test
-  variables:
-    TWINE_USERNAME: __token__
-    TWINE_PASSWORD: ${TESTPYPI_TOKEN}
-    TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
-
-deploy_on_pypi:
-  extends: .deploy-python-wheels
-  environment: pypi
-  variables:
-    TWINE_USERNAME: __token__
-    TWINE_PASSWORD: ${PYPI_TOKEN}
-    TWINE_REPOSITORY_URL: https://upload.pypi.org/legacy/
