@@ -193,7 +193,7 @@ def test_direction_dependent_psfs():
 
     # Run 1 iteration of deconvolution
     radler_object = rd.Radler(settings, work_table, 0)
-    radler_object.perform(0)
+    radler_object.perform(1)
 
     # Verify that the correct PSF is applied in the corresponding region
     check_values(

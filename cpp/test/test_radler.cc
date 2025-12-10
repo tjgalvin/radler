@@ -207,8 +207,8 @@ BOOST_AUTO_TEST_CASE(diffuse_source) {
   Radler radler(settings, psf_image, residual_image, model_image, beamScale);
 
   bool reached_threshold = false;
-  const int major_iteration_count = 0;
-  radler.Perform(reached_threshold, major_iteration_count);
+  const std::size_t iteration_number = 1;
+  radler.Perform(reached_threshold, iteration_number);
 
   BOOST_CHECK_LE(radler.IterationNumber(), settings.minor_iteration_count);
   BOOST_CHECK_GE(radler.IterationNumber(), 100);

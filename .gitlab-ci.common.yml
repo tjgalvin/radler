@@ -114,7 +114,11 @@ build-2404:
     - mkdir build && cd build
     # -fprofile-update=atomic avoids race conditions when updating coverage
     # counters at runtime, and thereby avoids parse errors in gcovr.
-    - cmake -DBUILD_TESTING=ON -DBUILD_PYTHON_BINDINGS=ON -DCMAKE_CXX_FLAGS="-coverage -fprofile-update=atomic" -DCMAKE_EXE_LINKER_FLAGS="-coverage" ..
+    - cmake -DCMAKE_BUILD_TYPE=Debug
+            -DBUILD_TESTING=ON
+            -DBUILD_PYTHON_BINDINGS=ON
+            -DCMAKE_CXX_FLAGS="-coverage -fprofile-update=atomic -O3"
+            -DCMAKE_EXE_LINKER_FLAGS="-coverage" ..
     - make -j`nproc` install
     # Do not run the unittests in parallel, since they would then update
     # .gcda files with coverage information simultaneously.

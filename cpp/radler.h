@@ -63,8 +63,7 @@ class Radler {
    * which the @c Perform() function should be called again. If @c false on
    * exit, the algorithm is finished and the caller can do its last
    * prediction-gridding round.
-   * @param major_iteration_number How many major iterations (calls to
-   * @c Perform()) were performed so far.
+   * @param major_iteration_number Major loop number (1-based), should be >= 1.
    */
   void Perform(bool& another_iteration_required, size_t major_iteration_number);
 

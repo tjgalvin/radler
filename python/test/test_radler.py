@@ -15,7 +15,7 @@ MINOR_ITERATION_COUNT = 1000
 
 
 def radler_perform(radler_object: rd.Radler, minor_iteration_count: int):
-    iteration_number = 0
+    iteration_number = 1
     reached_threshold = radler_object.perform(iteration_number)
     assert reached_threshold == False
     assert radler_object.iteration_number <= minor_iteration_count
