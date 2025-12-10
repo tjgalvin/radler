@@ -14,7 +14,6 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
 stages:
-  - versioning
   - prepare
   - linting
   - build
@@ -22,75 +21,57 @@ stages:
   - documentation
   - deploy
 
-# The 'IMAGE' variables allow reusing docker images between different pipelines.
+# Creating a docker image name which includes the commit hash of the dockerfile,
+# and storing that image name in a 'dotenv' artifact, allows reusing docker
+# images between different pipelines.
 # See https://confluence.skatelescope.org/display/SE/Caching+Docker+images+using+GitLab+CI+registry
-versioning:
-  stage: versioning
-  image:
-    name: alpine/git
-    entrypoint: [""]
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
-  script:
-    # Unshallowing ensures that 'git log' works
-    - git fetch --unshallow
-    - echo BASE_IMAGE_2204=${CI_REGISTRY_IMAGE}/base_2204:$(git log -n 1 --pretty=format:%H -- docker/ubuntu_22_04_base) > versions.env
-    - echo BASE_IMAGE_2404=${CI_REGISTRY_IMAGE}/base_2404:$(git log -n 1 --pretty=format:%H -- docker/ubuntu_24_04_base) >> versions.env
-    - cat versions.env
-  artifacts:
-    reports:
-      dotenv: versions.env
-
 .prepare:
   stage: prepare
   extends: .dind-requester
-  needs: ["versioning"]
-  image: docker:20.10
+  image: docker:29.0
   variables:
     GIT_SUBMODULE_STRATEGY: none
   before_script:
+    - apk add git
     - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
+    # Unshallowing ensures that 'git log' works
+    - git fetch --unshallow
+    - DOCKER_FILE=docker/ubuntu_${UBUNTU_VERSION}_04_base
+    - DOCKER_FILE_COMMIT=$(git log -n 1 --pretty=format:%H -- ${DOCKER_FILE})
+    - DOCKER_IMAGE=${CI_REGISTRY_IMAGE}/base_${UBUNTU_VERSION}04:${DOCKER_FILE_COMMIT}
+    - echo BASE_IMAGE_${UBUNTU_VERSION}04=${DOCKER_IMAGE} > base_image.env
+    - cat base_image.env
     - |
-      if ! docker manifest inspect $DOCKER_IMAGE > /dev/null; then
-        docker build $DOCKER_BUILD_ARG --tag $DOCKER_IMAGE -f $DOCKER_FILE .
+      if ! docker manifest inspect $DOCKER_IMAGE > /dev/null || [ "$BUILD_DOCKER_IMAGE" = "1" ]; then
+        if [ "$BUILD_DOCKER_IMAGE" = "1" ]; then
+          DOCKER_CACHE_PARAMETERS="--no-cache"
+        else
+          DOCKER_CACHE_PARAMETERS=""
+        fi
+        docker build $DOCKER_BUILD_ARG ${DOCKER_CACHE_PARAMETERS} --tag $DOCKER_IMAGE -f $DOCKER_FILE .
         docker push $DOCKER_IMAGE
       fi
-  # Skip the job if there are no changes to the Docker file. This shortcut only
-  # works for push and merge request jobs.
-  # A manual pipeline run will thus create missing docker images.
-  #
-  # This is disabled since the detections of the changes by GitLab seems flaky.
-  # TODO(AST-887) Reenable this to test whether it's no longer flaky.
-  #
-  #rules:
-  #  - changes:
-  #    - $DOCKER_FILE
+  artifacts:
+    reports:
+      dotenv: base_image.env
 
 prepare-base-2204:
   extends: .prepare
   variables:
-    DOCKER_IMAGE: $BASE_IMAGE_2204
-    DOCKER_FILE: docker/ubuntu_22_04_base
+    UBUNTU_VERSION: 22
 
 prepare-base-2404:
   extends: .prepare
   variables:
-    DOCKER_IMAGE: $BASE_IMAGE_2404
-    DOCKER_FILE: docker/ubuntu_24_04_base
+    UBUNTU_VERSION: 24
 
 .needs-2204:
-  needs:
-    - job: versioning
-    - job: prepare-base-2204
-      optional: true
+  needs: ["prepare-base-2204"]
   image: $BASE_IMAGE_2204
 
 .needs-2404:
-  needs:
-    - job: versioning
-    - job: prepare-base-2404
-      optional: true
+  needs: ["prepare-base-2404"]
   image: $BASE_IMAGE_2404
 
 format:
@@ -169,7 +150,6 @@ test-2404:
 build-doc-2404:
   extends: .needs-2404
   stage: build
-  image: $BASE_IMAGE_2404
   script:
     - mkdir build && cd build
     - cmake -DBUILD_PYTHON_BINDINGS=ON -DBUILD_DOCUMENTATION=ON .. -G Ninja
@@ -182,7 +162,6 @@ build-doc-2404:
 build-docstrings-2404:
   extends: .needs-2404
   stage: build
-  image: $BASE_IMAGE_2404
   script:
     - mkdir build && cd build
     - cmake -DBUILD_DOCSTRINGS=ON -G Ninja ..

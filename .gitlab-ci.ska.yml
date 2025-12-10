@@ -29,7 +29,7 @@ cache:
 
 pages:
   stage: documentation
-  needs: ["versioning","test-2404"]
+  needs: ["prepare-base-2404","test-2404"]
   image: $BASE_IMAGE_2404
   script:
     - echo Deploying GitLab pages to $CI_PAGES_URL/$CI_COMMIT_REF_SLUG/
