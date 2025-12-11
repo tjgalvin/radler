@@ -6,7 +6,7 @@ set -euo pipefail
 
 # Boost is already in the container as leftover from casacore install
 pushd /build/boost_${BOOST_}
-./bootstrap.sh --prefix=/opt/boost --with-libraries=math,date_time
+./bootstrap.sh --prefix=/opt/boost --with-libraries=math
 ./b2 -j${THREADS} cxxflags="-fPIC" link=static,shared install
 
 popd

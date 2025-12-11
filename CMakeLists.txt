@@ -113,11 +113,9 @@ endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
-# Boost date_time is needed in aocommon
-find_package(
-  Boost
-  COMPONENTS date_time
-  REQUIRED)
+# Boost date_time is needed in aocommon. date_time is header-only since Boost
+# version 1.73. (Using "COMPONENTS date_time" no longer works from Boost 1.89.)
+find_package(Boost 1.73 REQUIRED)
 
 # Threads
 find_package(Threads REQUIRED)
@@ -204,9 +202,8 @@ set(RADLER_TARGET_INCLUDE_DIRS
     ${pybind11_INCLUDE_DIRS}
     ${SCHAAPCOMMON_SOURCE_DIR}/include)
 
-set(RADLER_TARGET_LIBS
-    ${Boost_DATE_TIME_LIBRARY} ${CMAKE_THREAD_LIBS_INIT} ${CASACORE_LIBRARIES}
-    ${CFITSIO_LIBRARY} pybind11::embed schaapcommon)
+set(RADLER_TARGET_LIBS ${CMAKE_THREAD_LIBS_INIT} ${CASACORE_LIBRARIES}
+                       ${CFITSIO_LIBRARY} pybind11::embed schaapcommon)
 
 # Source directories
 add_subdirectory(cpp)
@@ -218,10 +215,7 @@ endif()
 # Compile tests
 if(NOT ${COMPILE_AS_EXTERNAL_PROJECT} AND ${BUILD_TESTING})
   include(CTest)
-  find_package(
-    Boost
-    COMPONENTS unit_test_framework
-    REQUIRED)
+  find_package(Boost REQUIRED COMPONENTS unit_test_framework)
 
   # Set up a test_data directory in the cpp/test directory.
   set(TEST_DATA_DIR ${CMAKE_BINARY_DIR}/cpp/test/test_data)

@@ -3,7 +3,7 @@
 Build instructions
 ==================
 
-Radler can be installed as a stand-alone package, but is also installed as a part of `WSClean <https://wsclean.readthedocs.io>`_. 
+Radler can be installed as a stand-alone package, but is also installed as a part of `WSClean <https://wsclean.readthedocs.io>`_.
 If you only want to install WSClean, it is not necessary to build Radler yourself.
 
 Installing from PyPI
@@ -23,8 +23,7 @@ Radler needs a number of dependencies in order to successfully compile. They can
 ::
 
     apt install git make cmake libpython3-dev g++ casacore-dev \
-    libboost-date-time-dev libcfitsio-dev libfftw3-dev libgsl-dev \
-    libhdf5-dev pybind11-dev
+    libcfitsio-dev libfftw3-dev libgsl-dev libhdf5-dev pybind11-dev
 
 Note that you need Ubuntu 25.04 or later. For older versions of Ubuntu, you need to build ``casacore`` from source first (see the ``docker`` directory for an example).
 
