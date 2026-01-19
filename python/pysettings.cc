@@ -9,7 +9,6 @@
 #include <pybind11/stl.h>
 
 #include <aocommon/polarization.h>
-#include <aocommon/system.h>
 
 #include <schaapcommon/fitters/spectralfitter.h>
 

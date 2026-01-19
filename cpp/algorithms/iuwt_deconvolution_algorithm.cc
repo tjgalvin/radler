@@ -8,7 +8,6 @@
 #include <memory>
 
 #include <aocommon/image.h>
-#include <aocommon/system.h>
 
 #include <schaapcommon/math/ellipse.h>
 #include <schaapcommon/math/convolution.h>

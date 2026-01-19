@@ -5,8 +5,6 @@
 #include <casacore/tables/Tables/Table.h>
 #include <casacore/tables/Tables/ArrayColumn.h>
 
-#include <aocommon/uvector.h>
-
 namespace radler::utils {
 
 CasaMaskReader::CasaMaskReader(const std::string& path) : _path(path) {

@@ -4,8 +4,6 @@
 
 #include <algorithm>
 
-#include <aocommon/system.h>
-
 #include "component_list.h"
 
 namespace radler::algorithms {

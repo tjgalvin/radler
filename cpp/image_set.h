@@ -3,8 +3,10 @@
 #ifndef RADLER_IMAGE_SET_H_
 #define RADLER_IMAGE_SET_H_
 
+#include <cassert>
 #include <map>
 #include <memory>
+#include <set>
 #include <vector>
 
 #include <aocommon/image.h>
@@ -229,39 +231,17 @@ class ImageSet {
    */
   std::unique_ptr<ImageSet> TrimMasked(size_t x1, size_t y1, size_t x2,
                                        size_t y2, size_t old_width,
-                                       const bool* mask) const {
-    std::unique_ptr<ImageSet> p = Trim(x1, y1, x2, y2, old_width);
-    for (aocommon::Image& image : p->images_) {
-      for (size_t pixel = 0; pixel != image.Size(); ++pixel) {
-        if (!mask[pixel]) image[pixel] = 0.0;
-      }
-    }
-    return p;
-  }
+                                       const bool* mask) const;
 
   void CopyMasked(const ImageSet& from_image_set, size_t to_x, size_t to_y,
-                  const bool* from_mask) {
-    for (size_t i = 0; i != images_.size(); ++i) {
-      aocommon::Image::CopyMasked(
-          images_[i].Data(), to_x, to_y, images_[i].Width(),
-          from_image_set.images_[i].Data(), from_image_set.images_[i].Width(),
-          from_image_set.images_[i].Height(), from_mask);
-    }
-  }
+                  const bool* from_mask);
 
   /**
    * Place all images in @c from onto the images in this ImageSet at a
    * given position. The dimensions of @c from can be smaller or equal
    * to ones in this.
    */
-  void AddSubImage(const ImageSet& from, size_t to_x, size_t to_y) {
-    for (size_t i = 0; i != images_.size(); ++i) {
-      aocommon::Image::AddSubImage(images_[i].Data(), to_x, to_y,
-                                   images_[i].Width(), from.images_[i].Data(),
-                                   from.images_[i].Width(),
-                                   from.images_[i].Height());
-    }
-  }
+  void AddSubImage(const ImageSet& from, size_t to_x, size_t to_y);
 
   ImageSet& operator*=(float factor) {
     for (aocommon::Image& image : images_) image *= factor;
@@ -271,11 +251,6 @@ class ImageSet {
   ImageSet& operator+=(const ImageSet& other) {
     for (size_t i = 0; i != Size(); ++i) images_[i] += other.images_[i];
     return *this;
-  }
-
-  void FactorAdd(ImageSet& rhs, double factor) {
-    for (size_t i = 0; i != Size(); ++i)
-      images_[i].AddWithFactor(rhs.images_[i], factor);
   }
 
   bool SquareJoinedChannels() const { return square_joined_channels_; }
@@ -325,38 +300,7 @@ class ImageSet {
 
   static void CopySmallerPart(const aocommon::Image& input,
                               aocommon::Image& output, size_t x1, size_t y1,
-                              size_t x2, size_t y2, size_t old_width) {
-    size_t new_width = x2 - x1;
-    for (size_t y = y1; y != y2; ++y) {
-      const float* old_ptr = &input[y * old_width];
-      float* new_ptr = &output[(y - y1) * new_width];
-      for (size_t x = x1; x != x2; ++x) {
-        new_ptr[x - x1] = old_ptr[x];
-      }
-    }
-  }
-
-  static void CopyToLarger(aocommon::Image& to, size_t to_x, size_t to_y,
-                           size_t to_width, const aocommon::Image& from,
-                           size_t from_width, size_t from_height) {
-    for (size_t y = 0; y != from_height; ++y) {
-      std::copy(from.Data() + y * from_width,
-                from.Data() + (y + 1) * from_width,
-                to.Data() + to_x + (to_y + y) * to_width);
-    }
-  }
-
-  static void CopyToLarger(aocommon::Image& to, size_t to_x, size_t to_y,
-                           size_t to_width, const aocommon::Image& from,
-                           size_t from_width, size_t from_height,
-                           const bool* from_mask) {
-    for (size_t y = 0; y != from_height; ++y) {
-      for (size_t x = 0; x != from_width; ++x) {
-        if (from_mask[y * from_width + x])
-          to[to_x + (to_y + y) * to_width + x] = from[y * from_width + x];
-      }
-    }
-  }
+                              size_t x2, size_t y2, size_t old_width);
 
   void GetSquareIntegratedWithNormalChannels(aocommon::Image& dest,
                                              aocommon::Image& scratch) const;

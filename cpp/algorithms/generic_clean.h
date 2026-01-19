@@ -4,7 +4,6 @@
 #define RADLER_GENERIC_CLEAN_H_
 
 #include <aocommon/optionalnumber.h>
-#include <aocommon/uvector.h>
 
 #include "image_set.h"
 #include "algorithms/deconvolution_algorithm.h"

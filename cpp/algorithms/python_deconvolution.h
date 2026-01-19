@@ -3,10 +3,6 @@
 #ifndef RADLER_ALGORITHMS_PYTHON_DECONVOLUTION_H_
 #define RADLER_ALGORITHMS_PYTHON_DECONVOLUTION_H_
 
-#include <aocommon/uvector.h>
-
-#include <schaapcommon/fitters/spectralfitter.h>
-
 #include "image_set.h"
 #include "algorithms/deconvolution_algorithm.h"
 

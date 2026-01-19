@@ -10,8 +10,6 @@
 #include <aocommon/image.h>
 #include <aocommon/logger.h>
 #include <aocommon/optionalnumber.h>
-#include <aocommon/polarization.h>
-#include <aocommon/uvector.h>
 
 #include <schaapcommon/fitters/spectralfitter.h>
 

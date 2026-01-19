@@ -6,8 +6,6 @@
 #include <memory>
 #include <string>
 
-#include <aocommon/uvector.h>
-
 #include "image_set.h"
 #include "algorithms/deconvolution_algorithm.h"
 #include "algorithms/iuwt_deconvolution_algorithm.h"

@@ -5,7 +5,6 @@
 
 #include <aocommon/cloned_ptr.h>
 #include <aocommon/image.h>
-#include <aocommon/uvector.h>
 
 #include "component_list.h"
 #include "deconvolution_algorithm.h"

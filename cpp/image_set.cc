@@ -528,4 +528,49 @@ void ImageSet::GetIntegratedPsf(Image& dest,
     dest *= factor;
   }
 }
+
+std::unique_ptr<ImageSet> ImageSet::TrimMasked(size_t x1, size_t y1, size_t x2,
+                                               size_t y2, size_t old_width,
+                                               const bool* mask) const {
+  std::unique_ptr<ImageSet> p = Trim(x1, y1, x2, y2, old_width);
+  for (aocommon::Image& image : p->images_) {
+    for (size_t pixel = 0; pixel != image.Size(); ++pixel) {
+      if (!mask[pixel]) image[pixel] = 0.0;
+    }
+  }
+  return p;
+}
+
+void ImageSet::CopyMasked(const ImageSet& from_image_set, size_t to_x,
+                          size_t to_y, const bool* from_mask) {
+  for (size_t i = 0; i != Size(); ++i) {
+    aocommon::Image::CopyMasked(
+        images_[i].Data(), to_x, to_y, images_[i].Width(),
+        from_image_set.images_[i].Data(), from_image_set.images_[i].Width(),
+        from_image_set.images_[i].Height(), from_mask);
+  }
+}
+
+void ImageSet::AddSubImage(const ImageSet& from, size_t to_x, size_t to_y) {
+  for (size_t i = 0; i != Size(); ++i) {
+    aocommon::Image::AddSubImage(images_[i].Data(), to_x, to_y,
+                                 images_[i].Width(), from.images_[i].Data(),
+                                 from.images_[i].Width(),
+                                 from.images_[i].Height());
+  }
+}
+
+void ImageSet::CopySmallerPart(const aocommon::Image& input,
+                               aocommon::Image& output, size_t x1, size_t y1,
+                               size_t x2, size_t y2, size_t old_width) {
+  size_t new_width = x2 - x1;
+  for (size_t y = y1; y != y2; ++y) {
+    const float* old_ptr = &input[y * old_width];
+    float* new_ptr = &output[(y - y1) * new_width];
+    for (size_t x = x1; x != x2; ++x) {
+      new_ptr[x - x1] = old_ptr[x];
+    }
+  }
+}
+
 }  // namespace radler

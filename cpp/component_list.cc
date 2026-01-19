@@ -2,10 +2,12 @@
 
 #include "component_list.h"
 
-#include "algorithms/multiscale_algorithm.h"
+#include <utility>
 
 #include <aocommon/imagecoordinates.h>
+#include <aocommon/uvector.h>
 
+#include "algorithms/multiscale_algorithm.h"
 #include "radler.h"
 #include "utils/write_model.h"
 
@@ -167,4 +169,46 @@ void ComponentList::LoadFromImageSet(ImageSet& image_set, size_t scale_index) {
     }
   }
 }
+
+void ComponentList::MergeDuplicates(size_t scale_index) {
+  ScaleList& list = list_per_scale_[scale_index];
+  aocommon::UVector<float> new_values;
+  aocommon::UVector<Position> new_positions;
+
+  std::vector<aocommon::Image> images(n_frequencies_);
+  for (aocommon::Image& image : images)
+    image = aocommon::Image(width_, height_, 0.0);
+  size_t value_index = 0;
+  for (size_t index = 0; index != list.positions.size(); ++index) {
+    size_t position =
+        list.positions[index].x + list.positions[index].y * width_;
+    for (size_t frequency = 0; frequency != n_frequencies_; ++frequency) {
+      images[frequency][position] += list.values[value_index];
+      value_index++;
+    }
+  }
+
+  list.values.clear();
+  list.positions.clear();
+
+  for (size_t image_index = 0; image_index != images.size(); ++image_index) {
+    aocommon::Image& image = images[image_index];
+    size_t pos_index = 0;
+    for (size_t y = 0; y != height_; ++y) {
+      for (size_t x = 0; x != width_; ++x) {
+        if (image[pos_index] != 0.0) {
+          for (size_t i = 0; i != images.size(); ++i) {
+            new_values.push_back(images[i][pos_index]);
+            images[i][pos_index] = 0.0;
+          }
+          new_positions.emplace_back(x, y);
+        }
+        ++pos_index;
+      }
+    }
+  }
+  std::swap(list_per_scale_[scale_index].values, new_values);
+  std::swap(list_per_scale_[scale_index].positions, new_positions);
+}
+
 }  // namespace radler
