@@ -103,6 +103,23 @@ constexpr std::array<AlgorithmType, 3> kAlgorithmTypes{
 
 BOOST_AUTO_TEST_SUITE(radler)
 
+// Initialise Radler in the most basic way possible and do some basic checks.
+// https://gitlab.com/ska-telescope/sdp/ska-sdp-spack/-/tree/main/packages/radler
+// will contain a copy of this test, since it's also a good smoke test.
+BOOST_FIXTURE_TEST_CASE(constructor_worktable, SettingsFixture) {
+  std::vector<PsfOffset> psf_offsets = {PsfOffset(0, 0)};
+  const std::size_t kNOriginalGroups = 0;
+  const std::size_t kNDeconvolutionGroups = 0;
+  const std::size_t kChannelIndexOffset = 0;
+
+  auto work_table =
+      std::make_unique<WorkTable>(std::move(psf_offsets), kNOriginalGroups,
+                                  kNDeconvolutionGroups, kChannelIndexOffset);
+  Radler radler(settings, std::move(work_table), kBeamSize);
+  BOOST_CHECK(radler.IsInitialized());
+  BOOST_CHECK_EQUAL(radler.IterationNumber(), 0);
+}
+
 BOOST_DATA_TEST_CASE_F(SettingsFixture, centered_source,
                        boost::unit_test::data::make(kAlgorithmTypes),
                        algorithm_type) {
