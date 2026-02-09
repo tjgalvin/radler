@@ -8,7 +8,6 @@
 #include <aocommon/fits/fitsreader.h>
 #include <aocommon/image.h>
 #include <aocommon/imagecoordinates.h>
-#include <aocommon/logger.h>
 #include <aocommon/units/fluxdensity.h>
 #include <aocommon/threadpool.h>
 
@@ -34,22 +33,22 @@ using aocommon::FitsReader;
 using aocommon::FitsWriter;
 using aocommon::Image;
 using aocommon::ImageCoordinates;
-using aocommon::Logger;
 using aocommon::units::FluxDensity;
 using schaapcommon::fitters::SpectralFittingMode;
 
 namespace radler {
 
 Radler::Radler(const Settings& settings, std::unique_ptr<WorkTable> table,
-               double beam_size)
-    : Radler(settings, beam_size) {
+               double beam_size, std::ostream& log_stream)
+    : Radler(settings, beam_size, log_stream) {
   InitializeDeconvolutionAlgorithm(std::move(table));
 }
 
 Radler::Radler(const Settings& settings, const aocommon::Image& psf_image,
                aocommon::Image& residual_image, aocommon::Image& model_image,
-               double beam_size, aocommon::PolarizationEnum polarization)
-    : Radler(settings, beam_size) {
+               double beam_size, aocommon::PolarizationEnum polarization,
+               std::ostream& log_stream)
+    : Radler(settings, beam_size, log_stream) {
   if (psf_image.Width() != settings.trimmed_image_width ||
       psf_image.Height() != settings.trimmed_image_height) {
     throw std::runtime_error("Mismatch in PSF image size");
@@ -84,7 +83,8 @@ Radler::Radler(const Settings& settings, const aocommon::Image& psf_image,
   InitializeDeconvolutionAlgorithm(std::move(table));
 }
 
-Radler::Radler(const Settings& settings, double beam_size)
+Radler::Radler(const Settings& settings, double beam_size,
+               std::ostream& log_stream)
     : settings_(settings),
       parallel_deconvolution_(
           std::make_unique<algorithms::ParallelDeconvolution>(settings_)),
@@ -92,7 +92,8 @@ Radler::Radler(const Settings& settings, double beam_size)
       image_height_(settings_.trimmed_image_height),
       pixel_scale_x_(settings_.pixel_scale.x),
       pixel_scale_y_(settings_.pixel_scale.y),
-      beam_size_(beam_size) {
+      beam_size_(beam_size),
+      log_receiver_(log_stream) {
   if (settings.spectral_fitting.mode ==
           schaapcommon::fitters::SpectralFittingMode::kForcedTerms &&
       settings.spectral_fitting.forced_filename.empty()) {
@@ -169,8 +170,8 @@ void Radler::Perform(bool& another_iteration_required,
   assert(table_);
   table_->ValidatePsfs();
 
-  Logger::Info.Flush();
-  Logger::Info << " == Deconvolving (" << major_iteration_number << ") ==\n";
+  log_receiver_.Info << " == Deconvolving (" << major_iteration_number
+                     << ") ==\n";
 
   ImageSet residual_set(*table_, settings_.squared_joins,
                         settings_.linked_polarizations, image_width_,
@@ -179,19 +180,20 @@ void Radler::Perform(bool& another_iteration_required,
                      settings_.linked_polarizations, image_width_,
                      image_height_);
 
-  Logger::Debug << "Loading residual images...\n";
+  log_receiver_.Debug << "Loading residual images...\n";
   residual_set.LoadAndAverage(true);
-  Logger::Debug << "Loading model images...\n";
+  log_receiver_.Debug << "Loading model images...\n";
   model_set.LoadAndAverage(false);
 
   Image integrated(image_width_, image_height_);
   residual_set.GetLinearIntegrated(integrated);
-  Logger::Debug << "Calculating standard deviation...\n";
+  log_receiver_.Debug << "Calculating standard deviation...\n";
   const std::pair<float, float> median_and_stddev =
       integrated.MedianAndStdDevFromMAD();
   double stddev = median_and_stddev.second;
-  Logger::Info << "Estimated standard deviation of background noise: "
-               << FluxDensity::ToNiceString(median_and_stddev.second) << '\n';
+  log_receiver_.Info << "Estimated standard deviation of background noise: "
+                     << FluxDensity::ToNiceString(median_and_stddev.second)
+                     << '\n';
   const bool auto_mask_is_enabled =
       settings_.auto_mask_sigma || settings_.absolute_auto_mask_threshold;
   if (auto_mask_is_enabled && auto_mask_is_finished_) {
@@ -216,10 +218,10 @@ void Radler::Perform(bool& another_iteration_required,
       FitsReader reader(settings_.local_rms.image);
       reader.Read(rms_image.Data());
       stddev = math::rms_image::MakeRmsFactorImage(
-          rms_image, settings_.local_rms.strength);
+          rms_image, settings_.local_rms.strength, log_receiver_);
       parallel_deconvolution_->SetRmsFactorImage(std::move(rms_image));
     } else if (settings_.local_rms.method != LocalRmsMethod::kNone) {
-      Logger::Debug << "Constructing local RMS image...\n";
+      log_receiver_.Debug << "Constructing local RMS image...\n";
       // TODO this should use full beam parameters
       switch (settings_.local_rms.method) {
         case LocalRmsMethod::kNone:
@@ -237,7 +239,7 @@ void Radler::Perform(bool& another_iteration_required,
           break;
       }
       stddev = math::rms_image::MakeRmsFactorImage(
-          rms_image, settings_.local_rms.strength);
+          rms_image, settings_.local_rms.strength, log_receiver_);
       parallel_deconvolution_->SetRmsFactorImage(std::move(rms_image));
     }
   }
@@ -271,7 +273,7 @@ void Radler::Perform(bool& another_iteration_required,
     parallel_deconvolution_->SetThreshold(final_threshold);
   }
 
-  Logger::Debug << "Loading PSFs...\n";
+  log_receiver_.Debug << "Loading PSFs...\n";
   const std::vector<std::vector<aocommon::Image>> psf_images =
       residual_set.LoadAndAveragePsfs();
 
@@ -283,8 +285,9 @@ void Radler::Perform(bool& another_iteration_required,
       settings_.major_loop_gain, settings_.initial_iteration_boost,
       major_iteration_number);
   if (major_loop_gain != settings_.major_loop_gain) {
-    Logger::Info << "Iteration " << major_iteration_number
-                 << ": boosting major loop gain to " << major_loop_gain << '\n';
+    log_receiver_.Info << "Iteration " << major_iteration_number
+                       << ": boosting major loop gain to " << major_loop_gain
+                       << '\n';
   }
 
   const algorithms::ParallelDeconvolutionResult result =
@@ -296,8 +299,9 @@ void Radler::Perform(bool& another_iteration_required,
   bool auto_mask_finished_now = false;
   if (!another_iteration_required && auto_mask_is_enabled &&
       !auto_mask_is_finished_) {
-    Logger::Info << "Auto-masking threshold reached; continuing next major "
-                    "iteration with deeper threshold and mask.\n";
+    log_receiver_.Info
+        << "Auto-masking threshold reached; continuing next major "
+           "iteration with deeper threshold and mask.\n";
     auto_mask_is_finished_ = true;
     another_iteration_required = true;
     auto_mask_finishing_iteration = major_iteration_number;
@@ -307,27 +311,29 @@ void Radler::Perform(bool& another_iteration_required,
   if (another_iteration_required && settings_.major_iteration_count != 0 &&
       major_iteration_number >= settings_.major_iteration_count) {
     another_iteration_required = false;
-    Logger::Info << "Maximum number of major iterations was reached: not "
-                    "continuing deconvolution.\n";
+    log_receiver_.Info << "Maximum number of major iterations was reached: not "
+                          "continuing deconvolution.\n";
   }
 
   if (another_iteration_required && auto_mask_is_finished_ &&
       major_iteration_number - auto_mask_finishing_iteration >=
           settings_.major_auto_mask_iteration_count) {
     another_iteration_required = false;
-    Logger::Info << "Performed "
-                 << major_iteration_number - auto_mask_finishing_iteration
-                 << " major iterations after reaching the auto-mask threshold. "
-                    "The stopping criterion is "
-                 << settings_.major_auto_mask_iteration_count
-                 << ": not continuing deconvolution.\n";
+    log_receiver_.Info
+        << "Performed "
+        << major_iteration_number - auto_mask_finishing_iteration
+        << " major iterations after reaching the auto-mask threshold. "
+           "The stopping criterion is "
+        << settings_.major_auto_mask_iteration_count
+        << ": not continuing deconvolution.\n";
   }
 
   if (another_iteration_required && settings_.minor_iteration_count != 0 &&
       parallel_deconvolution_->FirstAlgorithm().IterationNumber() >=
           settings_.minor_iteration_count) {
     another_iteration_required = false;
-    Logger::Info
+    log_receiver_.Info
+        << "Maximum number of minor deconvolution iterations was reached: not "
         << "Maximum number of minor deconvolution iterations was reached: not "
            "continuing deconvolution.\n";
   }
@@ -335,7 +341,8 @@ void Radler::Perform(bool& another_iteration_required,
   if (settings_.major_iteration_strategy != MajorIterationStrategy::kNormal &&
       another_iteration_required && auto_mask_is_enabled &&
       (!auto_mask_is_finished_ || auto_mask_finished_now)) {
-    Logger::Info << "Continuing image-based deconvolution with auto-mask.\n";
+    log_receiver_.Info
+        << "Continuing image-based deconvolution with auto-mask.\n";
 
     double continued_loop_gain;
     double achieved_gain;
@@ -345,10 +352,11 @@ void Radler::Perform(bool& another_iteration_required,
             result, auto_mask_finished_now);
     if (continued_loop_gain != 0.0) {
       if (auto_mask_finished_now) {
-        Logger::Info << "Peak was decreased by "
-                     << std::round(100.0 * achieved_gain)
-                     << "% in this iteration; using major loop gain of "
-                     << continued_loop_gain << " to finish this iteration.\n";
+        log_receiver_.Info << "Peak was decreased by "
+                           << std::round(100.0 * achieved_gain)
+                           << "% in this iteration; using major loop gain of "
+                           << continued_loop_gain
+                           << " to finish this iteration.\n";
         // Because the auto-mask wasn't finished in the previous iteration, the
         // threshold is still set to the auto-mask instead of auto-threshold
         // value.
@@ -361,9 +369,9 @@ void Radler::Perform(bool& another_iteration_required,
     }
   }
 
-  residual_set.AssignAndStoreResidual();
+  residual_set.AssignAndStoreResidual(log_receiver_);
   model_set.InterpolateAndStoreModel(
-      parallel_deconvolution_->FirstAlgorithm().Fitter());
+      parallel_deconvolution_->FirstAlgorithm().Fitter(), log_receiver_);
 }
 
 std::unique_ptr<schaapcommon::fitters::SpectralFitter>
@@ -392,7 +400,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
   }
 
   if (!std::isfinite(beam_size_)) {
-    Logger::Warn << "No proper beam size available in deconvolution!\n";
+    log_receiver_.Warn << "No proper beam size available in deconvolution!\n";
     beam_size_ = 0.0;
   }
 
@@ -435,6 +443,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
   algorithm->SetStopOnNegativeComponents(settings_.stop_on_negative_components);
   const size_t n_polarizations = table_->OriginalGroups().front().size();
   algorithm->SetSpectralFitter(CreateSpectralFitter(), n_polarizations);
+  algorithm->SetLogReceiver(log_receiver_);
 
   parallel_deconvolution_->SetAlgorithm(std::move(algorithm));
 
@@ -459,8 +468,8 @@ size_t Radler::IterationNumber() const {
 }
 
 void Radler::ReadForcedSpectrumImages() {
-  Logger::Debug << "Reading " << settings_.spectral_fitting.forced_filename
-                << ".\n";
+  log_receiver_.Debug << "Reading "
+                      << settings_.spectral_fitting.forced_filename << ".\n";
   FitsReader reader(settings_.spectral_fitting.forced_filename, false, true);
   if (reader.ImageWidth() != image_width_ ||
       reader.ImageHeight() != image_height_) {
@@ -494,11 +503,13 @@ void Radler::ReadMask(const WorkTable& group_table) {
     }
     aocommon::UVector<float> mask_data(image_width_ * image_height_);
     if (mask_reader.NFrequencies() == 1) {
-      Logger::Debug << "Reading mask '" << settings_.fits_mask << "'...\n";
+      log_receiver_.Debug << "Reading mask '" << settings_.fits_mask
+                          << "'...\n";
       mask_reader.Read(mask_data.data());
     } else if (mask_reader.NFrequencies() == settings_.channels_out) {
-      Logger::Debug << "Reading mask '" << settings_.fits_mask << "' ("
-                    << (group_table.Front().mask_channel_index + 1) << ")...\n";
+      log_receiver_.Debug << "Reading mask '" << settings_.fits_mask << "' ("
+                          << (group_table.Front().mask_channel_index + 1)
+                          << ")...\n";
       mask_reader.ReadIndex(mask_data.data(),
                             group_table.Front().mask_channel_index);
     } else {
@@ -517,7 +528,8 @@ void Radler::ReadMask(const WorkTable& group_table) {
     has_mask = true;
   } else if (!settings_.casa_mask.empty()) {
     if (clean_mask_.empty()) {
-      Logger::Info << "Reading CASA mask '" << settings_.casa_mask << "'...\n";
+      log_receiver_.Info << "Reading CASA mask '" << settings_.casa_mask
+                         << "'...\n";
       clean_mask_.assign(image_width_ * image_height_, false);
       utils::CasaMaskReader mask_reader(settings_.casa_mask);
       if (mask_reader.Width() != image_width_ ||
@@ -558,7 +570,7 @@ void Radler::ReadMask(const WorkTable& group_table) {
       }
     }
 
-    Logger::Info << "Saving horizon mask...\n";
+    log_receiver_.Info << "Saving horizon mask...\n";
     Image image(image_width_, image_height_);
     for (size_t i = 0; i != image_width_ * image_height_; ++i) {
       image[i] = clean_mask_[i] ? 1.0 : 0.0;

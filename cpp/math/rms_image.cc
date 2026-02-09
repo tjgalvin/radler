@@ -3,7 +3,6 @@
 #include "math/rms_image.h"
 
 #include <aocommon/image.h>
-#include <aocommon/logger.h>
 #include <aocommon/staticfor.h>
 #include <aocommon/units/fluxdensity.h>
 
@@ -92,11 +91,12 @@ void MakeWithNegativityLimit(Image& rms_output, const Image& input_image,
   }
 }
 
-double MakeRmsFactorImage(Image& rms_image, double local_rms_strength) {
+double MakeRmsFactorImage(Image& rms_image, double local_rms_strength,
+                          aocommon::LogReceiver& log_receiver) {
   const double stddev = rms_image.Min();
-  aocommon::Logger::Info << "Lowest RMS in image: "
-                         << aocommon::units::FluxDensity::ToNiceString(stddev)
-                         << '\n';
+  log_receiver.Info << "Lowest RMS in image: "
+                    << aocommon::units::FluxDensity::ToNiceString(stddev)
+                    << '\n';
   if (stddev < 0.0) {
     throw std::runtime_error(
         "RMS image can only contain values >= 0, but contains values < "

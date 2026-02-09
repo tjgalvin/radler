@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 
+#include <aocommon/logger.h>
 #include <aocommon/image.h>
 
 namespace radler::math {
@@ -17,7 +18,8 @@ namespace radler::math {
  */
 aocommon::Image LinearComponentSolve(
     const std::vector<std::pair<size_t, size_t>>& components,
-    const aocommon::Image& image, const aocommon::Image& psf);
+    const aocommon::Image& image, const aocommon::Image& psf,
+    aocommon::LogReceiver& log_receiver);
 
 /**
  * Solves the linear equation to find the component values that set the residual
@@ -36,7 +38,8 @@ aocommon::Image LinearComponentSolve(
  * parameters to solve for and updates the model image accordingly.
  */
 void LinearComponentSolve(aocommon::Image& model, const aocommon::Image& image,
-                          const aocommon::Image& psf);
+                          const aocommon::Image& psf,
+                          aocommon::LogReceiver& log_receiver);
 
 /**
  * Perform a linear fit of the components, such that the components convolved by
@@ -71,7 +74,8 @@ std::vector<aocommon::Image> GradientDescentWithVariablePsf(
     const std::vector<std::vector<std::pair<size_t, size_t>>>&
         components_per_psf,
     const aocommon::Image& image, const std::vector<aocommon::Image>& psfs,
-    size_t padded_width, size_t padded_height, bool use_fft_convolution);
+    size_t padded_width, size_t padded_height, bool use_fft_convolution,
+    aocommon::LogReceiver& log_receiver);
 
 }  // namespace radler::math
 

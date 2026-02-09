@@ -14,8 +14,9 @@ namespace radler::utils {
 
 class Application {
  public:
-  static void Run(const std::string& commandLine) {
-    aocommon::Logger::Info << "Running: " << commandLine << '\n';
+  static void Run(const std::string& commandLine,
+                  aocommon::LogReceiver& log_receiver) {
+    log_receiver.Info << "Running: " << commandLine << '\n';
     const char* commandLineCStr = commandLine.c_str();
     int pid = vfork();
     switch (pid) {

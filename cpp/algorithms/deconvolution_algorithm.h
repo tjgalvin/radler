@@ -175,12 +175,12 @@ class DeconvolutionAlgorithm {
 
   void ApplySpectralConstraintsToComponents(ComponentList& list) const;
 
+  aocommon::LogReceiver& LogReceiver() const { return *log_receiver_; };
+
  protected:
   DeconvolutionAlgorithm();
 
   DeconvolutionAlgorithm(const DeconvolutionAlgorithm&);
-
-  aocommon::LogReceiver& LogReceiver() { return *log_receiver_; };
 
  private:
   // Using a settings struct simplifies the constructors.

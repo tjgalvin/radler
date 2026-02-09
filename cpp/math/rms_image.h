@@ -4,6 +4,7 @@
 #define RADLER_MATH_RMS_IMAGE_H_
 
 #include <aocommon/image.h>
+#include <aocommon/logger.h>
 
 namespace radler::math::rms_image {
 void Make(aocommon::Image& rms_output, const aocommon::Image& input_image,
@@ -36,9 +37,10 @@ void MakeWithNegativityLimit(aocommon::Image& rms_output,
  * where 1 means maximum strength and 0 means no local RMS is used. A strength
  * value of 0 causes the rms_image to have a constant value of one. Higher than
  * 1 values could in theory be used to make the RMS have even more effect.
+ * @param log_receiver The log receiver to use for logging.
  */
-double MakeRmsFactorImage(aocommon::Image& rms_image,
-                          double local_rms_strength);
+double MakeRmsFactorImage(aocommon::Image& rms_image, double local_rms_strength,
+                          aocommon::LogReceiver& log_receiver);
 
 }  // namespace radler::math::rms_image
 #endif  // RADLER_MATH_RMS_IMAGE_H_

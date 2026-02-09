@@ -5,7 +5,6 @@
 #include <aocommon/image.h>
 #include <aocommon/fits/fitsreader.h>
 #include <aocommon/fits/fitswriter.h>
-#include <aocommon/logger.h>
 
 #include <schaapcommon/math/convolution.h>
 
@@ -17,12 +16,12 @@ void MoreSane::ExecuteMajorIteration(float* residual_data, float* model_data,
   const size_t width = psf_image.Width();
   const size_t height = psf_image.Height();
   if (IterationNumber() != 0) {
-    aocommon::Logger::Info << "Convolving model with psf...\n";
+    LogReceiver().Info << "Convolving model with psf...\n";
     aocommon::Image preparedPsf(width, height);
     schaapcommon::math::PrepareConvolutionKernel(
         preparedPsf.Data(), psf_image.Data(), width, height);
     schaapcommon::math::Convolve(model_data, preparedPsf.Data(), width, height);
-    aocommon::Logger::Info << "Adding model back to residual...\n";
+    LogReceiver().Info << "Adding model back to residual...\n";
     for (size_t i = 0; i != width * height; ++i) {
       residual_data[i] += model_data[i];
     }
@@ -53,7 +52,7 @@ void MoreSane::ExecuteMajorIteration(float* residual_data, float* model_data,
                 << " ";
   }
 
-  utils::Application::Run(commandLine.str());
+  utils::Application::Run(commandLine.str(), LogReceiver());
 
   aocommon::FitsReader modelReader(outputName + "_model.fits");
   modelReader.Read(model_data);

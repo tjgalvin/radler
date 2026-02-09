@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <aocommon/image.h>
+#include <aocommon/logger.h>
 #include <aocommon/uvector.h>
 
 #include "component_list.h"
@@ -52,6 +53,10 @@ class ParallelDeconvolution {
   DeconvolutionAlgorithm& FirstAlgorithm() { return *algorithms_.front(); }
   const DeconvolutionAlgorithm& FirstAlgorithm() const {
     return *algorithms_.front();
+  }
+
+  aocommon::LogReceiver& LogReceiver() {
+    return FirstAlgorithm().LogReceiver();
   }
 
   ComponentList GetComponentList(const WorkTable& table) const;

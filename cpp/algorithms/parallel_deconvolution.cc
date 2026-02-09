@@ -15,7 +15,6 @@
 #include "math/dijkstra_splitter.h"
 
 using aocommon::Image;
-using aocommon::Logger;
 
 namespace radler::algorithms {
 
@@ -69,7 +68,8 @@ size_t NearestPsfIndex(const std::vector<PsfOffset>& psf_offsets, size_t x,
 std::vector<SubImage> MakeSubImages(const Image& image, const bool* mask,
                                     const std::vector<PsfOffset>& psf_offsets,
                                     const Settings& settings,
-                                    std::vector<size_t>& psf_image_indices) {
+                                    std::vector<size_t>& psf_image_indices,
+                                    aocommon::LogReceiver& log_receiver) {
   assert(psf_image_indices.empty());
 
   const size_t width = image.Width();
@@ -87,7 +87,7 @@ std::vector<SubImage> MakeSubImages(const Image& image, const bool* mask,
   };
   std::vector<VerticalArea> verticalAreas(settings.parallel.grid_width);
 
-  Logger::Info << "Calculating edge paths...\n";
+  log_receiver.Info << "Calculating edge paths...\n";
   aocommon::DynamicFor<size_t> splitLoop;
 
   // Divide into columns (i.e. construct the vertical lines)
@@ -119,7 +119,7 @@ std::vector<SubImage> MakeSubImages(const Image& image, const bool* mask,
                                splitEnd);
   });
 
-  Logger::Info << "Calculating bounding boxes and submasks...\n";
+  log_receiver.Info << "Calculating bounding boxes and submasks...\n";
 
   // Find the bounding boxes and clean masks for each subimage
   aocommon::UVector<bool> bounding_mask(width * height);
@@ -141,10 +141,10 @@ std::vector<SubImage> MakeSubImages(const Image& image, const bool* mask,
                               largeScratchMask.data(), bounding_mask.data(),
                               subImage.x, subImage.y, subImage.width,
                               subImage.height);
-      Logger::Debug << "Subimage " << subImages.size() << " at (" << subImage.x
-                    << "," << subImage.y << ") - ("
-                    << subImage.x + subImage.width << ","
-                    << subImage.y + subImage.height << ")\n";
+      log_receiver.Debug << "Subimage " << subImages.size() << " at ("
+                         << subImage.x << "," << subImage.y << ") - ("
+                         << subImage.x + subImage.width << ","
+                         << subImage.y + subImage.height << ")\n";
       subImage.mask.resize(subImage.width * subImage.height);
       Image::TrimBox(subImage.mask.data(), subImage.x, subImage.y,
                      subImage.width, subImage.height, bounding_mask.data(),
@@ -233,9 +233,9 @@ void ParallelDeconvolution::SetAlgorithm(
       std::min(settings_.parallel.max_threads, algorithms_.size());
   const size_t threads_per_alg =
       (settings_.thread_count + parallel_subimages - 1) / parallel_subimages;
-  Logger::Debug << "Parallel deconvolution will use " << algorithms_.size()
-                << " subimages, each using " << threads_per_alg
-                << " threads.\n";
+  LogReceiver().Debug << "Parallel deconvolution will use "
+                      << algorithms_.size() << " subimages, each using "
+                      << threads_per_alg << " threads.\n";
   for (size_t i = 1; i != algorithms_.size(); ++i) {
     algorithms_[i] = algorithms_.front()->Clone();
   }
@@ -411,7 +411,7 @@ void ParallelDeconvolution::RunSubImage(
                 << " to "
                 << aocommon::units::FluxDensity::ToNiceString(sub_image.peak)
                 << " and deconvolution probably diverged: resetting.\n";
-    aocommon::Logger::Warn << warning_str.str();
+    LogReceiver().Warn << warning_str.str();
 
     // As we are diverging, this sub-image should not cause a new major
     // iteration
@@ -432,7 +432,7 @@ void ParallelDeconvolution::RunSubImage(
         scale_masks_.emplace_back(width, height);
       }
     }
-    Logger::Debug << "Compressing scale-dependent masks...\n";
+    LogReceiver().Debug << "Compressing scale-dependent masks...\n";
     for (size_t scale_index = 0;
          scale_index != multi_scale_algorithm.ScaleCount(); ++scale_index) {
       const aocommon::UVector<bool>& ms_mask =
@@ -455,9 +455,9 @@ void ParallelDeconvolution::RunSubImage(
         compression_rate << std::fixed << std::setprecision(1)
                          << width * height /
                                 scale_masks_[scale_index].CompressedSize();
-        Logger::Debug << std::fixed << std::setprecision(1);
-        Logger::Debug << "Compression rate of scale mask " << scale_index
-                      << ": " << compression_rate.str() << "x\n";
+        LogReceiver().Debug << std::fixed << std::setprecision(1);
+        LogReceiver().Debug << "Compression rate of scale mask " << scale_index
+                            << ": " << compression_rate.str() << "x\n";
       }
     }
   }
@@ -518,9 +518,6 @@ ParallelDeconvolutionResult ParallelDeconvolution::ExecuteSingleThreadedRun(
   const size_t psf_image_index = NearestPsfIndex(
       psf_offsets, model_image.Width() / 2, model_image.Height() / 2);
 
-  aocommon::ForwardingLogReceiver fwdReceiver;
-  algorithm.SetLogReceiver(fwdReceiver);
-
   // When using direction-dependent PSFs, the PSFs may have a different size.
   // All PSF images for a psf_image_index should have equal sizes.
   const aocommon::Image& first_psf_image = psf_images[psf_image_index].front();
@@ -565,8 +562,8 @@ ParallelDeconvolutionResult ParallelDeconvolution::ExecuteParallelRun(
   // The index with the nearest psf_images for all subimages.
   std::vector<size_t> psf_image_indices;
 
-  std::vector<SubImage> subImages =
-      MakeSubImages(image, mask_, psf_offsets, settings_, psf_image_indices);
+  std::vector<SubImage> subImages = MakeSubImages(
+      image, mask_, psf_offsets, settings_, psf_image_indices, LogReceiver());
 
   // Initialize loggers
   std::mutex mutex;
@@ -597,9 +594,11 @@ ParallelDeconvolutionResult ParallelDeconvolution::ExecuteParallelRun(
       indexOfMax = img.index;
     }
   }
-  Logger::Info << "Subimage " << (indexOfMax + 1) << " has maximum peak of "
-               << aocommon::units::FluxDensity::ToNiceString(start_peak_value)
-               << ".\n";
+  LogReceiver().Info << "Subimage " << (indexOfMax + 1)
+                     << " has maximum peak of "
+                     << aocommon::units::FluxDensity::ToNiceString(
+                            start_peak_value)
+                     << ".\n";
   double mIterThreshold = start_peak_value * (1.0 - major_loop_gain);
 
   // Run the deconvolution
@@ -637,18 +636,18 @@ ParallelDeconvolutionResult ParallelDeconvolution::ExecuteParallelRun(
   }
   global_result.end_peak = end_peak_value;
 
-  Logger::Info << subImagesFinished << " / " << subImages.size()
-               << " sub-images finished";
+  LogReceiver().Info << subImagesFinished << " / " << subImages.size()
+                     << " sub-images finished";
   global_result.another_iteration_required =
       (subImagesFinished != subImages.size());
   if (global_result.another_iteration_required && !reachedMaxNIter) {
-    Logger::Info << ": Continue next major iteration.\n";
+    LogReceiver().Info << ": Continue next major iteration.\n";
   } else if (global_result.another_iteration_required && reachedMaxNIter) {
-    Logger::Info << ", but nr. of iterations reached at least once: "
-                    "Deconvolution finished.\n";
+    LogReceiver().Info << ", but nr. of iterations reached at least once: "
+                          "Deconvolution finished.\n";
     global_result.another_iteration_required = false;
   } else {
-    Logger::Info << ": Deconvolution finished.\n";
+    LogReceiver().Info << ": Deconvolution finished.\n";
   }
   return global_result;
 }

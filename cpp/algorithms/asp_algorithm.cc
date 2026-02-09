@@ -19,7 +19,6 @@
 #include "utils/fft_size_calculations.h"
 
 using aocommon::Image;
-using aocommon::Logger;
 using aocommon::units::FluxDensity;
 
 using schaapcommon::math::Ellipse;

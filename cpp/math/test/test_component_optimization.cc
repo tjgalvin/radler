@@ -90,6 +90,7 @@ void TestGradientDescentComplex(bool use_fft_convolution) {
 }
 
 void TestVariablePsfWithSinglePsf(bool use_fft_convolution) {
+  aocommon::LogReceiver log_receiver;
   constexpr size_t kX[5] = {3, 4, 5, 3, 9};
   constexpr size_t kY[5] = {7, 7, 7, 8, 9};
   constexpr float kFittedValues[5] = {3.0, 1.0, -1.0, 9.0, 21.0};
@@ -115,7 +116,7 @@ void TestVariablePsfWithSinglePsf(bool use_fft_convolution) {
 
   std::vector<aocommon::Image> deltas = GradientDescentWithVariablePsf(
       components, data, {wrong_psf, psf}, data.Width() * 2, data.Height() * 2,
-      use_fft_convolution);
+      use_fft_convolution, log_receiver);
   BOOST_REQUIRE_EQUAL(deltas.size(), 2);
   for (size_t y = 0; y != data.Height(); ++y) {
     for (size_t x = 0; x != data.Width(); ++x) {
@@ -130,6 +131,7 @@ void TestVariablePsfWithSinglePsf(bool use_fft_convolution) {
 }
 
 void TestVariablePsfWithMultiPsf(bool use_fft_convolution) {
+  aocommon::LogReceiver log_receiver;
   constexpr size_t kX[5] = {3, 4, 7, 3, 9};
   constexpr size_t kY[5] = {2, 7, 7, 8, 9};
   constexpr size_t kPsf[5] = {0, 1, 0, 1, 0};
@@ -163,7 +165,7 @@ void TestVariablePsfWithMultiPsf(bool use_fft_convolution) {
 
   std::vector<aocommon::Image> deltas = GradientDescentWithVariablePsf(
       components, data, {psf1, psf2}, data.Width() * 2, data.Height() * 2,
-      use_fft_convolution);
+      use_fft_convolution, log_receiver);
   BOOST_REQUIRE_EQUAL(deltas.size(), 2);
   for (size_t y = 0; y != data.Height(); ++y) {
     for (size_t x = 0; x != data.Width(); ++x) {
@@ -200,7 +202,8 @@ BOOST_AUTO_TEST_CASE(single_fit_simple) {
   Image psf(data.Width(), data.Height(), 0.0f);
   psf.Value(5, 5) = 1.0;
 
-  LinearComponentSolve(model, data, psf);
+  aocommon::LogReceiver log_receiver;
+  LinearComponentSolve(model, data, psf, log_receiver);
   for (size_t y = 0; y != data.Height(); ++y) {
     for (size_t x = 0; x != data.Width(); ++x) {
       if (x == 3 && y == 7)
@@ -228,7 +231,8 @@ BOOST_AUTO_TEST_CASE(multi_fit_simple) {
   Image psf(data.Width(), data.Height(), 0.0f);
   psf.Value(5, 5) = 1.0;
 
-  LinearComponentSolve(model, data, psf);
+  aocommon::LogReceiver log_receiver;
+  LinearComponentSolve(model, data, psf, log_receiver);
   for (size_t y = 0; y != data.Height(); ++y) {
     for (size_t x = 0; x != data.Width(); ++x) {
       bool found = false;
@@ -267,7 +271,8 @@ BOOST_AUTO_TEST_CASE(multi_fit_with_overlap) {
   psf.Value(5, 5) = 2.0;  // This is psf_a in the equations above
   psf.Value(6, 5) = 0.5;  // psf_b
 
-  LinearComponentSolve(model, data, psf);
+  aocommon::LogReceiver log_receiver;
+  LinearComponentSolve(model, data, psf, log_receiver);
   for (size_t y = 0; y != data.Height(); ++y) {
     for (size_t x = 0; x != data.Width(); ++x) {
       bool found = false;

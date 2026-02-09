@@ -2,6 +2,8 @@
 
 #include "radler.h"
 
+#include <sstream>
+
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/iostream.h>
@@ -211,14 +213,17 @@ void init_radler(py::module& m) {
       .def(
           "perform",
           [](radler::Radler& self, size_t major_iteration_number) {
+            std::stringstream log_stream;
             py::scoped_ostream_redirect stream(
-                std::cout, py::module_::import("sys").attr("stdout"));
+                log_stream, py::module_::import("sys").attr("stdout"));
+            self.SetLogStream(log_stream);
             // The scoped_ostream_redirect may grab the Global Interpreter
             // Lock (GIL) from a different thread, which causes hanging
             // if the GIL is not released beforehand
             py::gil_scoped_release release;
             bool reached_major_threshold = false;
             self.Perform(reached_major_threshold, major_iteration_number);
+            self.SetLogStream(std::cout);
             return reached_major_threshold;
           },
           R"pbdoc(

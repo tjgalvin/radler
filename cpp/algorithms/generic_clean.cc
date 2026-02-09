@@ -25,14 +25,15 @@ std::string peakDescription(const aocommon::Image& image, size_t x, size_t y) {
 }
 void RunComponentOptimization(ImageSet& residual_set, ImageSet& model_set,
                               const std::vector<aocommon::Image>& psfs,
-                              OptimizationAlgorithm algorithm) {
+                              OptimizationAlgorithm algorithm,
+                              aocommon::LogReceiver& log_receiver) {
   for (size_t i = 0; i != residual_set.Size(); ++i) {
     aocommon::Image& residual = residual_set[i];
     aocommon::Image& model = model_set[i];
     const aocommon::Image psf = psfs[residual_set.PsfIndex(i)];
     switch (algorithm) {
       case OptimizationAlgorithm::kLinearEquationSolver:
-        math::LinearComponentSolve(model, residual, psf);
+        math::LinearComponentSolve(model, residual, psf, log_receiver);
         break;
       case OptimizationAlgorithm::kGradientDescent:
         math::GradientDescent(model, residual, psf, model.Width() * 2,
@@ -89,7 +90,7 @@ DeconvolutionResult GenericClean::ExecuteMajorIteration(
   if (ComponentOptimizationAlgorithm() != OptimizationAlgorithm::kClean) {
     LogReceiver().Info << "Running optimization algorithm...\n";
     RunComponentOptimization(dirty_set, model_set, psfs,
-                             ComponentOptimizationAlgorithm());
+                             ComponentOptimizationAlgorithm(), LogReceiver());
     FitSpectra(model_set);
     return result;
   }

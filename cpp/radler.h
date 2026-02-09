@@ -5,6 +5,7 @@
 
 #include <cstring>
 
+#include <aocommon/logger.h>
 #include <aocommon/polarization.h>
 #include <aocommon/uvector.h>
 
@@ -27,7 +28,7 @@ class ParallelDeconvolution;
 class Radler {
  public:
   Radler(const Settings& settings, std::unique_ptr<WorkTable> table,
-         double beam_size);
+         double beam_size, std::ostream& log_stream = std::cout);
 
   /**
    * @brief Constructor for single channel, single polarization deconvolution.
@@ -43,7 +44,8 @@ class Radler {
          aocommon::Image& residual_image, aocommon::Image& model_image,
          double beam_size,
          aocommon::PolarizationEnum polarization =
-             aocommon::PolarizationEnum::StokesI);
+             aocommon::PolarizationEnum::StokesI,
+         std::ostream& log_stream = std::cout);
 
   ~Radler();
 
@@ -74,9 +76,13 @@ class Radler {
   /// Return IterationNumber of the underlying \c DeconvolutionAlgorithm
   size_t IterationNumber() const;
 
+  void SetLogStream(std::ostream& log_stream) {
+    log_receiver_.SetStream(log_stream);
+  }
+
  private:
   // Constructor that becomes convenient when implementing AST-890
-  Radler(const Settings& settings, double beam_size);
+  Radler(const Settings& settings, double beam_size, std::ostream& log_stream);
 
   /// Creates the spectral fitter for the deconvolution algorithm.
   std::unique_ptr<schaapcommon::fitters::SpectralFitter> CreateSpectralFitter()
@@ -106,6 +112,8 @@ class Radler {
   double pixel_scale_y_ = 0.0;
   aocommon::UVector<bool> auto_mask_;
   double beam_size_ = 0.0;
+
+  aocommon::LogReceiver log_receiver_;
 };
 
 }  // namespace radler

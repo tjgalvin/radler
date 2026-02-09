@@ -4,11 +4,9 @@
 
 #include <cassert>
 
-#include <aocommon/logger.h>
 #include <aocommon/staticfor.h>
 
 using aocommon::Image;
-using aocommon::Logger;
 
 namespace radler {
 
@@ -207,7 +205,8 @@ std::vector<std::vector<aocommon::Image>> ImageSet::LoadAndAveragePsfs() const {
 }
 
 void ImageSet::InterpolateAndStoreModel(
-    const schaapcommon::fitters::SpectralFitter& fitter) {
+    const schaapcommon::fitters::SpectralFitter& fitter,
+    aocommon::LogReceiver& log_receiver) {
   if (NDeconvolutionChannels() == NOriginalChannels()) {
     size_t image_index = 0;
     for (const WorkTableEntry& e : work_table_) {
@@ -219,11 +218,11 @@ void ImageSet::InterpolateAndStoreModel(
     const size_t n_polarizations = first_group.size();
     for (size_t polarization_index = 0; polarization_index != n_polarizations;
          ++polarization_index) {
-      Logger::Info << "Interpolating "
-                   << aocommon::Polarization::TypeToFullString(
-                          first_group[polarization_index]->polarization)
-                   << " from " << NDeconvolutionChannels() << " to "
-                   << NOriginalChannels() << " channels...\n";
+      log_receiver.Info << "Interpolating "
+                        << aocommon::Polarization::TypeToFullString(
+                               first_group[polarization_index]->polarization)
+                        << " from " << NDeconvolutionChannels() << " to "
+                        << NOriginalChannels() << " channels...\n";
 
       const WorkTable::Group same_polarization_group =
           work_table_.GetOriginalSamePolarizationGroup(
@@ -287,9 +286,9 @@ void ImageSet::InterpolateAndStoreModel(
   }
 }
 
-void ImageSet::AssignAndStoreResidual() {
-  Logger::Info << "Assigning from " << NDeconvolutionChannels() << " to "
-               << NOriginalChannels() << " channels...\n";
+void ImageSet::AssignAndStoreResidual(aocommon::LogReceiver& log_receiver) {
+  log_receiver.Info << "Assigning from " << NDeconvolutionChannels() << " to "
+                    << NOriginalChannels() << " channels...\n";
 
   size_t image_index = 0;
   for (const std::vector<size_t>& group : work_table_.DeconvolutionGroups()) {

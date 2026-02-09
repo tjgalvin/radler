@@ -100,9 +100,12 @@ int main(int argc, char* argv[]) {
     algorithm.SetCleanBorderRatio(borderRatio);
     algorithm.ExecuteMajorIteration(residualSet, modelSet, {psf});
 
-    residualSet.AssignAndStoreResidual();
-    modelSet.InterpolateAndStoreModel(schaapcommon::fitters::SpectralFitter(
-        schaapcommon::fitters::SpectralFittingMode::kNoFitting, 0));
+    aocommon::LogReceiver log_receiver;
+    residualSet.AssignAndStoreResidual(log_receiver);
+    modelSet.InterpolateAndStoreModel(
+        schaapcommon::fitters::SpectralFitter(
+            schaapcommon::fitters::SpectralFittingMode::kNoFitting, 0),
+        log_receiver);
   }
   return 0;
 }

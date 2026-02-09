@@ -4,13 +4,11 @@
 #include <gsl/gsl_multifit_nlin.h>
 #include <gsl/gsl_multifit.h>
 
-#include <aocommon/logger.h>
 #include <aocommon/uvector.h>
 
 #include <schaapcommon/math/paddedconvolution.h>
 
 using aocommon::Image;
-using aocommon::Logger;
 
 namespace radler::math {
 namespace {
@@ -180,7 +178,8 @@ void ApplyLineSearch(aocommon::UVector<float>& model_values,
 
 aocommon::Image LinearComponentSolve(
     const std::vector<std::pair<size_t, size_t>>& components,
-    const aocommon::Image& image, const aocommon::Image& psf) {
+    const aocommon::Image& image, const aocommon::Image& psf,
+    aocommon::LogReceiver& log_receiver) {
   const size_t width = image.Width();
   const size_t height = image.Height();
 
@@ -243,8 +242,8 @@ aocommon::Image LinearComponentSolve(
       model[pos_x + pos_y * width] = gsl_vector_get(c, p);
     }
   } else {
-    Logger::Warn << "GSL pixel fitter returned an error: "
-                 << gsl_strerror(result) << '\n';
+    log_receiver.Warn << "GSL pixel fitter returned an error: "
+                      << gsl_strerror(result) << '\n';
   }
 
   gsl_matrix_free(x_matrix);
@@ -255,11 +254,12 @@ aocommon::Image LinearComponentSolve(
   return model;
 }
 
-void LinearComponentSolve(Image& model, const Image& image, const Image& psf) {
+void LinearComponentSolve(Image& model, const Image& image, const Image& psf,
+                          aocommon::LogReceiver& log_receiver) {
   const std::vector<std::pair<size_t, size_t>> active_list =
       GetActivePositions(model);
 
-  model += LinearComponentSolve(active_list, image, psf);
+  model += LinearComponentSolve(active_list, image, psf, log_receiver);
 }
 
 aocommon::Image GradientDescent(
@@ -324,7 +324,8 @@ std::vector<aocommon::Image> GradientDescentWithVariablePsf(
     const std::vector<std::vector<std::pair<size_t, size_t>>>&
         components_per_psf,
     const aocommon::Image& image, const std::vector<aocommon::Image>& psfs,
-    size_t padded_width, size_t padded_height, bool use_fft_convolution) {
+    size_t padded_width, size_t padded_height, bool use_fft_convolution,
+    aocommon::LogReceiver& log_receiver) {
   const ssize_t width = image.Width();
   const ssize_t height = image.Height();
 
@@ -361,7 +362,7 @@ std::vector<aocommon::Image> GradientDescentWithVariablePsf(
         parameter += components.size();
       }
     }
-    Logger::Info << "Residual rms: " << residual_image.RMS() << '\n';
+    log_receiver.Info << "Residual rms: " << residual_image.RMS() << '\n';
 
     size_t parameter = 0;
     derivative_image = 0.0f;

@@ -6,7 +6,6 @@
 #include <set>
 
 #include <aocommon/image.h>
-#include <aocommon/logger.h>
 #include <aocommon/optionalnumber.h>
 #include <aocommon/uvector.h>
 #include <aocommon/units/fluxdensity.h>
@@ -21,7 +20,6 @@
 #include "utils/fft_size_calculations.h"
 
 using aocommon::Image;
-using aocommon::Logger;
 using aocommon::units::FluxDensity;
 
 namespace radler::algorithms {
@@ -163,21 +161,21 @@ MultiScaleAlgorithm::MultiScaleAlgorithm(const Settings::Multiscale& settings,
 }
 
 MultiScaleAlgorithm::~MultiScaleAlgorithm() {
-  aocommon::Logger::Info << "Multi-scale cleaning summary:\n";
+  LogReceiver().Info << "Multi-scale cleaning summary:\n";
   size_t sumComponents = 0;
   float sumFlux = 0.0;
   for (const ScaleInfo& scaleEntry : scale_infos_) {
-    aocommon::Logger::Info << "- Scale " << round(scaleEntry.scale)
-                           << " px, nr of components cleaned: "
-                           << scaleEntry.n_components_cleaned << " ("
-                           << FluxDensity::ToNiceString(
-                                  scaleEntry.total_flux_cleaned)
-                           << ")\n";
+    LogReceiver().Info << "- Scale " << round(scaleEntry.scale)
+                       << " px, nr of components cleaned: "
+                       << scaleEntry.n_components_cleaned << " ("
+                       << FluxDensity::ToNiceString(
+                              scaleEntry.total_flux_cleaned)
+                       << ")\n";
     sumComponents += scaleEntry.n_components_cleaned;
     sumFlux += scaleEntry.total_flux_cleaned;
   }
-  aocommon::Logger::Info << "Total: " << sumComponents << " components ("
-                         << FluxDensity::ToNiceString(sumFlux) << ")\n";
+  LogReceiver().Info << "Total: " << sumComponents << " components ("
+                     << FluxDensity::ToNiceString(sumFlux) << ")\n";
 }
 
 DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
@@ -783,7 +781,8 @@ void MultiScaleAlgorithm::RunSingleScaleComponentFitter(
   aocommon::Image delta;
   switch (ComponentOptimizationAlgorithm()) {
     case OptimizationAlgorithm::kLinearEquationSolver:
-      delta = math::LinearComponentSolve(list, convolved_residual, double_psf);
+      delta = math::LinearComponentSolve(list, convolved_residual, double_psf,
+                                         LogReceiver());
       break;
     case OptimizationAlgorithm::kGradientDescent:
       delta = math::GradientDescent(list, convolved_residual, double_psf,
@@ -814,8 +813,8 @@ void MultiScaleAlgorithm::RunSingleScaleComponentFitter(
   Image& residual = residual_set[image_index];
   residual -= delta;
 
-  Logger::Info << "Finished optimization of scale " << scale_index
-               << ", RMS now " << residual.RMS() << '\n';
+  LogReceiver().Info << "Finished optimization of scale " << scale_index
+                     << ", RMS now " << residual.RMS() << '\n';
 }
 
 void MultiScaleAlgorithm::RunScaleIndepedentComponentOptimization(
@@ -832,7 +831,7 @@ void MultiScaleAlgorithm::RunScaleIndepedentComponentOptimization(
     }
   }
 
-  Logger::Info << "Applying spectral constraints...\n";
+  LogReceiver().Info << "Applying spectral constraints...\n";
   ApplySpectralConstraintsToComponents(*component_list_);
 }
 
@@ -844,7 +843,7 @@ void MultiScaleAlgorithm::RunComponentOptimization(
   Image scratch(width, height);
 
   // Create convolved PSF
-  Logger::Info << "Making convolved psfs...\n";
+  LogReceiver().Info << "Making convolved psfs...\n";
   multiscale::MultiScaleTransforms ms_transforms(width, height,
                                                  settings_.shape);
   const aocommon::Image& psf = psfs[residual_set.PsfIndex(image_index)];
@@ -877,13 +876,13 @@ void MultiScaleAlgorithm::RunComponentOptimization(
   const size_t padded_height = utils::GetConvolutionSize(
       max_scale, height, settings_.convolution_padding);
 
-  Logger::Info << "Running gradient descent algorithm...\n";
+  LogReceiver().Info << "Running gradient descent algorithm...\n";
   std::vector<aocommon::Image> delta;
   switch (ComponentOptimizationAlgorithm()) {
     case OptimizationAlgorithm::kGradientDescent:
       delta = math::GradientDescentWithVariablePsf(
           list, residual_set[image_index], convolved_psfs, padded_width,
-          padded_height, true);
+          padded_height, true, LogReceiver());
       break;
     default:
       throw std::runtime_error(
@@ -891,7 +890,7 @@ void MultiScaleAlgorithm::RunComponentOptimization(
   }
 
   if (track_components_) {
-    Logger::Info << "Updating component list...\n";
+    LogReceiver().Info << "Updating component list...\n";
     for (size_t scale_index = 0; scale_index != scale_infos_.size();
          ++scale_index) {
       const size_t n_components = component_list_->ComponentCount(scale_index);
@@ -905,7 +904,7 @@ void MultiScaleAlgorithm::RunComponentOptimization(
     }
   }
 
-  Logger::Info << "Updating model...\n";
+  LogReceiver().Info << "Updating model...\n";
   aocommon::Image& model = model_set[image_index];
   for (size_t scale_index = 0; scale_index != scale_infos_.size();
        ++scale_index) {
@@ -914,7 +913,7 @@ void MultiScaleAlgorithm::RunComponentOptimization(
     model += delta[scale_index];
   }
 
-  Logger::Info << "Updating residual...\n";
+  LogReceiver().Info << "Updating residual...\n";
   Image& residual = residual_set[image_index];
   for (size_t scale_index = 0; scale_index != scale_infos_.size();
        ++scale_index) {
@@ -923,7 +922,8 @@ void MultiScaleAlgorithm::RunComponentOptimization(
     residual -= delta[scale_index];
   }
 
-  Logger::Info << "Finished optimization, RMS now " << residual.RMS() << '\n';
+  LogReceiver().Info << "Finished optimization, RMS now " << residual.RMS()
+                     << '\n';
 }
 
 void MultiScaleAlgorithm::RunComponentOptimization(
@@ -935,7 +935,7 @@ void MultiScaleAlgorithm::RunComponentOptimization(
   }
 
   if (track_components_) {
-    Logger::Info << "Applying spectral constraints...\n";
+    LogReceiver().Info << "Applying spectral constraints...\n";
     ApplySpectralConstraintsToComponents(*component_list_);
     // TODO model should also be updated
   }

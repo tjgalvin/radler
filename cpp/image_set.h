@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <aocommon/image.h>
+#include <aocommon/logger.h>
 #include <aocommon/uvector.h>
 
 #include <schaapcommon/fitters/spectralfitter.h>
@@ -100,9 +101,10 @@ class ImageSet {
   std::vector<std::vector<aocommon::Image>> LoadAndAveragePsfs() const;
 
   void InterpolateAndStoreModel(
-      const schaapcommon::fitters::SpectralFitter& fitter);
+      const schaapcommon::fitters::SpectralFitter& fitter,
+      aocommon::LogReceiver& log_receiver);
 
-  void AssignAndStoreResidual();
+  void AssignAndStoreResidual(aocommon::LogReceiver& log_receiver);
 
   /**
    * This function will calculate the integration over all images, squaring
