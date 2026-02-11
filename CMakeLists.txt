@@ -139,7 +139,7 @@ add_definitions(${HDF5_DEFINITIONS} -DH5_USE_110_API)
 
 # Casacore
 set(CASACORE_MAKE_REQUIRED_EXTERNALS_OPTIONAL TRUE)
-find_package(Casacore REQUIRED COMPONENTS fits casa ms tables measures)
+find_package(Casacore 3.6.0 REQUIRED COMPONENTS fits casa ms tables measures)
 
 # CFitsio
 find_package(CFITSIO REQUIRED)
