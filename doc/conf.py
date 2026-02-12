@@ -44,7 +44,10 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "breathe",
+    "myst_parser",
 ]
+
+source_suffix = [".rst", ".md"]
 
 # Disable typehints in signatures - doens't seem to take any effect
 autodoc_typehints = "none"
@@ -63,8 +66,6 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
-
-html_static_path = ["_static"]
 
 # Breathe Configuration
 # When using CMake, the 'doc' target already sets breathe_projects.

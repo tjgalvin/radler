@@ -3,5 +3,7 @@
 # Required python packages for building on ReadTheDocs.
 # See .readthedocs.yaml in the root of this repository.
 breathe
+myst_parser
 numpy
+pybind11
 sphinx_rtd_theme

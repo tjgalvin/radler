@@ -4,7 +4,7 @@
 
 [project]
 name = "radler"
-version = "0.1.0"  # Keep in sync with top-level `CMakeLists.txt` file
+version = "1.0.0"  # Keep in sync with top-level `CMakeLists.txt` file
 description="Radio Astronomical Deconvolution Library"
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.9"

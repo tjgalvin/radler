@@ -1,0 +1,99 @@
+diff --git a/include/casacore/casa/Containers/Allocator.h b/include/casacore/casa/Containers/Allocator.h
+index cdab8c38a..81e99fe8a 100644
+--- a/include/casacore/casa/Containers/Allocator.h
++++ b/include/casacore/casa/Containers/Allocator.h
+@@ -82,10 +82,10 @@ struct casacore_allocator: public std11_allocator<T> {
+   typedef std11_allocator<T> Super;
+   typedef typename Super::size_type size_type;
+   typedef typename Super::difference_type difference_type;
+-  typedef typename Super::pointer pointer;
+-  typedef typename Super::const_pointer const_pointer;
+-  typedef typename Super::reference reference;
+-  typedef typename Super::const_reference const_reference;
++  using pointer = T*;
++  using const_pointer = const T*;
++  using reference = T&;
++  using const_reference = const T&;
+   typedef typename Super::value_type value_type;
+
+   static constexpr size_t alignment = ALIGNMENT;
+@@ -109,7 +109,7 @@ struct casacore_allocator: public std11_allocator<T> {
+   }
+
+   pointer allocate(size_type elements, const void* = 0) {
+-    if (elements > this->max_size()) {
++    if (elements > std::allocator_traits<casacore_allocator>::max_size(*this)) {
+       throw std::bad_alloc();
+     }
+     void *memptr = 0;
+@@ -142,10 +142,10 @@ struct new_del_allocator: public std11_allocator<T> {
+   typedef std11_allocator<T> Super;
+   typedef typename Super::size_type size_type;
+   typedef typename Super::difference_type difference_type;
+-  typedef typename Super::pointer pointer;
+-  typedef typename Super::const_pointer const_pointer;
+-  typedef typename Super::reference reference;
+-  typedef typename Super::const_reference const_reference;
++  using pointer = T*;
++  using const_pointer = const T*;
++  using reference = T&;
++  using const_reference = const T&;
+   typedef typename Super::value_type value_type;
+
+   template<typename TOther>
+@@ -167,7 +167,7 @@ struct new_del_allocator: public std11_allocator<T> {
+   }
+
+   pointer allocate(size_type elements, const void* = 0) {
+-    if (elements > this->max_size()) {
++    if (elements > std::allocator_traits<new_del_allocator>::max_size(*this)) {
+       throw std::bad_alloc();
+     }
+     return new T[elements];
+@@ -217,8 +217,8 @@ class Allocator_private {
+   template<typename T2>
+   struct BulkAllocator {
+     typedef typename std::allocator<T2>::size_type size_type;
+-    typedef typename std::allocator<T2>::pointer pointer;
+-    typedef typename std::allocator<T2>::const_pointer const_pointer;
++    using pointer = T2*;
++    using const_pointer = const T2*;
+     typedef typename std::allocator<T2>::value_type value_type;
+
+     virtual pointer allocate(size_type elements, const void*ptr = 0) = 0;
+@@ -249,7 +249,7 @@ class Allocator_private {
+       size_type i = 0;
+       try {
+         for (i = 0; i < n; ++i) {
+-          allocator.construct(&ptr[i], src[i]);
++          std::allocator_traits<Allocator>::construct(allocator, &ptr[i], src[i]);
+         }
+       } catch (...) {
+         destroy(ptr, i);  // rollback constructions
+@@ -261,7 +261,7 @@ class Allocator_private {
+       size_type i = 0;
+       try {
+         for (i = 0; i < n; ++i) {
+-          allocator.construct(&ptr[i], initial_value);
++          std::allocator_traits<Allocator>::construct(allocator, &ptr[i], initial_value);
+         }
+       } catch (...) {
+         destroy(ptr, i);  // rollback constructions
+@@ -272,7 +272,7 @@ class Allocator_private {
+       size_type i = 0;
+       try {
+         for (i = 0; i < n; ++i) {
+-          allocator.construct(&ptr[i]);
++          std::allocator_traits<Allocator>::construct(allocator, &ptr[i]);
+         }
+       } catch (...) {
+         destroy(ptr, i);  // rollback constructions
+@@ -283,7 +283,7 @@ class Allocator_private {
+       for (size_type i = n; i > 0;) {
+         --i;
+         try {
+-          allocator.destroy(&ptr[i]);
++          std::allocator_traits<Allocator>::destroy(allocator, &ptr[i]);
+         } catch (...) {
+           // Destructor should not raise any exception.
+         }
