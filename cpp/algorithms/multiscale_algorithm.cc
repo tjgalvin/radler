@@ -952,10 +952,7 @@ void MultiScaleAlgorithm::RunComponentOptimization(
                      << '\n';
 }
 void MultiScaleAlgorithm::SetScaleCleanMask(float* scale_clean_mask) {
-  // Set the internal pointer to the input scale array
-  std::cout << "About to set \n";
   scale_clean_mask_ = scale_clean_mask;
-  std::cout << "Have set the base scale clean map\n";
 }
 void MultiScaleAlgorithm::InitializeScaleMasks(ImageSet& data_image) {
   // Extract the per-scale masks from the provided float fits mask
