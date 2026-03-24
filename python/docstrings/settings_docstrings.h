@@ -188,11 +188,6 @@ are decomposed in subminor loops that keep the scale fixed, which
 allows a (very) significant speed up. There is no downside of this
 method, so it is generally recommended to be set to ``True``.)doc";
 
-static const char *__doc_radler_Settings_Multiscale_fits_scale_mask =
-R"doc(Filename for the per-scale fits mask. Each pixel represents a bit-
-mapped quantity, with the n'th bit corresponding to the n'th scale.
-For consistency the data should be of type float)doc";
-
 static const char *__doc_radler_Settings_Multiscale_max_scales =
 R"doc(Limits the number of scales used, to prevent extremely large scales in
 large imaging runs. When set to zero, scales are used up to the size
@@ -212,6 +207,11 @@ good set of scales to use, ranging from the PSF size to the full image
 size. It is rarely ever necessary to set this parameter. Also consider
 using max_scales instead of a manual ``scale_list`` when the default
 just contains scales that are too large.)doc";
+
+static const char *__doc_radler_Settings_Multiscale_scale_mask_filename =
+R"doc(Filename for the per-scale fits mask. Each pixel represents a bit-
+mapped quantity, with the n'th bit corresponding to the n'th scale.
+For consistency the data should be of type float)doc";
 
 static const char *__doc_radler_Settings_Multiscale_shape =
 R"doc(Shape of kernel to be used for deconvolution.
