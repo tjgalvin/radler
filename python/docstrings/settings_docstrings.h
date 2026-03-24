@@ -190,7 +190,7 @@ method, so it is generally recommended to be set to ``True``.)doc";
 
 static const char *__doc_radler_Settings_Multiscale_fits_scale_mask =
 R"doc(Filename for the per-scale fits mask. Each pixel represents a bit-
-mappsed quantity, with the n'th bit corresponding to the n'th scale.
+mapped quantity, with the n'th bit corresponding to the n'th scale.
 For consistency the data should be of type float)doc";
 
 static const char *__doc_radler_Settings_Multiscale_max_scales =

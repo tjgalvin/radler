@@ -517,11 +517,11 @@ struct Settings {
     bool fast_sub_minor_loop = true;
 
     /**
-     * Filename for the per-scale fits mask. Each pixel represents a bit-mappsed
+     * Filename for the per-scale fits mask. Each pixel represents a bit-mapped
      * quantity, with the n'th bit corresponding to the n'th scale. For
      * consistency the data should be of type float
      */
-    std::string fits_scale_mask;
+    std::string scale_mask_filename;
 
     /**
      * Controls how long to keep the scale fixed. The default value of 0.2

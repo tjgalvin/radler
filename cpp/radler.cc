@@ -590,41 +590,59 @@ void Radler::ReadMask(const WorkTable& group_table) {
   if (has_mask) parallel_deconvolution_->SetCleanMask(clean_mask_.data());
 }
 
-void Radler::ReadScaleMask() {
-  // Head in the fits image that has the bit mask scales
-  // Have removed the per spectral channel check / reading
-
-  bool has_mask = false;
-  if (!settings_.multiscale.fits_scale_mask.empty()) {
-    std::ifstream file(settings_.multiscale.fits_scale_mask);
-    if (!file.good()) {
-      std::cout << "WARNING: FITS scale mask "
-                << settings_.multiscale.fits_scale_mask
-                << " does not exist. ignoring.\n";
-      return;
+std::vector<utils::CompressedMask> Radler::ExtractScaleMasks(
+    aocommon::Image& mask) {
+  std::vector<utils::CompressedMask> result;
+  // A float value can represent up to 2^24 integer values exactly, and so it
+  // can represent at most 24 scales.
+  constexpr size_t kMaxNScales = 24;
+  size_t last_active_mask = kMaxNScales;
+  for (size_t scale = 0; scale < kMaxNScales; ++scale) {
+    aocommon::UVector<bool> mask_data(mask.Size(), false);
+    for (size_t pix = 0; pix != mask.Size(); ++pix) {
+      const size_t pix_val = static_cast<size_t>(mask[pix]);
+      if ((pix_val >> scale) & 1) {
+        mask_data[pix] = true;
+        last_active_mask = scale;
+      }
     }
-    FitsReader mask_reader(settings_.multiscale.fits_scale_mask, true, true);
+    utils::CompressedMask compressed_mask(mask.Width(), mask.Height());
+    compressed_mask.Set(mask_data.data());
+    result.push_back(std::move(compressed_mask));
+  }
+  if (last_active_mask == kMaxNScales)
+    throw std::runtime_error(
+        "A manual scale-dependent mask was supplied with not a single set "
+        "value");
+  result.erase(result.begin() + last_active_mask + 1, result.end());
+  log_receiver_.Info << "Initialized " << result.size()
+                     << " per-scale masks.\n";
+  return result;
+}
+
+void Radler::ReadScaleMask() {
+  if (!settings_.multiscale.scale_mask_filename.empty()) {
+    std::ifstream file(settings_.multiscale.scale_mask_filename);
+    if (!file.good()) {
+      throw std::runtime_error("Failed to open FITS scale mask " +
+                               settings_.multiscale.scale_mask_filename);
+    }
+    FitsReader mask_reader(settings_.multiscale.scale_mask_filename);
     if (mask_reader.ImageWidth() != image_width_ ||
         mask_reader.ImageHeight() != image_height_) {
-      throw std::runtime_error(
-          "Specified Fits file mask did not have same dimensions as output "
-          "image!");
+      throw std::runtime_error("Specified FITS file mask has dimensions of " +
+                               std::to_string(mask_reader.ImageWidth()) +
+                               " x " +
+                               std::to_string(mask_reader.ImageHeight()) +
+                               ", which does not match the output image");
     }
-    aocommon::UVector<float> mask_data(image_width_ * image_height_);
+    aocommon::Image mask_data(image_width_, image_height_);
     log_receiver_.Debug << "Reading mask '"
-                        << settings_.multiscale.fits_scale_mask << "'...\n";
-    mask_reader.Read(mask_data.data());
+                        << settings_.multiscale.scale_mask_filename << "'...\n";
+    mask_reader.Read(mask_data.Data());
 
-    scale_clean_mask_.assign(image_width_ * image_height_, 0.0);
-    for (size_t i = 0; i != image_width_ * image_height_; ++i) {
-      scale_clean_mask_[i] = mask_data[i];
-    }
-
-    has_mask = true;
+    parallel_deconvolution_->SetScaleCleanMask(ExtractScaleMasks(mask_data));
   }
-
-  if (has_mask)
-    parallel_deconvolution_->SetScaleCleanMask(scale_clean_mask_.data());
 }
 
 }  // namespace radler

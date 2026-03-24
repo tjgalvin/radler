@@ -101,7 +101,11 @@ class ParallelDeconvolution {
     mask_ = nullptr;
   }
 
-  void SetScaleCleanMask(float* scale_clean_mask);
+  void SetScaleCleanMask(
+      std::vector<utils::CompressedMask>&& scale_clean_mask) {
+    scale_masks_ = std::move(scale_clean_mask);
+    use_per_scale_masks_ = true;
+  }
 
  private:
   /** @param psf_images @see @ref ImageSet::LoadAndAveragePsfs. */

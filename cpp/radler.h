@@ -13,6 +13,7 @@
 #include "settings.h"
 #include "work_table.h"
 #include "work_table_entry.h"
+#include "utils/compressed_mask.h"
 
 namespace radler {
 namespace algorithms {
@@ -93,6 +94,7 @@ class Radler {
 
   void ReadMask(const WorkTable& group_table);
   void ReadScaleMask();
+  std::vector<utils::CompressedMask> ExtractScaleMasks(aocommon::Image& mask);
   void ReadForcedSpectrumImages();
 
   void SetAutoMaskMode(ImageSet& model_set, bool use_mask);
