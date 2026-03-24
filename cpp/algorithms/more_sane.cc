@@ -5,9 +5,8 @@
 #include <aocommon/image.h>
 #include <aocommon/fits/fitsreader.h>
 #include <aocommon/fits/fitswriter.h>
-#include <aocommon/logger.h>
 
-#include <schaapcommon/fft/convolution.h>
+#include <schaapcommon/math/convolution.h>
 
 #include "utils/application.h"
 
@@ -17,12 +16,12 @@ void MoreSane::ExecuteMajorIteration(float* residual_data, float* model_data,
   const size_t width = psf_image.Width();
   const size_t height = psf_image.Height();
   if (IterationNumber() != 0) {
-    aocommon::Logger::Info << "Convolving model with psf...\n";
+    LogReceiver().Info << "Convolving model with psf...\n";
     aocommon::Image preparedPsf(width, height);
-    schaapcommon::fft::PrepareConvolutionKernel(
+    schaapcommon::math::PrepareConvolutionKernel(
         preparedPsf.Data(), psf_image.Data(), width, height);
-    schaapcommon::fft::Convolve(model_data, preparedPsf.Data(), width, height);
-    aocommon::Logger::Info << "Adding model back to residual...\n";
+    schaapcommon::math::Convolve(model_data, preparedPsf.Data(), width, height);
+    LogReceiver().Info << "Adding model back to residual...\n";
     for (size_t i = 0; i != width * height; ++i) {
       residual_data[i] += model_data[i];
     }
@@ -53,7 +52,7 @@ void MoreSane::ExecuteMajorIteration(float* residual_data, float* model_data,
                 << " ";
   }
 
-  utils::Application::Run(commandLine.str());
+  utils::Application::Run(commandLine.str(), LogReceiver());
 
   aocommon::FitsReader modelReader(outputName + "_model.fits");
   modelReader.Read(model_data);
@@ -67,10 +66,9 @@ void MoreSane::ExecuteMajorIteration(float* residual_data, float* model_data,
   unlink((outputName + "_residual.fits").c_str());
 }
 
-float MoreSane::ExecuteMajorIteration(
+DeconvolutionResult MoreSane::ExecuteMajorIteration(
     ImageSet& data_image, ImageSet& model_image,
-    const std::vector<aocommon::Image>& psf_images,
-    bool& reached_major_threshold) {
+    const std::vector<aocommon::Image>& psf_images) {
   for (size_t i = 0; i != data_image.Size(); ++i) {
     float* residual_data = data_image.Data(i);
     float* model_data = model_image.Data(i);
@@ -80,7 +78,8 @@ float MoreSane::ExecuteMajorIteration(
 
   SetIterationNumber(IterationNumber() + 1);
 
-  reached_major_threshold = IterationNumber() < MaxIterations();
-  return 0.0;
+  DeconvolutionResult result;
+  result.another_iteration_required = IterationNumber() < MaxIterations();
+  return result;
 }
 }  // namespace radler::algorithms

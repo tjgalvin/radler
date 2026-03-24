@@ -3,9 +3,17 @@
 # This file contains the pipelines that run on the SKA repository of Radler,
 # which is at https://gitlab.com/ska-telescope/sdp/ska-sdp-func-radler
 
+default:
+  tags:
+    - ska-default
+
 .dind-requester:
   services:
     - docker:20.10-dind
+
+# At SKAO, the cibuild-python-wheels job needs this custom configuration.
+.cibuildwheels-custom:
+  extends: .dind-requester
 
 include:
   - local: .gitlab-ci.common.yml
@@ -21,10 +29,10 @@ cache:
 
 pages:
   stage: documentation
-  needs: ["versioning","test-2204"]
-  image: $BASE_IMAGE_2204
+  needs: ["prepare-base-2404","test-2404"]
+  image: $BASE_IMAGE_2404
   script:
-    - echo Deploying GitLab pages to $CI_PAGES_URL/$CI_COMMIT_REF_SLUG
+    - echo Deploying GitLab pages to $CI_PAGES_URL/$CI_COMMIT_REF_SLUG/
     - mkdir -p public/$CI_COMMIT_REF_SLUG/coverage
     - cp doc/pages-index.html public/$CI_COMMIT_REF_SLUG/index.html
     - gcovr -j`nproc` -a coverage.json --html-details public/$CI_COMMIT_REF_SLUG/coverage/index.html

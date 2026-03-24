@@ -25,7 +25,6 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
                       bool trackComponents);
   ~MultiScaleAlgorithm();
 
-  // TODO(AST-912) Make copy/move operations Google Style compliant.
   MultiScaleAlgorithm(const MultiScaleAlgorithm&) = default;
   MultiScaleAlgorithm(MultiScaleAlgorithm&&) = delete;
   MultiScaleAlgorithm& operator=(const MultiScaleAlgorithm&) = delete;
@@ -35,9 +34,9 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     return std::make_unique<MultiScaleAlgorithm>(*this);
   }
 
-  float ExecuteMajorIteration(ImageSet& data_image, ImageSet& model_image,
-                              const std::vector<aocommon::Image>& psf_images,
-                              bool& reached_major_threshold) final;
+  DeconvolutionResult ExecuteMajorIteration(
+      ImageSet& data_image, ImageSet& model_image,
+      const std::vector<aocommon::Image>& psf_images) final;
 
   void SetAutoMaskMode(bool track_per_scale_masks, bool use_per_scale_masks) {
     track_per_scale_masks_ = track_per_scale_masks;
@@ -56,51 +55,31 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
     return scale_masks_[index];
   }
 
-  void SetScaleCleanMask(float* scale_clean_mask);
+  struct ScaleInfo {
+    float scale = 0.0;
+    float psf_peak = 0.0;
+    float kernel_peak = 0.0;
+    float bias_factor = 0.0;
+    float gain = 0.0;
 
-  float* ScaleCleanMask(){
-    return scale_clean_mask_;
+    /**
+     * The difference between the normalized and unnormalized value is
+     * that the unnormalized value is relative to the RMS factor.
+     */
+    float max_normalized_image_value = 0.0;
+    float max_unnormalized_image_value = 0.0;
+    float rms = 0.0;
+    size_t max_image_value_x = 0;
+    size_t max_image_value_y = 0;
+    bool is_active = false;
+    size_t n_components_cleaned = 0;
+    float total_flux_cleaned = 0.0;
   };
 
  private:
   const Settings::Multiscale& settings_;
   double beam_size_in_pixels_;
 
-  struct ScaleInfo {
-    ScaleInfo()
-        : scale(0.0),
-          psf_peak(0.0),
-          kernel_peak(0.0),
-          bias_factor(0.0),
-          gain(0.0),
-          max_normalized_image_value(0.0),
-          max_unnormalized_image_value(0.0),
-          rms(0.0),
-          max_image_value_x(0),
-          max_image_value_y(0),
-          is_active(false),
-          n_components_cleaned(0),
-          total_flux_cleaned(0.0) {}
-
-    float scale;
-    float psf_peak;
-    float kernel_peak;
-    float bias_factor;
-    float gain;
-
-    /**
-     * The difference between the normalized and unnormalized value is
-     * that the unnormalized value is relative to the RMS factor.
-     */
-    float max_normalized_image_value;
-    float max_unnormalized_image_value;
-    float rms;
-    size_t max_image_value_x;
-    size_t max_image_value_y;
-    bool is_active;
-    size_t n_components_cleaned;
-    float total_flux_cleaned;
-  };
   std::vector<MultiScaleAlgorithm::ScaleInfo> scale_infos_;
 
   bool track_per_scale_masks_;
@@ -123,15 +102,10 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   void InitializeScaleMasks(ImageSet& data_image); // Set up scale clean information
   void SummaryScaleMasks();
 
-  void InitializeScaleInfo(size_t min_width_height);
-  void ConvolvePsfs(std::unique_ptr<aocommon::Image[]>& convolved_psfs,
-                    const aocommon::Image& psf, aocommon::Image& scratch,
-                    bool is_integrated);
   void FindActiveScaleConvolvedMaxima(const ImageSet& image_set,
                                       aocommon::Image& integrated_scratch,
                                       aocommon::Image& scratch, bool report_rms,
                                       ThreadedDeconvolutionTools& tools);
-  bool SelectMaximumScale(size_t& scale_with_peak);
   void ActivateScales(size_t scale_with_last_peak);
   void MeasureComponentValues(aocommon::UVector<float>& component_values,
                               size_t scale_index, ImageSet& image_set);
@@ -140,9 +114,50 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
 
   void FindPeakDirect(const aocommon::Image& image, aocommon::Image& scratch,
                       size_t scale_index);
-
-  void GetConvolutionDimensions(size_t scale_index, size_t width, size_t height,
-                                size_t& width_out, size_t& height_out) const;
+  void RunScaleIndepedentComponentOptimization(
+      ImageSet& residual_set, ImageSet& model_set,
+      const std::vector<aocommon::Image>& psfs) const;
+  void RunSingleScaleComponentFitter(ImageSet& residual_set,
+                                     ImageSet& model_set,
+                                     const std::vector<aocommon::Image>& psfs,
+                                     size_t image_index,
+                                     size_t scale_index) const;
+  void RunComponentOptimization(ImageSet& residual_set, ImageSet& model_set,
+                                const std::vector<aocommon::Image>& psfs) const;
+  void RunComponentOptimization(ImageSet& residual_set, ImageSet& model_set,
+                                const std::vector<aocommon::Image>& psfs,
+                                size_t image_index) const;
 };
+
+/**
+ * Fill a scale information list based on observation properties and user
+ * settings.
+ */
+void InitializeScales(std::vector<MultiScaleAlgorithm::ScaleInfo>& scale_infos_,
+                      double beam_size_in_pixels, size_t min_width_height,
+                      MultiscaleShape shape, size_t max_scales,
+                      const std::vector<double>& scale_list,
+                      aocommon::LogReceiver& log);
+
+/**
+ * Convolves the PSF with the selected scales, and fills in the scale info list
+ * with information.
+ * @param scales should have been previously initialized with @ref
+ * InitializeScales().
+ */
+void ConvolvePsfs(std::vector<aocommon::Image>& convolved_psfs,
+                  const aocommon::Image& psf, aocommon::Image& scratch,
+                  bool is_integrated,
+                  std::vector<MultiScaleAlgorithm::ScaleInfo>& scales,
+                  double beam_size_in_pixels, double scale_bias,
+                  double minor_loop_gain, MultiscaleShape shape,
+                  aocommon::LogReceiver& log);
+
+/**
+ * Finds the most dominating scale in the list of scales.
+ */
+aocommon::OptionalNumber<size_t> SelectMaximumScale(
+    const std::vector<MultiScaleAlgorithm::ScaleInfo>& scales);
+
 }  // namespace radler::algorithms
 #endif  // RADLER_ALGORITHMS_MULTISCALE_ALGORITHM_H_

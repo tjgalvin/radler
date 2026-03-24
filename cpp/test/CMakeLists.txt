@@ -21,6 +21,7 @@ add_unittest(
   radler_main
   runtests.cc
   test_component_list.cc
+  test_divergence.cc
   test_image_set.cc
   test_psf_offset.cc
   test_python_deconvolution.cc

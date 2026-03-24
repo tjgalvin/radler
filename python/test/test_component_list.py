@@ -1,6 +1,7 @@
-import radler as rd
 import numpy as np
 import pytest
+
+import radler as rd
 
 
 def test_component_list():

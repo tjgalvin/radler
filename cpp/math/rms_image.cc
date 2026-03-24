@@ -4,8 +4,9 @@
 
 #include <aocommon/image.h>
 #include <aocommon/staticfor.h>
+#include <aocommon/units/fluxdensity.h>
 
-#include <schaapcommon/fft/restoreimage.h>
+#include <schaapcommon/math/restoreimage.h>
 
 using aocommon::Image;
 
@@ -18,7 +19,7 @@ void Make(Image& rms_output, const Image& input_image, double window_size,
   image.Square();
   rms_output = Image(image.Width(), image.Height(), 0.0);
 
-  schaapcommon::fft::RestoreImage(
+  schaapcommon::math::RestoreImage(
       rms_output.Data(), image.Data(), image.Width(), image.Height(),
       beam_major * window_size, beam_minor * window_size, beam_pa,
       pixel_scale_l, pixel_scale_m);
@@ -88,6 +89,37 @@ void MakeWithNegativityLimit(Image& rms_output, const Image& input_image,
     rms_output[i] = std::max<float>(rms_output[i],
                                     std::abs(slidingMinimum[i]) * (1.5 / 5.0));
   }
+}
+
+double MakeRmsFactorImage(Image& rms_image, double local_rms_strength,
+                          aocommon::LogReceiver& log_receiver) {
+  const double stddev = rms_image.Min();
+  log_receiver.Info << "Lowest RMS in image: "
+                    << aocommon::units::FluxDensity::ToNiceString(stddev)
+                    << '\n';
+  if (stddev < 0.0) {
+    throw std::runtime_error(
+        "RMS image can only contain values >= 0, but contains values < "
+        "0.0");
+  }
+  // Convert the RMS image to a "factor" that can be multiplied with the
+  // image. The factor will be 1 at the minimum RMS such that Jy remains
+  // somewhat interpretable.
+  if (local_rms_strength == 1.0) {
+    // Optimization of generic case to avoid unnecessary std::pow evaluation.
+    for (float& value : rms_image) {
+      if (value != 0.0) value = stddev / value;
+    }
+  } else if (local_rms_strength == 0.0) {
+    // This special case is needed to make sure that zeros in the image are
+    // still converted to one.
+    rms_image = 1.0;
+  } else {
+    for (float& value : rms_image) {
+      if (value != 0.0) value = std::pow(stddev / value, local_rms_strength);
+    }
+  }
+  return stddev;
 }
 
 }  // namespace radler::math::rms_image

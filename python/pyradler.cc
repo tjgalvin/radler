@@ -2,6 +2,8 @@
 
 #include "radler.h"
 
+#include <sstream>
+
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/iostream.h>
@@ -210,19 +212,18 @@ void init_radler(py::module& m) {
       // immutable type.
       .def(
           "perform",
-          [](radler::Radler& self, bool reached_major_threshold,
-             size_t major_iteration_number) {
+          [](radler::Radler& self, size_t major_iteration_number) {
+            std::stringstream log_stream;
             py::scoped_ostream_redirect stream(
-                std::cout, py::module_::import("sys").attr("stdout"));
-            if (reached_major_threshold) {
-              aocommon::Logger::Info << "Major threshold already reached.\n";
-            } else {
-              // The scoped_ostream_redirect may grab the Global Interpreter
-              // Lock (GIL) from a different thread, which causes hanging
-              // if the GIL is not released beforehand
-              py::gil_scoped_release release;
-              self.Perform(reached_major_threshold, major_iteration_number);
-            }
+                log_stream, py::module_::import("sys").attr("stdout"));
+            self.SetLogStream(log_stream);
+            // The scoped_ostream_redirect may grab the Global Interpreter
+            // Lock (GIL) from a different thread, which causes hanging
+            // if the GIL is not released beforehand
+            py::gil_scoped_release release;
+            bool reached_major_threshold = false;
+            self.Perform(reached_major_threshold, major_iteration_number);
+            self.SetLogStream(std::cout);
             return reached_major_threshold;
           },
           R"pbdoc(
@@ -230,17 +231,20 @@ void init_radler(py::module& m) {
 
         Parameters
         ----------
-        reached_major_threshold: bool
-            Reached major threshold flag from previous iteration.
         major_iteration_number: int
-            Major loop iteration number.
+            How many major iterations (calls to @c Perform()) were performed
+            so far.
 
         Returns
         -------
         bool:
-            Boolean flag indicating whether the major loop threshold was reached.
+            Indicates whether another major iteration should be run. If
+            @c True, the caller should do a new prediction-gridding iteration
+            to calculate a new residual image, after which the @c perform()
+            function should be called again. If @c False, the algorithm is
+            finished and the caller can do its last prediction-gridding round.
        )pbdoc",
-          py::arg("reached_major_threshold"), py::arg("major_iteration_number"))
+          py::arg("major_iteration_number"))
       .def_property_readonly("iteration_number",
                              &radler::Radler::IterationNumber, R"pbdoc(
         Return minor loop iteration number of the underlying DeconvolutionAlgorithm.

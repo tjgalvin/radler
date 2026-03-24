@@ -213,9 +213,9 @@ void PythonDeconvolution::setPsf(const std::vector<aocommon::Image>& psfs,
   }
 }
 
-float PythonDeconvolution::ExecuteMajorIteration(
+DeconvolutionResult PythonDeconvolution::ExecuteMajorIteration(
     ImageSet& dirty_set, ImageSet& model_set,
-    const std::vector<aocommon::Image>& psfs, bool& reached_major_threshold) {
+    const std::vector<aocommon::Image>& psfs) {
   const size_t width = dirty_set.Width();
   const size_t height = dirty_set.Height();
   size_t nFreq = dirty_set.NDeconvolutionChannels();
@@ -315,9 +315,11 @@ float PythonDeconvolution::ExecuteMajorIteration(
       resultDict["model"].cast<pybind11::array_t<double>>();
   getBuffer(model_set, static_cast<const double*>(modelRes.request().ptr));
 
-  double level = resultDict["level"].cast<double>();
-  reached_major_threshold = resultDict["continue"].cast<bool>();
+  DeconvolutionResult deconvolution_result;
+  deconvolution_result.final_peak_value = resultDict["level"].cast<double>();
+  deconvolution_result.another_iteration_required =
+      resultDict["continue"].cast<bool>();
 
-  return level;
+  return deconvolution_result;
 }
 }  // namespace radler::algorithms

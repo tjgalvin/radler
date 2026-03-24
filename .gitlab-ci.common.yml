@@ -14,80 +14,64 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
 stages:
-  - versioning
   - prepare
   - linting
   - build
   - test
   - documentation
+  - deploy
 
-# The 'IMAGE' variables allow reusing docker images between different pipelines.
+# Creating a docker image name which includes the commit hash of the dockerfile,
+# and storing that image name in a 'dotenv' artifact, allows reusing docker
+# images between different pipelines.
 # See https://confluence.skatelescope.org/display/SE/Caching+Docker+images+using+GitLab+CI+registry
-versioning:
-  stage: versioning
-  image: bitnami/git
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
-  script:
-    # Unshallowing ensures that 'git log' works
-    - git fetch --unshallow
-    - echo BASE_IMAGE_2004=${CI_REGISTRY_IMAGE}/base_2004:$(git log -n 1 --pretty=format:%H -- docker/ubuntu_20_04_base) > versions.env
-    - echo BASE_IMAGE_2404=${CI_REGISTRY_IMAGE}/base_2404:$(git log -n 1 --pretty=format:%H -- docker/ubuntu_24_04_base) >> versions.env
-    - cat versions.env
-  artifacts:
-    reports:
-      dotenv: versions.env
-
 .prepare:
   stage: prepare
   extends: .dind-requester
-  needs: ["versioning"]
-  image: docker:20.10
+  image: docker:29.0
   variables:
     GIT_SUBMODULE_STRATEGY: none
   before_script:
+    - apk add git
     - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
+    # Unshallowing ensures that 'git log' works
+    - git fetch --unshallow
+    - DOCKER_FILE=docker/ubuntu_${UBUNTU_VERSION}_04_base
+    - DOCKER_FILE_COMMIT=$(git log -n 1 --pretty=format:%H -- ${DOCKER_FILE})
+    - DOCKER_IMAGE=${CI_REGISTRY_IMAGE}/base_${UBUNTU_VERSION}04:${DOCKER_FILE_COMMIT}
+    - echo BASE_IMAGE_${UBUNTU_VERSION}04=${DOCKER_IMAGE} > base_image.env
+    - cat base_image.env
     - |
-      if ! docker manifest inspect $DOCKER_IMAGE > /dev/null; then
-        docker build $DOCKER_BUILD_ARG --tag $DOCKER_IMAGE -f $DOCKER_FILE .
+      if ! docker manifest inspect $DOCKER_IMAGE > /dev/null || [ "$BUILD_DOCKER_IMAGE" = "1" ]; then
+        if [ "$BUILD_DOCKER_IMAGE" = "1" ]; then
+          DOCKER_CACHE_PARAMETERS="--no-cache"
+        else
+          DOCKER_CACHE_PARAMETERS=""
+        fi
+        docker build $DOCKER_BUILD_ARG ${DOCKER_CACHE_PARAMETERS} --tag $DOCKER_IMAGE -f $DOCKER_FILE .
         docker push $DOCKER_IMAGE
       fi
-  # Skip the job if there are no changes to the Docker file. This shortcut only
-  # works for push and merge request jobs.
-  # A manual pipeline run will thus create missing docker images.
-  #
-  # This is disabled since the detections of the changes by GitLab seems flaky.
-  # TODO(AST-887) Reenable this to test whether it's no longer flaky.
-  #
-  #rules:
-  #  - changes:
-  #    - $DOCKER_FILE
+  artifacts:
+    reports:
+      dotenv: base_image.env
 
-prepare-base-2004:
+prepare-base-2204:
   extends: .prepare
   variables:
-    DOCKER_IMAGE: $BASE_IMAGE_2004
-    DOCKER_FILE: docker/ubuntu_20_04_base
+    UBUNTU_VERSION: 22
 
 prepare-base-2404:
   extends: .prepare
   variables:
-    DOCKER_IMAGE: $BASE_IMAGE_2404
-    DOCKER_FILE: docker/ubuntu_24_04_base
+    UBUNTU_VERSION: 24
 
-.needs-2004:
-  needs:
-    - job: versioning
-    - job: prepare-base-2004
-      optional: true
-  image: $BASE_IMAGE_2004
+.needs-2204:
+  needs: ["prepare-base-2204"]
+  image: $BASE_IMAGE_2204
 
 .needs-2404:
-  needs:
-    - job: versioning
-    - job: prepare-base-2404
-      optional: true
+  needs: ["prepare-base-2404"]
   image: $BASE_IMAGE_2404
 
 format:
@@ -114,18 +98,12 @@ clang-tidy:
 .build:
   stage: build
   script:
-    - cmake --version
     - mkdir build && cd build
-    - cmake -DBUILD_TESTING=ON -DBUILD_PYTHON_BINDINGS=ON -DCMAKE_INSTALL_PREFIX=.. -DCMAKE_CXX_FLAGS="-coverage" -DCMAKE_EXE_LINKER_FLAGS="-coverage" ..
+    - cmake -DBUILD_PYTHON_BINDINGS=ON ..
     - make -j`nproc`
-    - make install
-  artifacts:
-    paths:
-      - build
-      - lib
 
-build-2004:
-  extends: [".needs-2004",".build"]
+build-2204:
+  extends: [".needs-2204",".build"]
 
 build-2404:
   extends: [".needs-2404",".build"]
@@ -133,29 +111,32 @@ build-2404:
 .test:
   stage: test
   script:
-    - cd build/
-    # In a test job, newly checked out sources can be more recent than the
-    # build job artifacts, which causes rebuilds in ctest.
-    # Re-running 'make' is more verbose and prevents rebuilds in ctest.
-    - make -j`nproc`
-    - ctest -j`nproc` --output-on-failure -T test
+    - mkdir build && cd build
+    # -fprofile-update=atomic avoids race conditions when updating coverage
+    # counters at runtime, and thereby avoids parse errors in gcovr.
+    - cmake -DCMAKE_BUILD_TYPE=Debug
+            -DBUILD_TESTING=ON
+            -DBUILD_PYTHON_BINDINGS=ON
+            -DCMAKE_CXX_FLAGS="-coverage -fprofile-update=atomic -O3"
+            -DCMAKE_EXE_LINKER_FLAGS="-coverage" ..
+    - make -j`nproc` install
+    # Do not run the unittests in parallel, since they would then update
+    # .gcda files with coverage information simultaneously.
+    - ctest --output-on-failure -T test
     # Check whether the python radler modules can be found from the home directory after updating the PYTHONPATH
     - PYVERSION=`python3 --version | grep -P -o ".*\s\K\d+\.\d+(?=\.\d+)"`
     - export PYTHONPATH=${CI_PROJECT_DIR}/lib/python${PYVERSION}/dist-packages
     - python3 -c "import site; print(site.getsitepackages()[0])"
     - cd && python3 -c "import radler"
 
-test-2004:
-  extends: .test
-  needs: ["versioning","build-2004"]
-  image: $BASE_IMAGE_2004
+test-2204:
+  extends: [".needs-2204",".test"]
   after_script:
     - gcovr -j`nproc` -e 'external/.*' -e '.*/CompilerIdCXX/.*' -e '.*/test/.*' build/
+  coverage: /^TOTAL.*\s+(\d+\%)$/
 
 test-2404:
-  extends: .test
-  needs: ["versioning","build-2404"]
-  image: $BASE_IMAGE_2404
+  extends: [".needs-2404",".test"]
   after_script:
     - mkdir -p build/reports
     - scripts/junit-merge.py build/reports/unit-tests.xml $(find build -name unittests_*.xml)
@@ -173,7 +154,6 @@ test-2404:
 build-doc-2404:
   extends: .needs-2404
   stage: build
-  image: $BASE_IMAGE_2404
   script:
     - mkdir build && cd build
     - cmake -DBUILD_PYTHON_BINDINGS=ON -DBUILD_DOCUMENTATION=ON .. -G Ninja
@@ -186,7 +166,6 @@ build-doc-2404:
 build-docstrings-2404:
   extends: .needs-2404
   stage: build
-  image: $BASE_IMAGE_2404
   script:
     - mkdir build && cd build
     - cmake -DBUILD_DOCSTRINGS=ON -G Ninja ..
@@ -203,3 +182,68 @@ build-docstrings-2404:
     when: on_failure
     paths:
     - build/doc/docstrings
+
+build-python-source-tarball:
+  stage: deploy
+  image: python:3.12
+  variables:
+    # Start with a clean working copy to avoid including unwanted files in the tarball
+    GIT_STRATEGY: clone
+  before_script:
+    - pip install build
+  script:
+    - python -m build --sdist --outdir dist
+  artifacts:
+    paths:
+      - dist/*.tar.gz
+  rules:
+    # Only run job when building a release tag, the default branch,
+    # or when triggered manually.
+    - if: $CI_COMMIT_TAG || $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: always
+    - when: manual
+      allow_failure: true # Make the manual job optional instead of mandatory
+
+cibuild-python-wheels:
+  extends: .cibuildwheels-custom
+  stage: deploy
+  image: python:3.12
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
+  before_script:
+    - wget -qO - https://get.docker.com/ | sh
+    - pip install cibuildwheel
+  script:
+    - cibuildwheel --output-dir wheelhouse
+  rules:
+    # Since cibuildwheel takes ~10 minutes, only run it when building a
+    # release tag, the default branch, or when triggered manually.
+    - if: $CI_COMMIT_TAG || $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: always
+    - when: manual
+      allow_failure: true # Make the manual job optional instead of mandatory.
+  artifacts:
+    paths:
+      - wheelhouse/*.whl
+
+.deploy-python-package:
+  stage: deploy
+  needs:
+    - build-python-source-tarball
+    - cibuild-python-wheels
+  image: python:3.12
+  before_script:
+    - pip install twine
+  script:
+    - python -m twine upload --verbose dist/*.tar.gz wheelhouse/*.whl
+  rules:
+    # Only deploy when building a release tag, or when requested explicitly.
+    - if: '$CI_COMMIT_TAG && $CI_COMMIT_REF_PROTECTED == "true"'
+
+deploy_on_gitlab:
+  extends: .deploy-python-package
+  environment: gitlab
+  variables:
+    TWINE_USERNAME: gitlab-ci-token
+    TWINE_PASSWORD: ${CI_JOB_TOKEN}
+    TWINE_REPOSITORY_URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi

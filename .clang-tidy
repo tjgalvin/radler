@@ -2,7 +2,6 @@
 Checks:          'clang-diagnostic-*,clang-analyzer-*,-*,modernize-use-equals-default,modernize-use-emplace,modernize-loop-convert,modernize-use-nullptr,modernize-use-override,modernize-use-using,modernize-return-braced-init-list,modernize-deprecated-headers,modernize-make-shared,google-explicit-constructor,google-build-using-namespace,google-readability-braces-around-statements,fuchsia-header-anon-namespaces'
 WarningsAsErrors: ''
 HeaderFilterRegex: 'include/schaapcommon'
-AnalyzeTemporaryDtors: false
 FormatStyle:     none
 User:            maljaars
 CheckOptions:
@@ -85,4 +84,3 @@ CheckOptions:
   - key:             modernize-make-shared.IncludeStyle
     value:           llvm
 ...
-

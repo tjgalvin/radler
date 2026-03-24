@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
-import radler as rd
 import multiprocessing
 import re
+
+import radler as rd
 
 
 def test_layout():
@@ -25,7 +26,7 @@ def test_layout():
     )
     assert nested_structs == nested_structs_ref
 
-    n_properties_ref = 34
+    n_properties_ref = 35
     properties = set(filter(lambda x: re.match("^[a-z]+", x), dir(settings)))
     assert len(properties) == n_properties_ref
 
@@ -52,7 +53,8 @@ def test_default():
     assert settings.auto_mask_sigma == None
     assert settings.save_source_list == False
     assert settings.minor_iteration_count == 0
-    assert settings.major_iteration_count == 20
+    assert settings.major_iteration_count == 12
+    assert settings.divergence_limit == 4.0
     assert settings.allow_negative_components == True
     assert settings.stop_on_negative_components == False
     assert settings.squared_joins == False

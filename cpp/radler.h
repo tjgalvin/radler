@@ -5,6 +5,7 @@
 
 #include <cstring>
 
+#include <aocommon/logger.h>
 #include <aocommon/polarization.h>
 #include <aocommon/uvector.h>
 
@@ -27,7 +28,7 @@ class ParallelDeconvolution;
 class Radler {
  public:
   Radler(const Settings& settings, std::unique_ptr<WorkTable> table,
-         double beam_size);
+         double beam_size, std::ostream& log_stream = std::cout);
 
   /**
    * @brief Constructor for single channel, single polarization deconvolution.
@@ -35,7 +36,7 @@ class Radler {
    * @param[in,out] residual_image Residual image.
    * @param[in,out] model_image Model image.
    *
-   * Please bear in mind to keep the data buffer in the input images alive in
+   * Bear in mind to keep the data buffer in the input images alive in
    * the caller, since Radler internally points to this data buffer during calls
    * to \c Perform.
    */
@@ -43,15 +44,10 @@ class Radler {
          aocommon::Image& residual_image, aocommon::Image& model_image,
          double beam_size,
          aocommon::PolarizationEnum polarization =
-             aocommon::PolarizationEnum::StokesI);
+             aocommon::PolarizationEnum::StokesI,
+         std::ostream& log_stream = std::cout);
 
   ~Radler();
-
-  // TODO(AST-912) Make copy/move operations Google Style compliant.
-  Radler(const Radler&) = delete;
-  Radler(Radler&&) = default;
-  Radler& operator=(const Radler&) = delete;
-  Radler& operator=(Radler&&) = delete;
 
   ComponentList GetComponentList() const;
 
@@ -62,7 +58,16 @@ class Radler {
    */
   const algorithms::DeconvolutionAlgorithm& MaxScaleCountAlgorithm() const;
 
-  void Perform(bool& reached_major_threshold, size_t major_iteration_number);
+  /**
+   * @param [out] another_iteration_required on exit, indicates whether another
+   * major iteration should be run. If @c true, the caller should do a new
+   * prediction-gridding iteration to calculate a new residual image, after
+   * which the @c Perform() function should be called again. If @c false on
+   * exit, the algorithm is finished and the caller can do its last
+   * prediction-gridding round.
+   * @param major_iteration_number Major loop number (1-based), should be >= 1.
+   */
+  void Perform(bool& another_iteration_required, size_t major_iteration_number);
 
   void FreeDeconvolutionAlgorithms();
 
@@ -71,9 +76,13 @@ class Radler {
   /// Return IterationNumber of the underlying \c DeconvolutionAlgorithm
   size_t IterationNumber() const;
 
+  void SetLogStream(std::ostream& log_stream) {
+    log_receiver_.SetStream(log_stream);
+  }
+
  private:
   // Constructor that becomes convenient when implementing AST-890
-  Radler(const Settings& settings, double beam_size);
+  Radler(const Settings& settings, double beam_size, std::ostream& log_stream);
 
   /// Creates the spectral fitter for the deconvolution algorithm.
   std::unique_ptr<schaapcommon::fitters::SpectralFitter> CreateSpectralFitter()
@@ -86,6 +95,8 @@ class Radler {
   void ReadScaleMask();
   void ReadForcedSpectrumImages();
 
+  void SetAutoMaskMode(ImageSet& model_set, bool use_mask);
+
   const Settings settings_;
 
   std::unique_ptr<WorkTable> table_;
@@ -96,13 +107,16 @@ class Radler {
   aocommon::UVector<float> scale_clean_mask_;
 
 
-  bool auto_mask_is_finished_;
-  size_t image_width_;
-  size_t image_height_;
-  double pixel_scale_x_;
-  double pixel_scale_y_;
+  bool auto_mask_is_finished_ = false;
+  size_t auto_mask_finishing_iteration = 0;
+  size_t image_width_ = 0;
+  size_t image_height_ = 0;
+  double pixel_scale_x_ = 0.0;
+  double pixel_scale_y_ = 0.0;
   aocommon::UVector<bool> auto_mask_;
-  double beam_size_;
+  double beam_size_ = 0.0;
+
+  aocommon::LogReceiver log_receiver_;
 };
 
 }  // namespace radler

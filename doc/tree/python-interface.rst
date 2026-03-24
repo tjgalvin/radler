@@ -22,4 +22,6 @@ The :code:`radler` module can now be imported in python with:
 .. toctree::
    :maxdepth: 1
 
+   python/radler
    python/settings
+   python/demo

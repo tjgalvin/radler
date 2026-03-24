@@ -4,12 +4,12 @@
 #define RADLER_ALGORITHMS_THREADED_DECONVOLUTION_TOOLS_H_
 
 #include <cmath>
-#include <optional>
 #include <thread>
 #include <vector>
 
 #include <aocommon/image.h>
 #include <aocommon/lane.h>
+#include <aocommon/optionalnumber.h>
 #include <aocommon/uvector.h>
 
 #include "algorithms/multiscale/multiscale_transforms.h"
@@ -19,8 +19,8 @@ namespace radler::algorithms {
 class ThreadedDeconvolutionTools {
  public:
   struct PeakData {
-    std::optional<float> normalized_value;
-    std::optional<float> unnormalized_value;
+    aocommon::OptionalNumber<float> normalized_value;
+    aocommon::OptionalNumber<float> unnormalized_value;
     float rms;
     size_t x;
     size_t y;

@@ -3,12 +3,12 @@
 #ifndef RADLER_UTILS_MODEL_WRITE_MODEL_H_
 #define RADLER_UTILS_MODEL_WRITE_MODEL_H_
 
+#include <cassert>
 #include <fstream>
 #include <iomanip>
 #include <limits>
 
 #include <aocommon/radeccoord.h>
-#include <aocommon/uvector.h>
 
 namespace radler::utils {
 inline void WriteHeaderForSpectralTerms(std::ostream& stream,

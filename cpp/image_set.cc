@@ -4,11 +4,9 @@
 
 #include <cassert>
 
-#include <aocommon/logger.h>
 #include <aocommon/staticfor.h>
 
 using aocommon::Image;
-using aocommon::Logger;
 
 namespace radler {
 
@@ -109,7 +107,7 @@ void ImageSet::LoadAndAverage(bool use_residual_image) {
 
   Image scratch(Width(), Height());
 
-  aocommon::UVector<double> averaged_weights(images_.size(), 0.0);
+  std::vector<double> averaged_weights(images_.size(), 0.0);
   size_t image_index = 0;
   for (const std::vector<size_t>& group : work_table_.DeconvolutionGroups()) {
     const size_t deconvolution_channel_start_index = image_index;
@@ -123,8 +121,12 @@ void ImageSet::LoadAndAverage(bool use_residual_image) {
         LoadImage(use_residual_image ? *entry_ptr->residual_accessor
                                      : *entry_ptr->model_accessor,
                   scratch);
-        images_[image_index].AddWithFactor(scratch, entry_ptr->image_weight);
-        averaged_weights[image_index] += entry_ptr->image_weight;
+        // If the weight is zero, the image may contain NaNs, so in that case do
+        // not include the image.
+        if (entry_ptr->image_weight != 0.0) {
+          images_[image_index].AddWithFactor(scratch, entry_ptr->image_weight);
+          averaged_weights[image_index] += entry_ptr->image_weight;
+        }
         ++image_index;
       }
     }
@@ -135,8 +137,7 @@ void ImageSet::LoadAndAverage(bool use_residual_image) {
   }
 }
 
-[[nodiscard]] std::vector<std::vector<aocommon::Image>>
-ImageSet::LoadAndAveragePsfs() const {
+std::vector<std::vector<aocommon::Image>> ImageSet::LoadAndAveragePsfs() const {
   std::vector<std::vector<aocommon::Image>> result;
 
   // The PSF accessor vectors in each group should have equal shapes:
@@ -204,7 +205,8 @@ ImageSet::LoadAndAveragePsfs() const {
 }
 
 void ImageSet::InterpolateAndStoreModel(
-    const schaapcommon::fitters::SpectralFitter& fitter) {
+    const schaapcommon::fitters::SpectralFitter& fitter,
+    aocommon::LogReceiver& log_receiver) {
   if (NDeconvolutionChannels() == NOriginalChannels()) {
     size_t image_index = 0;
     for (const WorkTableEntry& e : work_table_) {
@@ -216,11 +218,11 @@ void ImageSet::InterpolateAndStoreModel(
     const size_t n_polarizations = first_group.size();
     for (size_t polarization_index = 0; polarization_index != n_polarizations;
          ++polarization_index) {
-      Logger::Info << "Interpolating "
-                   << aocommon::Polarization::TypeToFullString(
-                          first_group[polarization_index]->polarization)
-                   << " from " << NDeconvolutionChannels() << " to "
-                   << NOriginalChannels() << " channels...\n";
+      log_receiver.Info << "Interpolating "
+                        << aocommon::Polarization::TypeToFullString(
+                               first_group[polarization_index]->polarization)
+                        << " from " << NDeconvolutionChannels() << " to "
+                        << NOriginalChannels() << " channels...\n";
 
       const WorkTable::Group same_polarization_group =
           work_table_.GetOriginalSamePolarizationGroup(
@@ -284,9 +286,9 @@ void ImageSet::InterpolateAndStoreModel(
   }
 }
 
-void ImageSet::AssignAndStoreResidual() {
-  Logger::Info << "Assigning from " << NDeconvolutionChannels() << " to "
-               << NOriginalChannels() << " channels...\n";
+void ImageSet::AssignAndStoreResidual(aocommon::LogReceiver& log_receiver) {
+  log_receiver.Info << "Assigning from " << NDeconvolutionChannels() << " to "
+                    << NOriginalChannels() << " channels...\n";
 
   size_t image_index = 0;
   for (const std::vector<size_t>& group : work_table_.DeconvolutionGroups()) {
@@ -525,4 +527,49 @@ void ImageSet::GetIntegratedPsf(Image& dest,
     dest *= factor;
   }
 }
+
+std::unique_ptr<ImageSet> ImageSet::TrimMasked(size_t x1, size_t y1, size_t x2,
+                                               size_t y2, size_t old_width,
+                                               const bool* mask) const {
+  std::unique_ptr<ImageSet> p = Trim(x1, y1, x2, y2, old_width);
+  for (aocommon::Image& image : p->images_) {
+    for (size_t pixel = 0; pixel != image.Size(); ++pixel) {
+      if (!mask[pixel]) image[pixel] = 0.0;
+    }
+  }
+  return p;
+}
+
+void ImageSet::CopyMasked(const ImageSet& from_image_set, size_t to_x,
+                          size_t to_y, const bool* from_mask) {
+  for (size_t i = 0; i != Size(); ++i) {
+    aocommon::Image::CopyMasked(
+        images_[i].Data(), to_x, to_y, images_[i].Width(),
+        from_image_set.images_[i].Data(), from_image_set.images_[i].Width(),
+        from_image_set.images_[i].Height(), from_mask);
+  }
+}
+
+void ImageSet::AddSubImage(const ImageSet& from, size_t to_x, size_t to_y) {
+  for (size_t i = 0; i != Size(); ++i) {
+    aocommon::Image::AddSubImage(images_[i].Data(), to_x, to_y,
+                                 images_[i].Width(), from.images_[i].Data(),
+                                 from.images_[i].Width(),
+                                 from.images_[i].Height());
+  }
+}
+
+void ImageSet::CopySmallerPart(const aocommon::Image& input,
+                               aocommon::Image& output, size_t x1, size_t y1,
+                               size_t x2, size_t y2, size_t old_width) {
+  size_t new_width = x2 - x1;
+  for (size_t y = y1; y != y2; ++y) {
+    const float* old_ptr = &input[y * old_width];
+    float* new_ptr = &output[(y - y1) * new_width];
+    for (size_t x = x1; x != x2; ++x) {
+      new_ptr[x - x1] = old_ptr[x];
+    }
+  }
+}
+
 }  // namespace radler

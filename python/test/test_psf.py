@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
-import radler as rd
 import numpy as np
+
+import radler as rd
 
 # Tests for the VectorUniquePtrImageAccessor classe. This class is created in
 # C++ and can't be created directly by Python. They are available in a
@@ -192,7 +193,7 @@ def test_direction_dependent_psfs():
 
     # Run 1 iteration of deconvolution
     radler_object = rd.Radler(settings, work_table, 0)
-    radler_object.perform(False, 0)
+    radler_object.perform(1)
 
     # Verify that the correct PSF is applied in the corresponding region
     check_values(

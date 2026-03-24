@@ -14,7 +14,7 @@ namespace radler::logging {
 class ControllableLog final : public aocommon::LogReceiver {
  public:
   ControllableLog(std::mutex* mutex)
-      : _mutex(mutex), _isMuted(false), _isActive(true) {}
+      : LogReceiver(), _mutex(mutex), _isMuted(false), _isActive(true) {}
 
   ControllableLog(const ControllableLog&) = default;
   ControllableLog(ControllableLog&&) = default;
@@ -30,33 +30,38 @@ class ControllableLog final : public aocommon::LogReceiver {
   void SetTag(const std::string& tag) { _tag = tag; }
   void SetOutputOnce(const std::string& str) { _outputOnce = str; }
 
- private:
-  void Output(enum aocommon::Logger::LoggerLevel level,
-              const std::string& str) override {
-    if (!str.empty()) {
+ protected:
+  void Output(aocommon::LogLevel level, const std::string& str) override {
+    if (!Skip(level) && !str.empty()) {
       std::lock_guard<std::mutex> lock(*_mutex);
 
-      bool skip = ((level == aocommon::Logger::kDebugLevel ||
-                    level == aocommon::Logger::kInfoLevel) &&
-                   _isMuted) ||
-                  (level == aocommon::Logger::kDebugLevel &&
-                   !aocommon::Logger::IsVerbose());
-
-      if (!skip) {
-        _lineBuffer += str;
-        if (_lineBuffer.back() == '\n') {
-          if (!_outputOnce.empty()) {
-            Forward(level, _outputOnce);
-            _outputOnce.clear();
-          }
-          Forward(level, _tag);
-          Forward(level, _lineBuffer);
-          _lineBuffer.clear();
+      _lineBuffer += str;
+      if (_lineBuffer.back() == '\n') {
+        if (!_outputOnce.empty()) {
+          LogReceiver::Output(level, _outputOnce);
+          _outputOnce.clear();
         }
+        LogReceiver::Output(level, _tag);
+        LogReceiver::Output(level, _lineBuffer);
+        _lineBuffer.clear();
       }
     }
   }
+  void Flush(aocommon::LogLevel level) override {
+    if (!Skip(level)) {
+      std::lock_guard<std::mutex> lock(*_mutex);
+      LogReceiver::Flush(level);
+    }
+  }
 
+ private:
+  bool Skip(aocommon::LogLevel level) const {
+    return ((level == aocommon::LogLevel::kDebug ||
+             level == aocommon::LogLevel::kInfo) &&
+            _isMuted) ||
+           (level == aocommon::LogLevel::kDebug &&
+            !aocommon::Logger::IsVerbose());
+  }
   std::mutex* _mutex;
   std::string _tag;
   bool _isMuted;
@@ -64,6 +69,7 @@ class ControllableLog final : public aocommon::LogReceiver {
   std::string _lineBuffer;
   std::string _outputOnce;
 };
+
 }  // namespace radler::logging
 
 #endif

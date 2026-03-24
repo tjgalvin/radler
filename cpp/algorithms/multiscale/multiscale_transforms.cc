@@ -2,7 +2,7 @@
 
 #include "algorithms/multiscale/multiscale_transforms.h"
 
-#include <schaapcommon/fft/convolution.h>
+#include <schaapcommon/math/convolution.h>
 
 using aocommon::Image;
 
@@ -15,10 +15,10 @@ void MultiScaleTransforms::Transform(std::vector<Image>& images, Image& scratch,
 
   scratch = 0.0;
 
-  schaapcommon::fft::PrepareSmallConvolutionKernel(
+  schaapcommon::math::PrepareSmallConvolutionKernel(
       scratch.Data(), _width, _height, shape.Data(), kernelSize);
   for (Image& image : images) {
-    schaapcommon::fft::Convolve(image.Data(), scratch.Data(), _width, _height);
+    schaapcommon::math::Convolve(image.Data(), scratch.Data(), _width, _height);
   }
 }
 
@@ -28,11 +28,11 @@ void MultiScaleTransforms::PrepareTransform(float* kernel, float scale) {
 
   std::fill_n(kernel, _width * _height, 0.0);
 
-  schaapcommon::fft::PrepareSmallConvolutionKernel(kernel, _width, _height,
-                                                   shape.Data(), kernelSize);
+  schaapcommon::math::PrepareSmallConvolutionKernel(kernel, _width, _height,
+                                                    shape.Data(), kernelSize);
 }
 
 void MultiScaleTransforms::FinishTransform(float* image, const float* kernel) {
-  schaapcommon::fft::Convolve(image, kernel, _width, _height);
+  schaapcommon::math::Convolve(image, kernel, _width, _height);
 }
 }  // namespace radler::algorithms::multiscale

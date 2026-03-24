@@ -96,6 +96,14 @@ def deconvolve(residual, model, psf, meta):
   } catch (std::runtime_error& e) {
     const std::string what = e.what();
     BOOST_CHECK_NE(what.find("This is a test"), std::string::npos);
+    if (what.find("This is a test") == std::string::npos) {
+      // Give more info, as Python throw a different, unexpected error; for
+      // debugging it's useful to know what this error is.
+      throw std::runtime_error(
+          "Exception what() string should have had the text 'This is a test' "
+          "in it: " +
+          what);
+    }
   }
 }
 

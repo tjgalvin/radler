@@ -3,10 +3,11 @@
 #ifndef RADLER_COMPONENT_LIST_H_
 #define RADLER_COMPONENT_LIST_H_
 
+#include <algorithm>
+#include <cassert>
 #include <vector>
 
 #include <aocommon/image.h>
-#include <aocommon/uvector.h>
 
 #include <schaapcommon/fitters/spectralfitter.h>
 
@@ -133,15 +134,41 @@ class ComponentList {
     return list_per_scale_[scale_index].positions.size();
   }
 
-  void GetComponent(size_t scale_index, size_t index, size_t& x, size_t& y,
-                    float* values) const {
+  void GetComponent(size_t scale_index, size_t component_index, size_t& x,
+                    size_t& y, float* values) const {
+    assert(scale_index < list_per_scale_.size());
+    assert(component_index < list_per_scale_[scale_index].positions.size());
+    x = list_per_scale_[scale_index].positions[component_index].x;
+    y = list_per_scale_[scale_index].positions[component_index].y;
+    for (size_t f = 0; f != n_frequencies_; ++f)
+      values[f] = list_per_scale_[scale_index]
+                      .values[component_index * n_frequencies_ + f];
+  }
+
+  float& GetSingleValue(size_t scale_index, size_t component_index,
+                        size_t channel_index) {
+    assert(scale_index < list_per_scale_.size());
+    assert(component_index < list_per_scale_[scale_index].positions.size());
+    assert(channel_index < n_frequencies_);
+    return list_per_scale_[scale_index]
+        .values[component_index * n_frequencies_ + channel_index];
+  }
+
+  void SetValues(size_t scale_index, size_t component_index,
+                 const float* values) {
+    assert(scale_index < list_per_scale_.size());
+    assert(component_index < list_per_scale_[scale_index].positions.size());
+    float* start =
+        &list_per_scale_[scale_index].values[component_index * n_frequencies_];
+    std::copy_n(values, n_frequencies_, start);
+  }
+
+  std::pair<size_t, size_t> GetComponentPosition(size_t scale_index,
+                                                 size_t index) const {
     assert(scale_index < list_per_scale_.size());
     assert(index < list_per_scale_[scale_index].positions.size());
-    x = list_per_scale_[scale_index].positions[index].x;
-    y = list_per_scale_[scale_index].positions[index].y;
-    for (size_t f = 0; f != n_frequencies_; ++f)
-      values[f] =
-          list_per_scale_[scale_index].values[index * n_frequencies_ + f];
+    return std::pair(list_per_scale_[scale_index].positions[index].x,
+                     list_per_scale_[scale_index].positions[index].y);
   }
 
   /**
@@ -192,46 +219,7 @@ class ComponentList {
 
   void LoadFromImageSet(ImageSet& image_set, size_t scale_index);
 
-  void MergeDuplicates(size_t scale_index) {
-    ScaleList& list = list_per_scale_[scale_index];
-    aocommon::UVector<float> new_values;
-    aocommon::UVector<Position> new_positions;
-
-    std::vector<aocommon::Image> images(n_frequencies_);
-    for (aocommon::Image& image : images)
-      image = aocommon::Image(width_, height_, 0.0);
-    size_t value_index = 0;
-    for (size_t index = 0; index != list.positions.size(); ++index) {
-      size_t position =
-          list.positions[index].x + list.positions[index].y * width_;
-      for (size_t frequency = 0; frequency != n_frequencies_; ++frequency) {
-        images[frequency][position] += list.values[value_index];
-        value_index++;
-      }
-    }
-
-    list.values.clear();
-    list.positions.clear();
-
-    for (size_t image_index = 0; image_index != images.size(); ++image_index) {
-      aocommon::Image& image = images[image_index];
-      size_t pos_index = 0;
-      for (size_t y = 0; y != height_; ++y) {
-        for (size_t x = 0; x != width_; ++x) {
-          if (image[pos_index] != 0.0) {
-            for (size_t i = 0; i != images.size(); ++i) {
-              new_values.push_back(images[i][pos_index]);
-              images[i][pos_index] = 0.0;
-            }
-            new_positions.emplace_back(x, y);
-          }
-          ++pos_index;
-        }
-      }
-    }
-    std::swap(list_per_scale_[scale_index].values, new_values);
-    std::swap(list_per_scale_[scale_index].positions, new_positions);
-  }
+  void MergeDuplicates(size_t scale_index);
 
   size_t width_;
   size_t height_;

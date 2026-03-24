@@ -23,11 +23,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import sys
 import collections
-import re
-import logging
 import itertools
+import logging
+import re
+import sys
 from xml.sax.saxutils import escape
 
 # Create a `ErrorDescription` tuple with all the information we want to keep.

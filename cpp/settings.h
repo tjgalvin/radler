@@ -19,12 +19,12 @@ namespace radler {
  * should be used.
  */
 enum class LocalRmsMethod {
-  /// No local RMS
+  /// No local RMS.
   kNone,
-  /// Spatially varying RMS image
+  /// Spatially varying RMS image.
   kRmsWindow,
   /// Spatially varying RMS image with min. Computed as max(window RMS, 0.3 x
-  /// window min)
+  /// window min).
   kRmsAndMinimumWindow
 };
 
@@ -39,6 +39,14 @@ enum class AlgorithmType {
    * Smirnov, 2017).
    */
   kGenericClean,
+  /**
+   * The adaptive scale pixel algorith described by Bhatnagar & Cornwell (2004),
+   * extended with support for multi-frequency deconvolution and sub-image
+   * deconvolution. The algorithm is rather slow and generally does not result
+   * in better results compared to Radler's multiscale algorithm. In specific
+   * cases with diffuse structures it may be useful.
+   */
+  kAdaptiveScalePixel,
   /**
    * An algorithm similar to the MORESANE algorithm (A Dabbech et al., 2014),
    * but reimplemented in C++ and extended for multi frequency/polarization
@@ -92,27 +100,83 @@ enum class MultiscaleShape {
   kGaussianShape
 };
 
-/// Class to collect and set (Radler) deconvolution related settings
-struct Settings {
+enum class OptimizationAlgorithm {
   /**
-   * @{
-   * Settings that are duplicates from top level settings, and also used outside
-   * deconvolution.
+   * Performs the normal masked cleaning procedure when the auto-mask threshold
+   * is reached.
    */
-  /// Trimmed image width
+  kClean,
+  /**
+   * Use a linear equation solver. This causes the equation to be solved using
+   * a matrix decomposition algorithm, like singular value decomposition. This
+   * implies that it is exact, but very slow. This optimization makes sure that
+   * the residual flux density values are zero at the place of components.
+   */
+  kLinearEquationSolver,
+  /**
+   * Iteratively performs a line search algorithm in the gradient descent
+   * direction, thereby optimizing the component values to minimize the RMS of
+   * the residual. Because the gradient and residuals can be calculated using
+   * convolutions, this algorithm is very fast and independent of the number of
+   * fitted components. When using multiscale, this requires storing the source
+   * list.
+   */
+  kGradientDescent,
+  /**
+   * Similar to gradient descent, but adds a penalty term to the component
+   * values.
+   */
+  kRegularizedGradientDescent
+};
+
+enum class MajorIterationStrategy {
+  /**
+   * Clean until the major iteration gain, then return for a prediction-gridding
+   * round.
+   */
+  kNormal,
+  /**
+   * First, clean until the major iteration gain. Then, repeat this clean step
+   * with the same major gain value, while using the auto-mask for cleaning.
+   * Once the major gain value has been reached for the second time, the
+   * algorithm returns for a prediction-gridding round. This repeats as long as
+   * the auto-mask threshold has not been reached.
+   */
+  kDual,
+  /**
+   * Like @ref kDual, but clean until the final threshold in the second step.
+   */
+  kFull
+};
+
+/// Class to collect and set (Radler) deconvolution related settings.
+struct Settings {
+  /// Trimmed image width.
   size_t trimmed_image_width = 0;
-  /// Trimmed image height
+
+  /// Trimmed image height.
   size_t trimmed_image_height = 0;
+
+  /**
+   * Number of spectral channels for input and output. This may be higher than
+   * the number of channels used during deconvolution (see the constructor of
+   * @ref WorkTable). If that's the case, channels are interpolated before
+   * deconvolution and extrapolated after (using the @ref spectral_fitting
+   * settings).
+   */
   size_t channels_out = 1;
-  /// Pixel scale in radians
+
+  /// Pixel scale in radians.
   struct PixelScale {
     double x = 0.0;
     double y = 0.0;
   } pixel_scale;
+
+  /// Number of parallel threads used in computations.
   size_t thread_count = aocommon::system::ProcessorCount();
-  /// Prefix for saving various output files (e.g. horizon mask)
+
+  /// Prefix for saving various output files (e.g. horizon mask).
   std::string prefix_name = "wsclean";
-  /** @} */
 
   /**
    * List of polarizations that is integrated over when performing peak finding.
@@ -139,6 +203,7 @@ struct Settings {
 
     /**
      * Number of sub-images to run in parallel. It must be larger than zero.
+     * By default all processor cores will be used.
      */
     size_t max_threads = aocommon::system::ProcessorCount();
   } parallel;
@@ -199,6 +264,30 @@ struct Settings {
   std::optional<double> auto_mask_sigma = std::nullopt;
 
   /**
+   * After reaching the major gain threshold in one major iteration, continue
+   * cleaning with the auto-mask. This makes auto-masking converge faster,
+   * thereby allowing slightly deeper major gain values.
+   */
+  MajorIterationStrategy major_iteration_strategy =
+      MajorIterationStrategy::kDual;
+
+  /**
+   * This option can be set to configure the agressiveness by changing the
+   * major loop gain ('mgain') during the first and second iterations. A higher
+   * gain during the first two iterations is often possible because only a few
+   * strong sources are deconvolved in the first iterations. They are also often
+   * more in the centre, so they are less affected by w-term or beam effects,
+   * and can therefore be more agressively deconvolved. Boosting with a value
+   * of 1.5 will save approximately 0.75 major iterations.
+   *
+   * In the first iteration, the mgain will be set to: 1 - (1 - mgain) ^ value.
+   * In the second iteration, 0.5 * (value-1) + 1 will be used as value. For a
+   * typical mgain value of 0.8 and a boost value of 1.2, this result in 0.85
+   * and 0.83 for the first and second major iterations, respectively.
+   */
+  double initial_iteration_boost = 1.2;
+
+  /**
    * @brief Like @ref auto_mask_sigma, but instead specifies an absolute
    * level where to stop generation of the auto-mask.
    */
@@ -227,7 +316,13 @@ struct Settings {
    * take this into account to determine the @c reached_major_threshold value
    * returned by @ref Radler::Perform().
    */
-  size_t major_iteration_count = 20;
+  size_t major_iteration_count = 12;
+
+  /**
+   * Stopping criterion on the total number of major iterations after having
+   * reached the auto-mask threshold.
+   */
+  size_t major_auto_mask_iteration_count = 2;
 
   /**
    * When set to @c false, only positive components are cleaned. This is
@@ -290,6 +385,13 @@ struct Settings {
   std::string casa_mask;
 
   /**
+   * If in one major iteration the peak raises by this factor, the iteration is
+   * considered to be diverging. When parallel deconvolution is used, a diverged
+   * subimage that diverges is reset to its state before the major iteration.
+   */
+  double divergence_limit = 4.0;
+
+  /**
    * The horizon mask distance allows masking out emission beyond the horizon.
    * The value is a floating point value in radians.
    *
@@ -303,9 +405,15 @@ struct Settings {
 
   /**
    * The filename for storing the horizon mask FITS image.
-   * If unset/empty, Radler uses: prefix_name + "-horizon-mask.fits"
+   * If unset/empty, Radler uses: prefix_name + "-horizon-mask.fits".
    */
   std::string horizon_mask_filename;
+  /**
+   * Algorithm used to optimize the value of the found
+   * components, in order to minimize the residuals.
+   */
+  OptimizationAlgorithm component_optimization_algorithm =
+      OptimizationAlgorithm::kClean;
 
   /**
    * Settings related to cleaning relative to a local RMS value.
@@ -325,6 +433,13 @@ struct Settings {
      * calculated RMS image.
      */
     std::string image;
+    /**
+     * The strength with which the local RMS is applied. With a value
+     * of 1, peaks are compared relative to the calculated local RMS. With
+     * a value of 0, peaks are compared relative to the global RMS.
+     * The RMS is scaled using the equation local_rms ^ strength.
+     */
+    double strength = 1.0;
   } local_rms;
 
   /**
@@ -354,14 +469,18 @@ struct Settings {
   /** @} */
 
   /**
+   * The algorithm to use: single-scale, multi-scale, etc. This setting
+   * affects the interpretation of some of the other settings.
+   */
+  AlgorithmType algorithm_type = AlgorithmType::kGenericClean;
+
+  /**
    * @{
    * These deconvolution settings are algorithm-specific. For each algorithm
    * type, a single struct holds all algorithm-specific settings for that type.
    */
 
-  AlgorithmType algorithm_type = AlgorithmType::kGenericClean;
-
-  /// Settings specific to python algorithm
+  /// Settings specific to the Python algorithm.
   struct Python {
     /// Path to a python file containing the deconvolution algorithm to be used.
     std::string filename;
@@ -387,7 +506,7 @@ struct Settings {
     std::vector<double> sigma_levels;
   } more_sane;
 
-  /// Settings specific to multiscale algorithm
+  /// Settings specific to multi-scale algorithm.
   struct Multiscale {
     /**
      * Use the fast variant of this algorithm. When @c true, the minor loops are

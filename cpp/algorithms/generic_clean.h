@@ -3,9 +3,7 @@
 #ifndef RADLER_GENERIC_CLEAN_H_
 #define RADLER_GENERIC_CLEAN_H_
 
-#include <optional>
-
-#include <aocommon/uvector.h>
+#include <aocommon/optionalnumber.h>
 
 #include "image_set.h"
 #include "algorithms/deconvolution_algorithm.h"
@@ -21,15 +19,14 @@ namespace radler::algorithms {
 class GenericClean final : public DeconvolutionAlgorithm {
  public:
   explicit GenericClean(bool use_sub_minor_optimization);
-  // TODO(AST-912) Make copy/move operations Google Style compliant.
   GenericClean(const GenericClean&) = default;
   GenericClean(GenericClean&&) = delete;
   GenericClean& operator=(const GenericClean&) = delete;
   GenericClean& operator=(GenericClean&&) = delete;
 
-  float ExecuteMajorIteration(ImageSet& dirty_set, ImageSet& model_set,
-                              const std::vector<aocommon::Image>& psfs,
-                              bool& reached_major_threshold) final;
+  DeconvolutionResult ExecuteMajorIteration(
+      ImageSet& dirty_set, ImageSet& model_set,
+      const std::vector<aocommon::Image>& psfs) final;
 
   std::unique_ptr<DeconvolutionAlgorithm> Clone() const final {
     return std::make_unique<GenericClean>(*this);
@@ -43,8 +40,10 @@ class GenericClean final : public DeconvolutionAlgorithm {
 
   // Scratch buffer should at least accomodate space for image.Size() floats
   // and is only used to avoid unnecessary memory allocations.
-  std::optional<float> FindPeak(const aocommon::Image& image,
-                                float* scratch_buffer, size_t& x, size_t& y);
+  aocommon::OptionalNumber<float> FindPeak(const aocommon::Image& image,
+                                           float* scratch_buffer, size_t& x,
+                                           size_t& y);
+  void FitSpectra(ImageSet& model_set) const;
 };
 }  // namespace radler::algorithms
 #endif

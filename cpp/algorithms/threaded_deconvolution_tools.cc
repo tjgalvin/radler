@@ -100,7 +100,7 @@ ThreadedDeconvolutionTools::FindSingleScalePeak(
       result.normalized_value = (*result.unnormalized_value) /
                                 rms_factor_image[result.x + result.y * width];
     } else {
-      result.normalized_value.reset();
+      result.normalized_value.Reset();
     }
   }
   return result;

@@ -67,7 +67,7 @@ class WorkTable {
    * are then joinedly deconvolved by averaging them before deconvolution and
    * interpolating them after deconvolution.
    * If the value is zero, or larger than the number of original groups,
-   * all channels are deconvolved separately.
+   * the full number of channels are used for deconvolution.
    * @param channel_index_offset The index of the first channel in the caller.
    */
   explicit WorkTable(std::vector<PsfOffset> psf_offsets,
@@ -75,7 +75,6 @@ class WorkTable {
                      std::size_t n_deconvolution_groups,
                      std::size_t channel_index_offset = 0);
 
-  // TODO(AST-912) Make copy/move operations Google Style compliant.
   WorkTable(const WorkTable&) = default;
   WorkTable(WorkTable&&) = default;
   WorkTable& operator=(const WorkTable&) = delete;

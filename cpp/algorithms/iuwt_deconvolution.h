@@ -6,8 +6,6 @@
 #include <memory>
 #include <string>
 
-#include <aocommon/uvector.h>
-
 #include "image_set.h"
 #include "algorithms/deconvolution_algorithm.h"
 #include "algorithms/iuwt_deconvolution_algorithm.h"
@@ -18,20 +16,23 @@ namespace radler::algorithms {
 
 class IuwtDeconvolution final : public DeconvolutionAlgorithm {
  public:
-  float ExecuteMajorIteration(ImageSet& data_image, ImageSet& model_image,
-                              const std::vector<aocommon::Image>& psf_images,
-                              bool& reached_major_threshold) final {
+  DeconvolutionResult ExecuteMajorIteration(
+      ImageSet& data_image, ImageSet& model_image,
+      const std::vector<aocommon::Image>& psf_images) final {
     IuwtDeconvolutionAlgorithm algorithm(
         data_image.Width(), data_image.Height(), MinorLoopGain(),
         MajorLoopGain(), CleanBorderRatio(), AllowNegativeComponents(),
         CleanMask(), Threshold());
     size_t iteration_number = IterationNumber();
-    float val = algorithm.PerformMajorIteration(
+    DeconvolutionResult result;
+    result.final_peak_value = algorithm.PerformMajorIteration(
         iteration_number, MaxIterations(), model_image, data_image, psf_images,
-        reached_major_threshold);
+        result.another_iteration_required);
     SetIterationNumber(iteration_number);
-    if (IterationNumber() >= MaxIterations()) reached_major_threshold = false;
-    return val;
+    if (IterationNumber() >= MaxIterations()) {
+      result.another_iteration_required = false;
+    }
+    return result;
   }
 
   std::unique_ptr<DeconvolutionAlgorithm> Clone() const final {

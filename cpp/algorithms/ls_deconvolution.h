@@ -24,29 +24,28 @@ class LsDeconvolution final : public DeconvolutionAlgorithm {
 
   LsDeconvolution(const LsDeconvolution& source);
 
-  float ExecuteMajorIteration(ImageSet& data_image, ImageSet& model_image,
-                              const std::vector<aocommon::Image>& psf_images,
-                              bool& reached_major_threshold) override {
+  DeconvolutionResult ExecuteMajorIteration(
+      ImageSet& data_image, ImageSet& model_image,
+      const std::vector<aocommon::Image>& psf_images) override {
     if (data_image.NDeconvolutionChannels() != 1 ||
         data_image.LinkedPolarizations().size() > 1)
       throw std::runtime_error(
           "LS deconvolution can only do single-channel, single-polarization "
           "deconvolution");
-    ExecuteMajorIteration(data_image.Data(0), model_image.Data(0),
-                          psf_images[0], data_image.Width(),
-                          data_image.Height(), reached_major_threshold);
-    return 0.0;
+    return ExecuteMajorIteration(data_image.Data(0), model_image.Data(0),
+                                 psf_images[0], data_image.Width(),
+                                 data_image.Height());
   }
 
   std::unique_ptr<DeconvolutionAlgorithm> Clone() const final {
     return std::make_unique<LsDeconvolution>(*this);
   }
 
-  void ExecuteMajorIteration(float* data_image, float* model_image,
-                             const aocommon::Image& psf_image, size_t width,
-                             size_t height, bool& reached_major_threshold) {
-    nonLinearFit(data_image, model_image, psf_image, width, height,
-                 reached_major_threshold);
+  DeconvolutionResult ExecuteMajorIteration(float* data_image,
+                                            float* model_image,
+                                            const aocommon::Image& psf_image,
+                                            size_t width, size_t height) {
+    return nonLinearFit(data_image, model_image, psf_image, width, height);
   }
 
  private:
@@ -54,13 +53,13 @@ class LsDeconvolution final : public DeconvolutionAlgorithm {
       aocommon::UVector<std::pair<size_t, size_t>>& maskPositions,
       const bool* mask, size_t width, size_t height);
 
-  void linearFit(float* data_image, float* model_image,
-                 const aocommon::Image& psf_image, size_t width, size_t height,
-                 bool& reached_major_threshold);
+  DeconvolutionResult linearFit(float* data_image, float* model_image,
+                                const aocommon::Image& psf_image, size_t width,
+                                size_t height);
 
-  void nonLinearFit(float* data_image, float* model_image,
-                    const aocommon::Image& psf_image, size_t width,
-                    size_t height, bool& reached_major_threshold);
+  DeconvolutionResult nonLinearFit(float* data_image, float* model_image,
+                                   const aocommon::Image& psf_image,
+                                   size_t width, size_t height);
 
   std::unique_ptr<LsDeconvolutionData> _data;
 };

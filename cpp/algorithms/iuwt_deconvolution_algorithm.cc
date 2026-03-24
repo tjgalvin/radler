@@ -8,9 +8,9 @@
 #include <memory>
 
 #include <aocommon/image.h>
-#include <aocommon/system.h>
 
-#include <schaapcommon/fft/convolution.h>
+#include <schaapcommon/math/ellipse.h>
+#include <schaapcommon/math/convolution.h>
 #include <schaapcommon/fitters/gaussianfitter.h>
 
 #include "image_set.h"
@@ -44,35 +44,30 @@ void IuwtDeconvolutionAlgorithm::MeasureRMSPerScale(
   IuwtDecomposition imageIUWT(end_scale, width_, height_);
   imageIUWT.Decompose(image, scratch, false);
 
-  psf_major_ = 2.0;
-  psf_minor_ = 2.0;
-  psf_pa_ = 0.0;
-  double fl = 0.0;
-  schaapcommon::fitters::GaussianFitter fitter;
-  fitter.Fit2DGaussianCentred(image, width_, height_, 2.0, psf_major_,
-                              psf_minor_, psf_pa_);
+  schaapcommon::math::Ellipse ellipse =
+      schaapcommon::fitters::Fit2DGaussianCentred(image, false, width_, height_,
+                                                  2.0, 10.0, false);
 
+  double fl = 0.0;
   double v = 1.0, x = width_ / 2, y = height_ / 2;
-  double bMaj = psf_major_, bMin = psf_minor_, bPA = psf_pa_;
-  fitter.Fit2DGaussianFull(image, width_, height_, v, x, y, bMaj, bMin, bPA,
-                           &fl);
+  schaapcommon::fitters::Fit2DGaussianFull(image, width_, height_, v, x, y,
+                                           ellipse.major, ellipse.minor,
+                                           ellipse.position_angle, &fl);
 
   psf_response.resize(end_scale);
   for (size_t scale = 0; scale != end_scale; ++scale) {
     psf_response[scale].rms = imageIUWT[scale].Coefficients().RMS();
     psf_response[scale].peak_response =
         CentralPeak(imageIUWT[scale].Coefficients());
-    bMaj = 2.0;
-    bMin = 2.0;
-    bPA = 0.0;
     v = 1.0;
     x = width_ / 2;
     y = height_ / 2;
-    fitter.Fit2DGaussianFull(imageIUWT[scale].Coefficients().Data(), width_,
-                             height_, v, x, y, bMaj, bMin, bPA, &fl);
-    psf_response[scale].b_major = bMaj;
-    psf_response[scale].b_minor = bMin;
-    psf_response[scale].b_pa = bPA;
+    schaapcommon::fitters::Fit2DGaussianFull(
+        imageIUWT[scale].Coefficients().Data(), width_, height_, v, x, y,
+        ellipse.major, ellipse.minor, ellipse.position_angle, &fl);
+    psf_response[scale].b_major = ellipse.major;
+    psf_response[scale].b_minor = ellipse.minor;
+    psf_response[scale].b_pa = ellipse.position_angle;
   }
 
   imageIUWT.Decompose(imageIUWT[1].Coefficients().Data(), scratch, false);
@@ -340,8 +335,8 @@ bool IuwtDeconvolutionAlgorithm::RunConjugateGradient(
   for (size_t minorIter = 0; minorIter != 20; ++minorIter) {
     // scratch = gradient (x) psf
     scratch = gradient;
-    schaapcommon::fft::Convolve(scratch.Data(), psf_kernel.Data(), width,
-                                height);
+    schaapcommon::math::Convolve(scratch.Data(), psf_kernel.Data(), width,
+                                 height);
 
     // calc: IUWT gradient (x) psf
     iuwt.Decompose(scratch.Data(), scratch.Data(), false);
@@ -385,8 +380,8 @@ bool IuwtDeconvolutionAlgorithm::RunConjugateGradient(
 
     // scratch = mask IUWT PSF (x) model
     scratch = structure_model;
-    schaapcommon::fft::Convolve(scratch.Data(), psf_kernel.Data(), width,
-                                height);
+    schaapcommon::math::Convolve(scratch.Data(), psf_kernel.Data(), width,
+                                 height);
     iuwt.Decompose(scratch.Data(), scratch.Data(), false);
     iuwt.ApplyMask(mask);
 
@@ -538,7 +533,7 @@ bool IuwtDeconvolutionAlgorithm::FillAndDeconvolveStructure(
     TrimPsf(smallPSF, psf, newWidth, newHeight);
 
     Image smallPSFKernel(smallPSF.Width(), smallPSF.Height());
-    schaapcommon::fft::PrepareConvolutionKernel(
+    schaapcommon::math::PrepareConvolutionKernel(
         smallPSFKernel.Data(), smallPSF.Data(), newWidth, newHeight);
 
     scratch = Image(dirty.Width(), dirty.Height());
@@ -612,8 +607,8 @@ bool IuwtDeconvolutionAlgorithm::FillAndDeconvolveStructure(
 
     float rmsBefore = dirty.RMS();
     scratch = structureModel;
-    schaapcommon::fft::Convolve(scratch.Data(), psf_kernel.Data(), width,
-                                height);
+    schaapcommon::math::Convolve(scratch.Data(), psf_kernel.Data(), width,
+                                 height);
     maskedDirty = dirty;  // we use maskedDirty as temporary
     maskedDirty.AddWithFactor(scratch, -minor_loop_gain_);
     float rmsAfter = maskedDirty.RMS();
@@ -683,8 +678,8 @@ void IuwtDeconvolutionAlgorithm::PerformSubImageFitSingle(
   size_t width = iuwt.Width(), height = iuwt.Height();
 
   Image psfKernel(width, height);
-  schaapcommon::fft::PrepareConvolutionKernel(psfKernel.Data(), psf.Data(),
-                                              width, height);
+  schaapcommon::math::PrepareConvolutionKernel(psfKernel.Data(), psf.Data(),
+                                               width, height);
 
   Image& maskedDirty = scratch_b;
 
@@ -763,7 +758,7 @@ float IuwtDeconvolutionAlgorithm::PerformSubImageComponentFitBoxed(
     Image smallPsf;
     TrimPsf(smallPsf, psf, newWidth, newHeight);
     Image smallPsfKernel(smallPsf.Width(), smallPsf.Height());
-    schaapcommon::fft::PrepareConvolutionKernel(
+    schaapcommon::math::PrepareConvolutionKernel(
         smallPsfKernel.Data(), smallPsf.Data(), newWidth, newHeight);
 
     Image smallMaskedDirty;
@@ -786,7 +781,7 @@ float IuwtDeconvolutionAlgorithm::PerformSubImageComponentFit(
     size_t y_offset) {
   const size_t width = iuwt.Width(), height = iuwt.Height();
   // Calculate IUWT^-1 mask IUWT model (x) PSF
-  schaapcommon::fft::Convolve(model.Data(), psfKernel.Data(), width, height);
+  schaapcommon::math::Convolve(model.Data(), psfKernel.Data(), width, height);
   iuwt.Decompose(model.Data(), model.Data(), false);
   iuwt.ApplyMask(mask);
   iuwt.Recompose(model, false);
@@ -829,16 +824,16 @@ float IuwtDeconvolutionAlgorithm::PerformMajorIteration(
 
   // Prepare the PSF for convolutions later on
   Image psfKernel(width_, height_);
-  schaapcommon::fft::PrepareConvolutionKernel(psfKernel.Data(), psf.Data(),
-                                              width_, height_);
+  schaapcommon::math::PrepareConvolutionKernel(psfKernel.Data(), psf.Data(),
+                                               width_, height_);
 
   std::cout << "Measuring PSF...\n";
   {
     Image convolvedPSF(psf);
     Image scratch(width_, height_);
 
-    schaapcommon::fft::Convolve(convolvedPSF.Data(), psfKernel.Data(), width_,
-                                height_);
+    schaapcommon::math::Convolve(convolvedPSF.Data(), psfKernel.Data(), width_,
+                                 height_);
     MeasureRMSPerScale(psf.Data(), convolvedPSF.Data(), scratch.Data(),
                        maxScale, psf_response_);
   }
@@ -857,8 +852,8 @@ float IuwtDeconvolutionAlgorithm::PerformMajorIteration(
   do {
     std::cout << "*** Deconvolution iteration " << iter_counter << " ***\n";
     dirtyBeforeIteration = dirty;
-    schaapcommon::fft::PrepareConvolutionKernel(psfKernel.Data(), psf.Data(),
-                                                width_, height_);
+    schaapcommon::math::PrepareConvolutionKernel(psfKernel.Data(), psf.Data(),
+                                                 width_, height_);
     std::vector<ValComponent> max_components;
     Image scratch(width_, height_);
     bool succeeded = FindAndDeconvolveStructure(
@@ -873,10 +868,10 @@ float IuwtDeconvolutionAlgorithm::PerformMajorIteration(
       for (size_t i = 0; i != dirty_set.Size(); ++i) {
         scratch = structureModel[i];
         size_t psfIndex = dirty_set.PsfIndex(i);
-        schaapcommon::fft::PrepareConvolutionKernel(
+        schaapcommon::math::PrepareConvolutionKernel(
             psfKernel.Data(), psfs[psfIndex].Data(), width_, height_);
-        schaapcommon::fft::Convolve(scratch.Data(), psfKernel.Data(), width_,
-                                    height_);
+        schaapcommon::math::Convolve(scratch.Data(), psfKernel.Data(), width_,
+                                     height_);
         Subtract(dirty_set.Data(i), scratch);
       }
       dirty_set.GetLinearIntegrated(dirty);

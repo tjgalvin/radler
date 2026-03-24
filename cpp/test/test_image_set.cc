@@ -661,7 +661,8 @@ BOOST_FIXTURE_TEST_CASE(interpolate_and_store_model, ImageSetFixtureBase) {
   schaapcommon::fitters::SpectralFitter fitter(
       schaapcommon::fitters::SpectralFittingMode::kPolynomial, 1, frequencies,
       weights);
-  image_set.InterpolateAndStoreModel(fitter);
+  aocommon::LogReceiver log_receiver;
+  image_set.InterpolateAndStoreModel(fitter, log_receiver);
   for (const WorkTableEntry& entry : *table) {
     Image image(kWidth, kHeight, -1.0);
     entry.model_accessor->Load(image.Data());

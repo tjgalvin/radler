@@ -158,14 +158,14 @@ void LsDeconvolution::getMaskPositions(
   }
 }
 
-void LsDeconvolution::linearFit(float* dataImage, float* modelImage,
-                                const aocommon::Image& psfImage, size_t width,
-                                size_t height,
-                                bool& /*reachedMajorThreshold*/) {
+DeconvolutionResult LsDeconvolution::linearFit(float* dataImage,
+                                               float* modelImage,
+                                               const aocommon::Image& psfImage,
+                                               size_t width, size_t height) {
   aocommon::UVector<std::pair<size_t, size_t>> maskPositions;
   getMaskPositions(maskPositions, CleanMask(), width, height);
-  Logger::Info << "Running LSDeconvolution with " << maskPositions.size()
-               << " parameters.\n";
+  LogReceiver().Info << "Running LSDeconvolution with " << maskPositions.size()
+                     << " parameters.\n";
 
   // y = X c
   //   - y is vector of N,     N=number of data points (pixels in image)
@@ -199,12 +199,13 @@ void LsDeconvolution::linearFit(float* dataImage, float* modelImage,
     }
   }
 
-  Logger::Info << "psf(0,0) = "
-               << psfImage[midX % width + (midY % height) * width] << "\n";
-  Logger::Info << "Fitting... ";
-  Logger::Info.Flush();
+  LogReceiver().Info << "psf(0,0) = "
+                     << psfImage[midX % width + (midY % height) * width]
+                     << "\n";
+  LogReceiver().Info << "Fitting... ";
+  LogReceiver().Info.Flush();
   int result = gsl_multifit_linear(x, y, c, cov, &chisq, work);
-  Logger::Info << "result=" << gsl_strerror(result) << "\n";
+  LogReceiver().Info << "result=" << gsl_strerror(result) << "\n";
   gsl_multifit_linear_free(work);
 
   for (size_t i = 0; i != n; ++n) modelImage[i] = 0.0;
@@ -234,19 +235,20 @@ void LsDeconvolution::linearFit(float* dataImage, float* modelImage,
   gsl_vector_free(y);
   gsl_vector_free(c);
   gsl_matrix_free(cov);
+
+  return DeconvolutionResult();
 }
 
-void LsDeconvolution::nonLinearFit(float* dataImage, float* modelImage,
-                                   const aocommon::Image& psfImage,
-                                   size_t width, size_t height,
-                                   bool& /*reachedMajorThreshold*/) {
+DeconvolutionResult LsDeconvolution::nonLinearFit(
+    float* dataImage, float* modelImage, const aocommon::Image& psfImage,
+    size_t width, size_t height) {
   if (!CleanMask()) throw std::runtime_error("No mask available");
 
   getMaskPositions(_data->maskPositions, CleanMask(), width, height);
   size_t parameterCount = _data->maskPositions.size(),
          dataCount = width * height + 1;
-  Logger::Info << "Running LSDeconvolution with " << parameterCount
-               << " parameters.\n";
+  LogReceiver().Info << "Running LSDeconvolution with " << parameterCount
+                     << " parameters.\n";
 
   const gsl_multifit_fdfsolver_type* T = gsl_multifit_fdfsolver_lmsder;
   _data->solver = gsl_multifit_fdfsolver_alloc(T, dataCount, parameterCount);
@@ -282,8 +284,8 @@ void LsDeconvolution::nonLinearFit(float* dataImage, float* modelImage,
                                      1e-4);
 
   } while (status == GSL_CONTINUE && iter < 100);
-  Logger::Info << "niter=" << iter << ", status=" << gsl_strerror(status)
-               << "\n";
+  LogReceiver().Info << "niter=" << iter << ", status=" << gsl_strerror(status)
+                     << "\n";
 
   for (size_t p = 0; p != parameterCount; ++p) {
     size_t pX = _data->maskPositions[p].first,
@@ -310,5 +312,7 @@ void LsDeconvolution::nonLinearFit(float* dataImage, float* modelImage,
   }
 
   gsl_multifit_fdfsolver_free(_data->solver);
+
+  return DeconvolutionResult();
 }
 }  // namespace radler::algorithms

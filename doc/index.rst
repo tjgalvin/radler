@@ -20,6 +20,14 @@ Radler is released under the LGPL version 3.
 
 .. toctree::
    :maxdepth: 2
+   :caption: Home
+   :hidden:
+
+   self
+   CHANGELOG.md
+
+.. toctree::
+   :maxdepth: 2
    :hidden:
    :caption: Getting Started
 

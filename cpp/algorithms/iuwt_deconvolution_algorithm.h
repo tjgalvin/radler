@@ -189,9 +189,6 @@ class IuwtDeconvolutionAlgorithm {
   float absolute_threshold_;
   float threshold_sigma_level_;
   float tolerance_;
-  double psf_major_;
-  double psf_minor_;
-  double psf_pa_;
   aocommon::UVector<float> rmses_;
   std::vector<ScaleResponse> psf_response_;
   bool allow_negative_components_;

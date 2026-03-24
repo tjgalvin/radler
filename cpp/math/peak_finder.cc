@@ -16,11 +16,12 @@
 
 namespace radler::math::peak_finder {
 
-std::optional<float> Simple(const float* image, size_t width, size_t height,
-                            size_t& x, size_t& y,
-                            bool allow_negative_components, size_t start_y,
-                            size_t end_y, size_t horizontal_border,
-                            size_t vertical_border) {
+aocommon::OptionalNumber<float> Simple(const float* image, size_t width,
+                                       size_t height, size_t& x, size_t& y,
+                                       bool allow_negative_components,
+                                       size_t start_y, size_t end_y,
+                                       size_t horizontal_border,
+                                       size_t vertical_border) {
   float peakMax = std::numeric_limits<float>::min();
   size_t peakIndex = width * height;
 
@@ -46,19 +47,20 @@ std::optional<float> Simple(const float* image, size_t width, size_t height,
   if (peakIndex == width * height) {
     x = width;
     y = height;
-    return std::nullopt;
+    return {};
   } else {
     x = peakIndex % width;
     y = peakIndex / width;
-    return image[x + y * width];
+    return aocommon::OptionalNumber<float>(image[x + y * width]);
   }
 }
 
-std::optional<double> Simple(const double* image, size_t width, size_t height,
-                             size_t& x, size_t& y,
-                             bool allow_negative_components, size_t start_y,
-                             size_t end_y, size_t horizontal_border,
-                             size_t vertical_border) {
+aocommon::OptionalNumber<double> Simple(const double* image, size_t width,
+                                        size_t height, size_t& x, size_t& y,
+                                        bool allow_negative_components,
+                                        size_t start_y, size_t end_y,
+                                        size_t horizontal_border,
+                                        size_t vertical_border) {
   double peakMax = std::numeric_limits<double>::min();
   size_t peakIndex = width * height;
 
@@ -88,11 +90,11 @@ std::optional<double> Simple(const double* image, size_t width, size_t height,
   } else {
     x = peakIndex % width;
     y = peakIndex / width;
-    return image[x + y * width];
+    return aocommon::OptionalNumber<double>(image[x + y * width]);
   }
 }
 
-std::optional<float> FindWithMask(
+aocommon::OptionalNumber<float> FindWithMask(
     const float* image, size_t width, size_t height, size_t& x, size_t& y,
     bool allow_negative_components, size_t start_y, size_t end_y,
     const bool* clean_mask, size_t horizontal_border, size_t vertical_border) {
@@ -122,17 +124,19 @@ std::optional<float> FindWithMask(
     }
   }
   if (y == height) {
-    return std::nullopt;
+    return {};
   } else {
-    return image[x + y * width];
+    return aocommon::OptionalNumber<float>(image[x + y * width]);
   }
 }
 
 #if defined __AVX__ && defined USE_INTRINSICS && !defined FORCE_NON_AVX
 template <bool AllowNegativeComponent>
-std::optional<double> Avx(const double* image, size_t width, size_t height,
-                          size_t& x, size_t& y, size_t start_y, size_t end_y,
-                          size_t horizontal_border, size_t vertical_border) {
+aocommon::OptionalNumber<double> Avx(const double* image, size_t width,
+                                     size_t height, size_t& x, size_t& y,
+                                     size_t start_y, size_t end_y,
+                                     size_t horizontal_border,
+                                     size_t vertical_border) {
   double peakMax = std::numeric_limits<double>::min();
   size_t peakIndex = 0;
 
@@ -180,24 +184,24 @@ std::optional<double> Avx(const double* image, size_t width, size_t height,
   }
   x = peakIndex % width;
   y = peakIndex / width;
-  return image[x + y * width];
+  return aocommon::OptionalNumber<double>(image[x + y * width]);
 }
 
-template std::optional<double> Avx<false>(const double* image, size_t width,
-                                          size_t height, size_t& x, size_t& y,
-                                          size_t start_y, size_t end_y,
-                                          size_t horizontal_border,
-                                          size_t vertical_border);
-template std::optional<double> Avx<true>(const double* image, size_t width,
-                                         size_t height, size_t& x, size_t& y,
-                                         size_t start_y, size_t end_y,
-                                         size_t horizontal_border,
-                                         size_t vertical_border);
+template aocommon::OptionalNumber<double> Avx<false>(
+    const double* image, size_t width, size_t height, size_t& x, size_t& y,
+    size_t start_y, size_t end_y, size_t horizontal_border,
+    size_t vertical_border);
+template aocommon::OptionalNumber<double> Avx<true>(
+    const double* image, size_t width, size_t height, size_t& x, size_t& y,
+    size_t start_y, size_t end_y, size_t horizontal_border,
+    size_t vertical_border);
 
 template <bool AllowNegativeComponent>
-std::optional<float> Avx(const float* image, size_t width, size_t height,
-                         size_t& x, size_t& y, size_t start_y, size_t end_y,
-                         size_t horizontal_border, size_t vertical_border) {
+aocommon::OptionalNumber<float> Avx(const float* image, size_t width,
+                                    size_t height, size_t& x, size_t& y,
+                                    size_t start_y, size_t end_y,
+                                    size_t horizontal_border,
+                                    size_t vertical_border) {
   float peakMax = std::numeric_limits<float>::min();
   size_t peakIndex = 0;
 
@@ -245,19 +249,19 @@ std::optional<float> Avx(const float* image, size_t width, size_t height,
   }
   x = peakIndex % width;
   y = peakIndex / width;
-  return image[x + y * width];
+  return aocommon::OptionalNumber<float>(image[x + y * width]);
 }
 
-template std::optional<float> Avx<false>(const float* image, size_t width,
-                                         size_t height, size_t& x, size_t& y,
-                                         size_t start_y, size_t end_y,
-                                         size_t horizontal_border,
-                                         size_t vertical_border);
-template std::optional<float> Avx<true>(const float* image, size_t width,
-                                        size_t height, size_t& x, size_t& y,
-                                        size_t start_y, size_t end_y,
-                                        size_t horizontal_border,
-                                        size_t vertical_border);
+template aocommon::OptionalNumber<float> Avx<false>(
+    const float* image, size_t width, size_t height, size_t& x, size_t& y,
+    size_t start_y, size_t end_y, size_t horizontal_border,
+    size_t vertical_border);
+template aocommon::OptionalNumber<float> Avx<true>(const float* image,
+                                                   size_t width, size_t height,
+                                                   size_t& x, size_t& y,
+                                                   size_t start_y, size_t end_y,
+                                                   size_t horizontal_border,
+                                                   size_t vertical_border);
 
 #else
 #warning "Not using AVX optimized version of FindPeak()!"

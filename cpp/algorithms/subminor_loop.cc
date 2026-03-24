@@ -2,7 +2,7 @@
 
 #include "subminor_loop.h"
 
-#include <schaapcommon/fft/convolution.h>
+#include <schaapcommon/math/convolution.h>
 
 #include "algorithms/deconvolution_algorithm.h"
 
@@ -35,7 +35,7 @@ size_t SubMinorModel::GetMaxComponent(Image& scratch, float& max_value) const {
   return maxComponent;
 }
 
-std::optional<float> SubMinorLoop::Run(
+std::pair<bool, aocommon::OptionalNumber<float>> SubMinorLoop::Run(
     ImageSet& convolvedResidual,
     const std::vector<aocommon::Image>& twiceConvolvedPsfs) {
   _subMinorModel = SubMinorModel(_width, _height);
@@ -49,16 +49,19 @@ std::optional<float> SubMinorLoop::Run(
   _logReceiver.Debug << "Number of components selected > " << _threshold << ": "
                      << _subMinorModel.size() << '\n';
 
-  if (_subMinorModel.size() == 0) return std::nullopt;
+  if (_subMinorModel.size() == 0) {
+    return std::make_pair(false, aocommon::OptionalNumber<float>());
+  }
 
   Image scratch(_subMinorModel.size(), 1);
   float maxValue;
   size_t maxComponent = _subMinorModel.GetMaxComponent(
       scratch, maxValue, _allowNegativeComponents);
-
+  const float max_value_at_start = std::fabs(maxValue);
+  bool diverging = false;
   while (std::fabs(maxValue) > _threshold &&
          _currentIteration < _maxIterations &&
-         (!_stopOnNegativeComponent || maxValue >= 0.0)) {
+         (!_stopOnNegativeComponent || maxValue >= 0.0) && !diverging) {
     aocommon::UVector<float> componentValues(_subMinorModel.Residual().Size());
     for (size_t imgIndex = 0; imgIndex != _subMinorModel.Residual().Size();
          ++imgIndex) {
@@ -103,9 +106,14 @@ std::optional<float> SubMinorLoop::Run(
 
     maxComponent = _subMinorModel.GetMaxComponent(scratch, maxValue,
                                                   _allowNegativeComponents);
+
+    if (_divergenceLimit != 0.0) {
+      diverging = std::fabs(maxValue) > max_value_at_start * _divergenceLimit;
+    }
+
     ++_currentIteration;
   }
-  return maxValue;
+  return std::make_pair(diverging, aocommon::OptionalNumber<float>(maxValue));
 }
 
 void SubMinorModel::MakeSets(const ImageSet& residual_set) {
@@ -190,8 +198,8 @@ void SubMinorLoop::CorrectResidualDirty(
   // Get padded kernel in scratch_b
   Image::Untrim(scratch_a, _paddedWidth, _paddedHeight, single_convolved_psf,
                 _width, _height);
-  schaapcommon::fft::PrepareConvolutionKernel(scratch_b, scratch_a,
-                                              _paddedWidth, _paddedHeight);
+  schaapcommon::math::PrepareConvolutionKernel(scratch_b, scratch_a,
+                                               _paddedWidth, _paddedHeight);
 
   // Get padded model image in scratch_a
   GetFullIndividualModel(image_index, scratch_c);
@@ -199,8 +207,8 @@ void SubMinorLoop::CorrectResidualDirty(
                 _height);
 
   // Convolve and store in scratch_a
-  schaapcommon::fft::Convolve(scratch_a, scratch_b, _paddedWidth,
-                              _paddedHeight);
+  schaapcommon::math::Convolve(scratch_a, scratch_b, _paddedWidth,
+                               _paddedHeight);
 
   // Trim the result into scratch_c
   Image::Trim(scratch_c, _width, _height, scratch_a, _paddedWidth,

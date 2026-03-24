@@ -22,9 +22,9 @@ class MoreSane final : public DeconvolutionAlgorithm {
   MoreSane& operator=(const MoreSane&) = delete;
   MoreSane& operator=(MoreSane&&) = delete;
 
-  float ExecuteMajorIteration(ImageSet& data_image, ImageSet& model_image,
-                              const std::vector<aocommon::Image>& psf_images,
-                              bool& reached_major_threshold) final;
+  DeconvolutionResult ExecuteMajorIteration(
+      ImageSet& data_image, ImageSet& model_image,
+      const std::vector<aocommon::Image>& psf_images) final;
 
   std::unique_ptr<DeconvolutionAlgorithm> Clone() const final {
     return std::make_unique<MoreSane>(*this);

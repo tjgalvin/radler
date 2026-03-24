@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <aocommon/image.h>
+#include <aocommon/logger.h>
 #include <aocommon/uvector.h>
 
 #include "component_list.h"
@@ -18,6 +19,27 @@
 #include "utils/compressed_mask.h"
 
 namespace radler::algorithms {
+
+struct SubImage {
+  size_t index;
+  size_t x;
+  size_t y;
+  size_t width;
+  size_t height;
+  // Mask to be used during deconvoution (combines user mask with the
+  // boundary mask)
+  aocommon::UVector<bool> mask;
+  // Selects the pixels inside this subimage
+  aocommon::UVector<bool> boundary_mask;
+  double peak;
+  bool reached_major_threshold;
+};
+
+struct ParallelDeconvolutionResult {
+  bool another_iteration_required;
+  aocommon::OptionalNumber<float> start_peak;
+  aocommon::OptionalNumber<float> end_peak;
+};
 
 class ParallelDeconvolution {
  public:
@@ -31,6 +53,10 @@ class ParallelDeconvolution {
   DeconvolutionAlgorithm& FirstAlgorithm() { return *algorithms_.front(); }
   const DeconvolutionAlgorithm& FirstAlgorithm() const {
     return *algorithms_.front();
+  }
+
+  aocommon::LogReceiver& LogReceiver() {
+    return FirstAlgorithm().LogReceiver();
   }
 
   ComponentList GetComponentList(const WorkTable& table) const;
@@ -47,23 +73,28 @@ class ParallelDeconvolution {
 
   void SetThreshold(double threshold);
 
+  void SetMinorLoopGain(double gain);
+
   bool IsInitialized() const { return !algorithms_.empty(); }
 
   /**
    * Set the multiscale auto-masking mode. This method requires that the class
    * is initialized with the multiscale algorithm.
    */
-  void SetAutoMaskMode(bool track_per_scale_masks, bool use_per_scale_masks);
+  void SetMultiscaleAutoMaskMode(bool track_per_scale_masks,
+                                 bool use_per_scale_masks);
+
+  void SetComponentOptimization(OptimizationAlgorithm algorithm);
 
   void SetCleanMask(const bool* mask);
 
   void SetSpectrallyForcedImages(std::vector<aocommon::Image>&& images);
 
   /** @param psf_images @see @ref ImageSet::LoadAndAveragePsfs. */
-  void ExecuteMajorIteration(
+  ParallelDeconvolutionResult ExecuteMajorIteration(
       ImageSet& data_image, ImageSet& model_image,
       const std::vector<std::vector<aocommon::Image>>& psf_images,
-      const std::vector<PsfOffset>& psf_offsets, bool& reached_major_threshold);
+      const std::vector<PsfOffset>& psf_offsets, double major_loop_gain);
 
   void FreeDeconvolutionAlgorithms() {
     algorithms_.clear();
@@ -74,30 +105,15 @@ class ParallelDeconvolution {
 
  private:
   /** @param psf_images @see @ref ImageSet::LoadAndAveragePsfs. */
-  void ExecuteParallelRun(
+  ParallelDeconvolutionResult ExecuteParallelRun(
       ImageSet& data_image, ImageSet& model_image,
       const std::vector<std::vector<aocommon::Image>>& psf_images,
-      const std::vector<PsfOffset>& psf_offsets, bool& reached_major_threshold);
+      const std::vector<PsfOffset>& psf_offsets, double major_loop_gain);
 
-  void ExecuteSingleThreadedRun(
+  ParallelDeconvolutionResult ExecuteSingleThreadedRun(
       ImageSet& data_image, ImageSet& model_image,
       const std::vector<std::vector<aocommon::Image>>& psf_images,
-      const std::vector<PsfOffset>& psf_offsets, bool& reached_major_threshold);
-
-  struct SubImage {
-    size_t index;
-    size_t x;
-    size_t y;
-    size_t width;
-    size_t height;
-    // Mask to be used during deconvoution (combines user mask with the
-    // boundary mask)
-    aocommon::UVector<bool> mask;
-    // Selects the pixels inside this subimage
-    aocommon::UVector<bool> boundary_mask;
-    double peak;
-    bool reached_major_threshold;
-  };
+      const std::vector<PsfOffset>& psf_offsets, double major_loop_gain);
 
   /** @param psf_images @see @ref ImageSet::LoadAndAveragePsfs. */
   void RunSubImage(SubImage& sub_image, ImageSet& data_image,
