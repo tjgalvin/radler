@@ -283,12 +283,10 @@ void ParallelDeconvolution::SetCleanMask(const bool* mask) {
 }
 
 void ParallelDeconvolution::SetScaleCleanMask(float* mask) {
+  if (!(settings_.algorithm_type == AlgorithmType::kMultiscale)) return;
 
-  if (!(settings_.algorithm_type == AlgorithmType::kMultiscale)) 
-    return; 
-  
   MultiScaleAlgorithm* alg =
-    static_cast<MultiScaleAlgorithm*>(algorithms_.front().get());
+      static_cast<MultiScaleAlgorithm*>(algorithms_.front().get());
   alg->SetScaleCleanMask(mask);
 }
 

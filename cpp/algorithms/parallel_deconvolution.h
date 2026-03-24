@@ -100,7 +100,7 @@ class ParallelDeconvolution {
     algorithms_.clear();
     mask_ = nullptr;
   }
-  
+
   void SetScaleCleanMask(float* scale_clean_mask);
 
  private:

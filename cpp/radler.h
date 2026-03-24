@@ -106,7 +106,6 @@ class Radler {
   aocommon::UVector<bool> clean_mask_;
   aocommon::UVector<float> scale_clean_mask_;
 
-
   bool auto_mask_is_finished_ = false;
   size_t auto_mask_finishing_iteration = 0;
   size_t image_width_ = 0;

@@ -391,9 +391,7 @@ Radler::CreateSpectralFitter() const {
 
 void Radler::InitializeDeconvolutionAlgorithm(
     std::unique_ptr<WorkTable> table) {
-  Logger::Info << "Attempting rework of fits scale mask\n";
-  
-      auto_mask_is_finished_ = false;
+  auto_mask_is_finished_ = false;
   auto_mask_.clear();
   FreeDeconvolutionAlgorithms();
   table_ = std::move(table);
@@ -593,14 +591,16 @@ void Radler::ReadMask(const WorkTable& group_table) {
 }
 
 void Radler::ReadScaleMask() {
-  // Head in the fits image that ahs the bit mask scales
+  // Head in the fits image that has the bit mask scales
   // Have removed the per spectral channel check / reading
 
   bool has_mask = false;
   if (!settings_.multiscale.fits_scale_mask.empty()) {
     std::ifstream file(settings_.multiscale.fits_scale_mask);
-    if(!file.good()){
-      std::cout << "WARNING: FITS scale mask " << settings_.multiscale.fits_scale_mask << " does not exist. ignoring.\n";
+    if (!file.good()) {
+      std::cout << "WARNING: FITS scale mask "
+                << settings_.multiscale.fits_scale_mask
+                << " does not exist. ignoring.\n";
       return;
     }
     FitsReader mask_reader(settings_.multiscale.fits_scale_mask, true, true);
@@ -611,9 +611,9 @@ void Radler::ReadScaleMask() {
           "image!");
     }
     aocommon::UVector<float> mask_data(image_width_ * image_height_);
-    Logger::Debug << "Reading mask '" << settings_.multiscale.fits_scale_mask << "'...\n";
+    log_receiver_.Debug << "Reading mask '"
+                        << settings_.multiscale.fits_scale_mask << "'...\n";
     mask_reader.Read(mask_data.data());
-    
 
     scale_clean_mask_.assign(image_width_ * image_height_, 0.0);
     for (size_t i = 0; i != image_width_ * image_height_; ++i) {
@@ -623,8 +623,8 @@ void Radler::ReadScaleMask() {
     has_mask = true;
   }
 
-  if(has_mask) parallel_deconvolution_->SetScaleCleanMask(scale_clean_mask_.data());
-
+  if (has_mask)
+    parallel_deconvolution_->SetScaleCleanMask(scale_clean_mask_.data());
 }
 
 }  // namespace radler

@@ -188,6 +188,11 @@ are decomposed in subminor loops that keep the scale fixed, which
 allows a (very) significant speed up. There is no downside of this
 method, so it is generally recommended to be set to ``True``.)doc";
 
+static const char *__doc_radler_Settings_Multiscale_fits_scale_mask =
+R"doc(Filename for the per-scale fits mask. Each pixel represents a bit-
+mappsed quantity, with the n'th bit corresponding to the n'th scale.
+For consistency the data should be of type float)doc";
+
 static const char *__doc_radler_Settings_Multiscale_max_scales =
 R"doc(Limits the number of scales used, to prevent extremely large scales in
 large imaging runs. When set to zero, scales are used up to the size
