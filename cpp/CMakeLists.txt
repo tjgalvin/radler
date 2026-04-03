@@ -74,6 +74,9 @@ target_compile_options(radler PRIVATE -O3 -Wall -Wzero-as-null-pointer-constant)
 if(NOT COMPILE_AS_EXTERNAL_PROJECT)
   include(GNUInstallDirs)
   install(TARGETS radler ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+  # Since the static Radler library does not include schaapcommon, install
+  # schaapcommon as well.
+  install(TARGETS schaapcommon ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 else()
   install(TARGETS radler ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
 endif()
