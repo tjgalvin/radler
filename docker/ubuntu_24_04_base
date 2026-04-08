@@ -60,7 +60,10 @@ RUN mkdir /external && \
   cd /external/casacore && \
   mkdir build && \
   cd build && \
-  cmake .. -DBUILD_PYTHON=OFF -DBUILD_TESTING=OFF -DDATA_DIR=/var/lib/casacore/data && \
+  # We ask only for casacore's 'measures' module. This module depends on all the other
+  # necessary modules (mainly casa,tables). This saves building several
+  # modules that are not used.
+  cmake .. -DBUILD_PYTHON=OFF -DBUILD_TESTING=OFF -DDATA_DIR=/var/lib/casacore/data -DMODULE=measures && \
   make -j`nproc` && \
   make install -j`nproc` && \
   cd /external && \
@@ -77,6 +80,6 @@ RUN python3 -m pip install --break-system-packages \
         myst_parser \
         sphinx_rtd_theme
 RUN locale-gen en_US.UTF-8  # Necessary for creating docstrings (Högbom)
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:UTF-8
-ENV LC_ALL en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:UTF-8
+ENV LC_ALL=en_US.UTF-8

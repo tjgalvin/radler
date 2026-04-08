@@ -56,13 +56,16 @@ RUN wget --tries 1 -nv -O /WSRT_Measures.ztar https://www.astron.nl/iers/WSRT_Me
     && tar xfz /WSRT_Measures.ztar \
     && rm /WSRT_Measures.ztar
 # Casacore
+# We ask only for casacore's 'measures' module. This module depends on the other
+# necessary modules (mainly casa,tables). This saves building several
+# modules that are not used.
 RUN mkdir /external \
     && cd /external \
     && git clone https://github.com/casacore/casacore.git \
     && cd /external/casacore \
     && mkdir build \
     && cd build \
-    && cmake .. -DBUILD_PYTHON=OFF -DBUILD_TESTING=OFF -DDATA_DIR=/var/lib/casacore/data \
+    && cmake .. -DBUILD_PYTHON=OFF -DBUILD_TESTING=OFF -DDATA_DIR=/var/lib/casacore/data -DMODULE=measures \
     && make -j$(nproc) \
     && make install -j$(nproc) \
     && cd /external \
