@@ -121,12 +121,10 @@ find_package(Boost 1.73 REQUIRED)
 find_package(Threads REQUIRED)
 
 # GSL
-find_library(GSL_LIB NAMES gsl)
-find_path(GSL_INCLUDE_DIR NAMES gsl/gsl_version.h)
-find_library(GSL_CBLAS_LIB NAMES gslcblas)
-if(NOT GSL_LIB
-   OR NOT GSL_INCLUDE_DIR
-   OR NOT GSL_CBLAS_LIB)
+find_package(GSL REQUIRED)
+if(NOT GSL_LIBRARY
+   OR NOT GSL_INCLUDE_DIRS
+   OR NOT GSL_CBLAS_LIBRARY)
   message(FATAL_ERROR "GSL not found, but required to build Radler!")
 endif()
 
@@ -197,13 +195,19 @@ set(RADLER_TARGET_INCLUDE_DIRS
     ${Boost_INCLUDE_DIRS}
     ${CASACORE_INCLUDE_DIRS}
     ${CFITSIO_INCLUDE_DIR}
-    ${GSL_INCLUDE_DIR}
+    ${GSL_INCLUDE_DIRS}
     ${HDF5_INCLUDE_DIRS}
     ${pybind11_INCLUDE_DIRS}
     ${SCHAAPCOMMON_SOURCE_DIR}/include)
 
-set(RADLER_TARGET_LIBS ${CMAKE_THREAD_LIBS_INIT} ${CASACORE_LIBRARIES}
-                       ${CFITSIO_LIBRARY} pybind11::embed schaapcommon)
+set(RADLER_TARGET_LIBS
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${CASACORE_LIBRARIES}
+    ${CFITSIO_LIBRARY}
+    pybind11::embed
+    schaapcommon
+    GSL::gsl
+    GSL::gslcblas)
 
 # Source directories
 add_subdirectory(cpp)
