@@ -6,8 +6,9 @@
 #include <vector>
 
 #include <aocommon/image.h>
-#include <aocommon/staticfor.h>
 #include <aocommon/uvector.h>
+
+#include <schaapcommon/threading/staticfor.h>
 
 #include "image_set.h"
 #include "algorithms/iuwt/image_analysis.h"

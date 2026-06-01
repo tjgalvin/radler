@@ -9,9 +9,9 @@
 #include <aocommon/image.h>
 #include <aocommon/imagecoordinates.h>
 #include <aocommon/units/fluxdensity.h>
-#include <aocommon/threadpool.h>
 
 #include <schaapcommon/math/convolution.h>
+#include <schaapcommon/threading/threadpool.h>
 
 #include "algorithms/asp_algorithm.h"
 #include "algorithms/generic_clean.h"
@@ -161,9 +161,9 @@ void Radler::Perform(bool& another_iteration_required,
    * that may also be parallelized over, it is necessary to have a recursive for
    * alive so that all fors are scheduled through this recursive for.
    */
-  std::optional<aocommon::RecursiveFor> recursive_for;
-  if (aocommon::RecursiveFor::GetInstance() == nullptr) {
-    aocommon::ThreadPool::GetInstance().SetNThreads(settings_.thread_count);
+  std::optional<schaapcommon::RecursiveFor> recursive_for;
+  if (schaapcommon::RecursiveFor::GetInstance() == nullptr) {
+    schaapcommon::ThreadPool::GetInstance().SetNThreads(settings_.thread_count);
     recursive_for.emplace();
   }
 

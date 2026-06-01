@@ -3,10 +3,10 @@
 #include "math/rms_image.h"
 
 #include <aocommon/image.h>
-#include <aocommon/staticfor.h>
 #include <aocommon/units/fluxdensity.h>
 
 #include <schaapcommon/math/restoreimage.h>
+#include <schaapcommon/threading/staticfor.h>
 
 using aocommon::Image;
 
@@ -37,7 +37,7 @@ void SlidingMinimum(Image& output, const Image& input, size_t window_size) {
   output = Image(width, input.Height());
   Image temp(output);
 
-  aocommon::StaticFor<size_t> loop;
+  schaapcommon::StaticFor<size_t> loop;
 
   loop.Run(0, input.Height(), [&](size_t yStart, size_t yEnd) {
     for (size_t y = yStart; y != yEnd; ++y) {

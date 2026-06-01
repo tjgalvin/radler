@@ -4,7 +4,7 @@
 
 #include <cassert>
 
-#include <aocommon/staticfor.h>
+#include <schaapcommon/threading/staticfor.h>
 
 using aocommon::Image;
 
@@ -236,7 +236,7 @@ void ImageSet::InterpolateAndStoreModel(
       // to have all channel images in memory at the same time.
       const size_t n_terms = fitter.NTerms();
       aocommon::UVector<float> terms_image(Width() * Height() * n_terms);
-      aocommon::StaticFor<size_t> loop;
+      schaapcommon::StaticFor<size_t> loop;
       loop.Run(0, Height(), [&](size_t y_start, size_t y_end) {
         aocommon::UVector<float> spectral_pixel(NDeconvolutionChannels());
         std::vector<float> terms_pixel;

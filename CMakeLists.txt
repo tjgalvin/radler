@@ -158,7 +158,7 @@ message(STATUS "Using python version ${Python_VERSION}")
 
 find_package(pybind11 CONFIG REQUIRED HINTS ${Python_SITELIB})
 
-set(SCHAAPCOMMON_MODULES fitters math)
+set(SCHAAPCOMMON_MODULES fitters math threading)
 if(COMPILE_AS_EXTERNAL_PROJECT)
   add_subdirectory(${SCHAAPCOMMON_SOURCE_DIR}
                    ${PROJECT_BINARY_DIR}/schaapcommon)
@@ -166,6 +166,7 @@ else()
   add_subdirectory(${SCHAAPCOMMON_SOURCE_DIR})
 endif()
 target_include_directories(schaapcommon PUBLIC ${AOCOMMON_INCLUDE_DIR})
+target_include_directories(schaapthreading PUBLIC ${AOCOMMON_INCLUDE_DIR})
 
 # When building the python bindings, set the rpath to the install directory, so
 # that importing the python module doesn't require to set the LD_LIBRARY_PATH
@@ -206,6 +207,7 @@ set(RADLER_TARGET_LIBS
     ${CFITSIO_LIBRARY}
     pybind11::embed
     schaapcommon
+    schaapthreading
     GSL::gsl
     GSL::gslcblas)
 

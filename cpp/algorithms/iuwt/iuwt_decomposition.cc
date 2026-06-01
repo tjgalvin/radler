@@ -55,7 +55,7 @@ void IuwtDecomposition::DecomposeMt(const float* input, float* scratch,
 void IuwtDecomposition::convolveMT(float* output, const float* image,
                                    float* scratch, size_t width, size_t height,
                                    int scale) {
-  aocommon::StaticFor<size_t> loop;
+  schaapcommon::StaticFor<size_t> loop;
   loop.Run(0, height, [&](size_t y_start, size_t y_end) {
     convolveHorizontalPartial(scratch, image, width, y_start, y_end, scale);
   });
@@ -69,7 +69,7 @@ void IuwtDecomposition::convolveMT(float* output, const float* image,
 void IuwtDecomposition::differenceMT(float* dest, const float* lhs,
                                      const float* rhs, size_t width,
                                      size_t height) {
-  aocommon::StaticFor<size_t> loop;
+  schaapcommon::StaticFor<size_t> loop;
   loop.Run(0, height, [&](size_t y_start, size_t y_end) {
     differencePartial(dest, lhs, rhs, width, y_start, y_end);
   });

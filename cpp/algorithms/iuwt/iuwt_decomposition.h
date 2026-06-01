@@ -10,8 +10,9 @@
 
 #include <aocommon/fits/fitswriter.h>
 #include <aocommon/image.h>
-#include <aocommon/staticfor.h>
 #include <aocommon/uvector.h>
+
+#include <schaapcommon/threading/staticfor.h>
 
 #include "algorithms/iuwt/iuwt_mask.h"
 

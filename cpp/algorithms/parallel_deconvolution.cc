@@ -6,10 +6,10 @@
 #include <memory>
 #include <sstream>
 
-#include <aocommon/dynamicfor.h>
 #include <aocommon/units/fluxdensity.h>
 
 #include <schaapcommon/math/convolution.h>
+#include <schaapcommon/threading/dynamicfor.h>
 
 #include "algorithms/multiscale_algorithm.h"
 #include "math/dijkstra_splitter.h"
@@ -88,7 +88,7 @@ std::vector<SubImage> MakeSubImages(const Image& image, const bool* mask,
   std::vector<VerticalArea> verticalAreas(settings.parallel.grid_width);
 
   log_receiver.Info << "Calculating edge paths...\n";
-  aocommon::DynamicFor<size_t> splitLoop;
+  schaapcommon::DynamicFor<size_t> splitLoop;
 
   // Divide into columns (i.e. construct the vertical lines)
   splitLoop.Run(1, settings.parallel.grid_width, [&](size_t divNr) {
@@ -576,16 +576,18 @@ ParallelDeconvolutionResult ParallelDeconvolution::ExecuteParallelRun(
   // Find the starting peak over all subimages
   ImageSet resultModel(model_image, model_image.Width(), model_image.Height());
   resultModel = 0.0;
-  aocommon::RecursiveFor::NestedRun(0, algorithms_.size(), [&](size_t index) {
-    logs_.Activate(index);
-    RunSubImage(subImages[index], data_image, model_image, resultModel,
-                psf_images[psf_image_indices[index]], 0.0, true, mutex);
-    logs_.Deactivate(index);
+  schaapcommon::RecursiveFor::NestedRun(
+      0, algorithms_.size(), [&](size_t index) {
+        logs_.Activate(index);
+        RunSubImage(subImages[index], data_image, model_image, resultModel,
+                    psf_images[psf_image_indices[index]], 0.0, true, mutex);
+        logs_.Deactivate(index);
 
-    logs_[index].Mute(false);
-    logs_[index].Info << "Sub-image " << index << " returned peak position.\n";
-    logs_[index].Mute(true);
-  });
+        logs_[index].Mute(false);
+        logs_[index].Info << "Sub-image " << index
+                          << " returned peak position.\n";
+        logs_[index].Mute(true);
+      });
   double start_peak_value = 0.0;
   size_t indexOfMax = 0;
   for (const SubImage& img : subImages) {
@@ -602,18 +604,19 @@ ParallelDeconvolutionResult ParallelDeconvolution::ExecuteParallelRun(
   double mIterThreshold = start_peak_value * (1.0 - major_loop_gain);
 
   // Run the deconvolution
-  aocommon::RecursiveFor::NestedRun(0, algorithms_.size(), [&](size_t index) {
-    logs_.Activate(index);
-    RunSubImage(subImages[index], data_image, model_image, resultModel,
-                psf_images[psf_image_indices[index]], mIterThreshold, false,
-                mutex);
-    logs_.Deactivate(index);
+  schaapcommon::RecursiveFor::NestedRun(
+      0, algorithms_.size(), [&](size_t index) {
+        logs_.Activate(index);
+        RunSubImage(subImages[index], data_image, model_image, resultModel,
+                    psf_images[psf_image_indices[index]], mIterThreshold, false,
+                    mutex);
+        logs_.Deactivate(index);
 
-    logs_[index].Mute(false);
-    logs_[index].Info << "Sub-image " << index
-                      << " finished its deconvolution iteration.\n";
-    logs_[index].Mute(true);
-  });
+        logs_[index].Mute(false);
+        logs_[index].Info << "Sub-image " << index
+                          << " finished its deconvolution iteration.\n";
+        logs_[index].Mute(true);
+      });
   model_image.SetImages(std::move(resultModel));
 
   rms_image_.Reset();

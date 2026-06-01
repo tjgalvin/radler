@@ -5,8 +5,9 @@
 #include <memory>
 
 #include <aocommon/image.h>
-#include <aocommon/staticfor.h>
-#include <aocommon/dynamicfor.h>
+
+#include <schaapcommon/threading/staticfor.h>
+#include <schaapcommon/threading/dynamicfor.h>
 
 #include "algorithms/simple_clean.h"
 #include "math/peak_finder.h"
@@ -19,7 +20,7 @@ void ThreadedDeconvolutionTools::SubtractImage(float* image,
                                                const aocommon::Image& psf,
                                                size_t x, size_t y,
                                                float factor) {
-  aocommon::StaticFor<size_t> loop;
+  schaapcommon::StaticFor<size_t> loop;
   loop.Run(0, psf.Height(), [&](size_t start_y, size_t end_y) {
     simple_clean::PartialSubtractImage(image, psf.Data(), psf.Width(),
                                        psf.Height(), x, y, factor, start_y,
@@ -37,7 +38,7 @@ void ThreadedDeconvolutionTools::FindMultiScalePeak(
   const size_t n_scales = scales.size();
   results.resize(n_scales);
 
-  aocommon::DynamicFor<size_t> loop;
+  schaapcommon::DynamicFor<size_t> loop;
   loop.Run(0, n_scales, [&](size_t scale_index) {
     Image image_copy(image);
     const bool* selected_mask =
