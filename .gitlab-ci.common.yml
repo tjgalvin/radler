@@ -56,23 +56,23 @@ stages:
     reports:
       dotenv: base_image.env
 
-prepare-base-2204:
-  extends: .prepare
-  variables:
-    UBUNTU_VERSION: 22
-
 prepare-base-2404:
   extends: .prepare
   variables:
     UBUNTU_VERSION: 24
 
-.needs-2204:
-  needs: ["prepare-base-2204"]
-  image: $BASE_IMAGE_2204
+prepare-base-2604:
+  extends: .prepare
+  variables:
+    UBUNTU_VERSION: 26
 
 .needs-2404:
   needs: ["prepare-base-2404"]
   image: $BASE_IMAGE_2404
+
+.needs-2604:
+  needs: ["prepare-base-2604"]
+  image: $BASE_IMAGE_2604
 
 format:
   extends: .needs-2404
@@ -102,11 +102,11 @@ clang-tidy:
     - cmake -DBUILD_PYTHON_BINDINGS=ON ..
     - make -j`nproc`
 
-build-2204:
-  extends: [".needs-2204",".build"]
-
 build-2404:
   extends: [".needs-2404",".build"]
+
+build-2604:
+  extends: [".needs-2604",".build"]
 
 .test:
   stage: test
@@ -129,14 +129,14 @@ build-2404:
     - python3 -c "import site; print(site.getsitepackages()[0])"
     - cd && python3 -c "import radler"
 
-test-2204:
-  extends: [".needs-2204",".test"]
+test-2404:
+  extends: [".needs-2404",".test"]
   after_script:
     - gcovr -j`nproc` -e 'external/.*' -e '.*/CompilerIdCXX/.*' -e '.*/test/.*' build/
   coverage: /^TOTAL.*\s+(\d+\%)$/
 
-test-2404:
-  extends: [".needs-2404",".test"]
+test-2604:
+  extends: [".needs-2604",".test"]
   after_script:
     - mkdir -p build/reports
     - scripts/junit-merge.py build/reports/unit-tests.xml $(find build -name unittests_*.xml)
@@ -190,7 +190,7 @@ build-python-source-tarball:
     # Start with a clean working copy to avoid including unwanted files in the tarball
     GIT_STRATEGY: clone
   before_script:
-    - pip install build
+    - pip install build --break-system-packages
   script:
     - python -m build --sdist --outdir dist
   artifacts:
@@ -212,7 +212,7 @@ cibuild-python-wheels:
     GIT_SUBMODULE_STRATEGY: normal
   before_script:
     - wget -qO - https://get.docker.com/ | sh
-    - pip install cibuildwheel
+    - pip install cibuildwheel --break-system-packages
   script:
     - cibuildwheel --output-dir wheelhouse
   rules:
@@ -233,7 +233,7 @@ cibuild-python-wheels:
     - cibuild-python-wheels
   image: python:3.12
   before_script:
-    - pip install twine
+    - pip install twine --break-system-packages
   script:
     - python -m twine upload --verbose dist/*.tar.gz wheelhouse/*.whl
   rules:
