@@ -11,7 +11,6 @@ def test_layout():
 
     nested_structs_ref = set(
         [
-            "Generic",
             "LocalRms",
             "MoreSane",
             "Multiscale",
@@ -72,11 +71,12 @@ def test_default():
     assert settings.spectral_fitting.terms == 0
     assert settings.spectral_fitting.forced_filename == ""
     assert settings.algorithm_type == rd.AlgorithmType.generic_clean
+    assert settings.use_sub_minor_optimization == True
 
     # Python
     assert settings.python.filename == ""
 
-    # More sane
+    # Moresane
     assert settings.more_sane.location == ""
     assert settings.more_sane.arguments == ""
     assert settings.more_sane.sigma_levels == []
@@ -85,16 +85,12 @@ def test_default():
     # ... no options
 
     # Multiscale
-    assert settings.multiscale.fast_sub_minor_loop == True
     assert settings.multiscale.sub_minor_loop_gain == 0.2
     assert settings.multiscale.scale_bias == 0.6
     assert settings.multiscale.max_scales == 0
     assert settings.multiscale.convolution_padding == 1.1
     assert settings.multiscale.scale_list == []
     assert settings.multiscale.shape == rd.MultiscaleShape.tapered_quadratic
-
-    # Generic clean
-    assert settings.generic.use_sub_minor_optimization == True
 
 
 def test_readwrite():

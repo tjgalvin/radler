@@ -416,6 +416,15 @@ struct Settings {
       OptimizationAlgorithm::kClean;
 
   /**
+   * Use the fast variant of algorithms that support this (e.g. multiscale).
+   * When @c true, the minor loops are
+   * decomposed in subminor loops that keep the scale fixed, which allows a
+   * (very) significant speed up. There is no downside of this method, so
+   * it is generally recommended to be set to @c true.
+   */
+  bool use_sub_minor_optimization = true;
+
+  /**
    * Settings related to cleaning relative to a local RMS value.
    */
   struct LocalRms {
@@ -509,14 +518,6 @@ struct Settings {
   /// Settings specific to multi-scale algorithm.
   struct Multiscale {
     /**
-     * Use the fast variant of this algorithm. When @c true, the minor loops are
-     * decomposed in subminor loops that keep the scale fixed, which allows a
-     * (very) significant speed up. There is no downside of this method, so
-     * it is generally recommended to be set to @c true.
-     */
-    bool fast_sub_minor_loop = true;
-
-    /**
      * Controls how long to keep the scale fixed. The default value of 0.2
      * implies that the subminor loop ends when the strongest source and all
      * sources in between have been decreased to 80% of the bright source. This
@@ -567,15 +568,6 @@ struct Settings {
      */
     MultiscaleShape shape = MultiscaleShape::kTaperedQuadraticShape;
   } multiscale;
-
-  /// Settings not specific to the algorithm
-  struct Generic {
-    /**
-     * Corresponds to @ref Multiscale::fast_sub_minor_loop.
-     */
-    bool use_sub_minor_optimization = true;
-  } generic;
-  /** @} */
 };
 }  // namespace radler
 #endif

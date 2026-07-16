@@ -134,10 +134,6 @@ values.)doc";
 
 static const char *__doc_radler_Settings = R"doc(Class to collect and set (Radler) deconvolution related settings.)doc";
 
-static const char *__doc_radler_Settings_Generic = R"doc(Settings not specific to the algorithm)doc";
-
-static const char *__doc_radler_Settings_Generic_use_sub_minor_optimization = R"doc(Corresponds to Multiscale::fast_sub_minor_loop.)doc";
-
 static const char *__doc_radler_Settings_LocalRms = R"doc(Settings related to cleaning relative to a local RMS value.)doc";
 
 static const char *__doc_radler_Settings_LocalRms_image =
@@ -181,12 +177,6 @@ padding is relative to the sum of the size of the scale and the image
 size. Problems with multiscale diverging or looping forever can be
 caused by insufficient padding. However, padding is expensive, so
 large values should be prevented.)doc";
-
-static const char *__doc_radler_Settings_Multiscale_fast_sub_minor_loop =
-R"doc(Use the fast variant of this algorithm. When ``True``, the minor loops
-are decomposed in subminor loops that keep the scale fixed, which
-allows a (very) significant speed up. There is no downside of this
-method, so it is generally recommended to be set to ``True``.)doc";
 
 static const char *__doc_radler_Settings_Multiscale_max_scales =
 R"doc(Limits the number of scales used, to prevent extremely large scales in
@@ -337,8 +327,6 @@ static const char *__doc_radler_Settings_fits_mask =
 R"doc(Filename path of a FITS file containing a mask to be used during
 deconvolution. If empty, no FITS mask is used.)doc";
 
-static const char *__doc_radler_Settings_generic = R"doc()doc";
-
 static const char *__doc_radler_Settings_horizon_mask_distance =
 R"doc(The horizon mask distance allows masking out emission beyond the
 horizon. The value is a floating point value in radians.
@@ -465,6 +453,13 @@ static const char *__doc_radler_Settings_thread_count = R"doc(Number of parallel
 static const char *__doc_radler_Settings_trimmed_image_height = R"doc(Trimmed image height.)doc";
 
 static const char *__doc_radler_Settings_trimmed_image_width = R"doc(Trimmed image width.)doc";
+
+static const char *__doc_radler_Settings_use_sub_minor_optimization =
+R"doc(Use the fast variant of algorithms that support this (e.g.
+multiscale). When ``True``, the minor loops are decomposed in subminor
+loops that keep the scale fixed, which allows a (very) significant
+speed up. There is no downside of this method, so it is generally
+recommended to be set to ``True``.)doc";
 
 #if defined(__GNUG__)
 #pragma GCC diagnostic pop

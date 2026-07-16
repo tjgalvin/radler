@@ -123,9 +123,11 @@ void init_settings(py::module& m) {
                      DOC(radler_Settings_horizon_mask_filename))
       .def_readwrite("local_rms", &radler::Settings::local_rms,
                      DOC(radler_LocalRmsMethod))
+      .def_readwrite("use_sub_minor_optimization",
+                     &radler::Settings::use_sub_minor_optimization,
+                     DOC(radler_Settings_use_sub_minor_optimization))
       .def_readwrite("spectral_fitting", &radler::Settings::spectral_fitting)
       .def_readwrite("algorithm_type", &radler::Settings::algorithm_type)
-      .def_readwrite("generic", &radler::Settings::generic)
       .def_readwrite("multiscale", &radler::Settings::multiscale)
       .def_readwrite("more_sane", &radler::Settings::more_sane)
       .def_readwrite("python", &radler::Settings::python, R"pbdoc(
@@ -134,17 +136,8 @@ void init_settings(py::module& m) {
         the python deconvolution implementation.
        )pbdoc");
 
-  py::class_<radler::Settings::Generic>(settings, "Generic",
-                                        DOC(radler_Settings_Generic))
-      .def_readwrite("use_sub_minor_optimization",
-                     &radler::Settings::Generic::use_sub_minor_optimization,
-                     DOC(radler_Settings_Multiscale_fast_sub_minor_loop));
-
   py::class_<radler::Settings::Multiscale>(settings, "Multiscale",
                                            DOC(radler_Settings_Multiscale))
-      .def_readwrite("fast_sub_minor_loop",
-                     &radler::Settings::Multiscale::fast_sub_minor_loop,
-                     DOC(radler_Settings_Multiscale_fast_sub_minor_loop))
       .def_readwrite("sub_minor_loop_gain",
                      &radler::Settings::Multiscale::sub_minor_loop_gain,
                      DOC(radler_Settings_Multiscale_sub_minor_loop_gain))

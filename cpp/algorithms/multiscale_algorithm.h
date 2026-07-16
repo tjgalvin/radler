@@ -22,7 +22,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
  public:
   MultiScaleAlgorithm(const Settings::Multiscale& settings, double beamSize,
                       double pixelScaleX, double pixelScaleY,
-                      bool trackComponents);
+                      bool trackComponents, bool use_sub_minor_loop);
   ~MultiScaleAlgorithm();
 
   MultiScaleAlgorithm(const MultiScaleAlgorithm&) = default;
@@ -85,6 +85,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   bool track_per_scale_masks_;
   bool use_per_scale_masks_;
   bool track_components_;
+  bool use_sub_minor_loop_;
   std::vector<aocommon::UVector<bool>> scale_masks_;
   aocommon::cloned_ptr<ComponentList> component_list_;
 

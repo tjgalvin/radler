@@ -409,7 +409,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
   switch (settings_.algorithm_type) {
     case AlgorithmType::kGenericClean:
       algorithm = std::make_unique<algorithms::GenericClean>(
-          settings_.generic.use_sub_minor_optimization);
+          settings_.use_sub_minor_optimization);
       break;
     case AlgorithmType::kAdaptiveScalePixel:
       algorithm = std::make_unique<algorithms::AspAlgorithm>(
@@ -425,7 +425,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
     case AlgorithmType::kMultiscale:
       algorithm = std::make_unique<algorithms::MultiScaleAlgorithm>(
           settings_.multiscale, beam_size_, pixel_scale_x_, pixel_scale_y_,
-          settings_.save_source_list);
+          settings_.save_source_list, settings_.use_sub_minor_optimization);
       break;
     case AlgorithmType::kPython:
       algorithm = std::make_unique<algorithms::PythonDeconvolution>(
