@@ -35,9 +35,10 @@ class ImageSet {
    */
   ImageSet(const ImageSet& image_set, size_t width, size_t height);
 
-  ImageSet(const ImageSet&) = delete;
+  ImageSet(const ImageSet&) = default;
+  ImageSet& operator=(const ImageSet&) = default;
+
   ImageSet(ImageSet&&) = delete;
-  ImageSet& operator=(const ImageSet&) = delete;
   ImageSet& operator=(ImageSet&&) = delete;
 
   aocommon::Image Release(size_t image_index) {
@@ -96,7 +97,7 @@ class ImageSet {
    * match the LoadAndAveragePsfs()[1] will contain the PSFs for the underlying
    * algorithm.
    *
-   * @pre @c work_table_.ValidatePsfs() can be called without throwing.
+   * @pre @c work_table_->ValidatePsfs() can be called without throwing.
    */
   std::vector<std::vector<aocommon::Image>> LoadAndAveragePsfs() const;
 
@@ -162,13 +163,13 @@ class ImageSet {
                         const std::vector<aocommon::Image>& psfs);
 
   size_t NOriginalChannels() const {
-    return work_table_.OriginalGroups().size();
+    return work_table_->OriginalGroups().size();
   }
 
   size_t PsfCount() const { return NDeconvolutionChannels(); }
 
   size_t NDeconvolutionChannels() const {
-    return work_table_.DeconvolutionGroups().size();
+    return work_table_->DeconvolutionGroups().size();
   }
 
   ImageSet& operator=(float val) {
@@ -178,12 +179,11 @@ class ImageSet {
 
   /**
    * Exposes image data.
-   *
-   * ImageSet only exposes a non-const pointer to the image data.
    * @param index An image index.
    * @return A non-const pointer to the data area for the image.
    */
   float* Data(size_t index) { return images_[index].Data(); }
+  const float* Data(size_t index) const { return images_[index].Data(); }
 
   /**
    * Exposes the images in the image set.
@@ -215,7 +215,7 @@ class ImageSet {
     return image_index_to_psf_index_[image_index];
   }
 
-  const WorkTable& Table() const { return work_table_; }
+  const WorkTable& Table() const { return *work_table_; }
 
   std::unique_ptr<ImageSet> Trim(size_t x1, size_t y1, size_t x2, size_t y2,
                                  size_t old_width) const {
@@ -274,7 +274,7 @@ class ImageSet {
 
   void InitializePolFactor() {
     const WorkTable::Group& first_channel_group =
-        work_table_.OriginalGroups().front();
+        work_table_->OriginalGroups().front();
     std::set<aocommon::PolarizationEnum> pols;
     bool all_stokes_without_i = true;
     for (const WorkTableEntry* entry : first_channel_group) {
@@ -319,7 +319,7 @@ class ImageSet {
   // Weight of each deconvolution channels
   std::vector<float> weights_;
   bool square_joined_channels_;
-  const WorkTable& work_table_;
+  const WorkTable* work_table_;
   std::vector<size_t> entry_index_to_image_index_;
   aocommon::UVector<size_t> image_index_to_psf_index_;
   float polarization_normalization_factor_;

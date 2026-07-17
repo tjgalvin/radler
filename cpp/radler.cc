@@ -252,6 +252,11 @@ void Radler::Perform(bool& another_iteration_required,
   // change the behaviour for non-squared joins.
   const double threshold_bias =
       settings_.squared_joins ? median_and_stddev.first : 0.0;
+  if (threshold_bias != 0.0) {
+    log_receiver_.Info
+        << "Adjusting the threshold to compensate for an image median of "
+        << FluxDensity::ToNiceString(threshold_bias) << '\n';
+  }
 
   // The threshold at which deconvolution is fully finished (including the
   // automasking stage)
@@ -333,7 +338,6 @@ void Radler::Perform(bool& another_iteration_required,
           settings_.minor_iteration_count) {
     another_iteration_required = false;
     log_receiver_.Info
-        << "Maximum number of minor deconvolution iterations was reached: not "
         << "Maximum number of minor deconvolution iterations was reached: not "
            "continuing deconvolution.\n";
   }

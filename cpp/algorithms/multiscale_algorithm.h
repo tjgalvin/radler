@@ -89,10 +89,24 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
   std::vector<aocommon::UVector<bool>> scale_masks_;
   aocommon::cloned_ptr<ComponentList> component_list_;
 
+  /**
+   * Finds the maximum peak values for each scale in the integrated image,
+   * and modifies the maximum values in the scale_infos_ accordingly.
+   */
   void FindActiveScaleConvolvedMaxima(const ImageSet& image_set,
                                       aocommon::Image& integrated_scratch,
                                       aocommon::Image& scratch, bool report_rms,
                                       ThreadedDeconvolutionTools& tools);
+
+  /**
+   * Same as @ref FindActiveScaleConvolvedMaxima(), but will convolve the data
+   * before integrating. This is much slower, but allows polarimetric
+   * deconvolution.
+   */
+  void FindSquaredScaleConvolvedMaxima(const ImageSet& image_set,
+                                       aocommon::Image& integrated_scratch,
+                                       aocommon::Image& scratch);
+
   void ActivateScales(size_t scale_with_last_peak);
   void MeasureComponentValues(aocommon::UVector<float>& component_values,
                               size_t scale_index, ImageSet& image_set);
