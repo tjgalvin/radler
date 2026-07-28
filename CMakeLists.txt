@@ -2,6 +2,7 @@
 
 cmake_minimum_required(VERSION 3.18)
 include(ExternalProject)
+include(FetchContent)
 
 # When Radler is compiled as an ExternalProject inside another project, set this
 # option to On. See, e.g., the wsclean CMake file for an example.
@@ -51,53 +52,13 @@ if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_compile_options(-DNDEBUG)
 endif()
 
-if(NOT COMPILE_AS_EXTERNAL_PROJECT)
-  # Include submodules
-  set(ExternalSubmoduleDirectories aocommon schaapcommon)
-  foreach(ExternalSubmodule ${ExternalSubmoduleDirectories})
-    if(NOT EXISTS ${CMAKE_SOURCE_DIR}/external/${ExternalSubmodule})
-      message(
-        FATAL_ERROR
-          "The external submodule '${ExternalSubmodule}' is missing in the external/ subdirectory. "
-          "This is likely the result of downloading a git tarball without submodules. "
-          "This is not supported: git tarballs do not provide the required versioning "
-          "information for the submodules. Please perform a git clone of this repository."
-      )
-    endif()
-  endforeach()
-
-  # Find and include git submodules
-  find_package(Git QUIET)
-  if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-    # Update submodules as needed
-    option(GIT_SUBMODULE "Check submodules during build" ON)
-    if(GIT_SUBMODULE)
-      message(STATUS "Submodule update")
-      execute_process(
-        COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive --checkout
-                --depth 1
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        RESULT_VARIABLE GIT_SUBMOD_RESULT)
-      if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-        message(
-          FATAL_ERROR
-            "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules"
-        )
-      endif()
-    endif()
-  endif()
-endif()
-
-# User may optionally set `TARGET_CPU` if `PORTABLE=OFF`
-include(external/aocommon/CMake/SetTargetCPU.cmake)
-
+set(SCHAAPCOMMON_MODULES fitters math threading)
 if(COMPILE_AS_EXTERNAL_PROJECT)
   message(
     STATUS "Radler is compiled as an external project within another project.")
-  if(NOT DEFINED AOCOMMON_INCLUDE_DIR)
+  if(NOT DEFINED AOCOMMON_INCLUDE_DIR OR NOT DEFINED AOCOMMON_CMAKE_DIR)
     message(
-      FATAL_ERROR
-        "AOCOMMON_INCLUDE_DIR not specified. Please add -DAOCOMMON_INCLUDE_DIR to the CMAKE_ARGS."
+      FATAL_ERROR "AOCOMMON_INCLUDE_DIR or AOCOMMON_CMAKE_DIR is not specified."
     )
   endif()
   if(NOT DEFINED SCHAAPCOMMON_SOURCE_DIR)
@@ -107,9 +68,25 @@ if(COMPILE_AS_EXTERNAL_PROJECT)
     )
   endif()
 else()
-  set(AOCOMMON_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/external/aocommon/include)
-  set(SCHAAPCOMMON_SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/schaapcommon)
+  FetchContent_Declare(
+    aocommon
+    GIT_REPOSITORY https://gitlab.com/aroffringa/aocommon.git
+    GIT_TAG 591854fcfa87c7a389c8f9f02462dce8ccf4a908)
+  FetchContent_MakeAvailable(aocommon)
+
+  include_directories(${AOCOMMON_INCLUDE_DIR})
+
+  FetchContent_Declare(
+    schaapcommon
+    GIT_REPOSITORY https://git.astron.nl/RD/schaapcommon.git
+    GIT_TAG 68a606093b3c472115fbeb3caa659b680a200e34)
+
+  FetchContent_MakeAvailable(schaapcommon)
+  include_directories(${schaapcommon_SOURCE_DIR}/include)
 endif()
+
+# User may optionally set `TARGET_CPU` if `PORTABLE=OFF`
+include(${AOCOMMON_CMAKE_DIR}/SetTargetCPU.cmake)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -157,16 +134,6 @@ endif()
 message(STATUS "Using python version ${Python_VERSION}")
 
 find_package(pybind11 CONFIG REQUIRED HINTS ${Python_SITELIB})
-
-set(SCHAAPCOMMON_MODULES fitters math threading)
-if(COMPILE_AS_EXTERNAL_PROJECT)
-  add_subdirectory(${SCHAAPCOMMON_SOURCE_DIR}
-                   ${PROJECT_BINARY_DIR}/schaapcommon)
-else()
-  add_subdirectory(${SCHAAPCOMMON_SOURCE_DIR})
-endif()
-target_include_directories(schaapcommon PUBLIC ${AOCOMMON_INCLUDE_DIR})
-target_include_directories(schaapthreading PUBLIC ${AOCOMMON_INCLUDE_DIR})
 
 # When building the python bindings, set the rpath to the install directory, so
 # that importing the python module doesn't require to set the LD_LIBRARY_PATH

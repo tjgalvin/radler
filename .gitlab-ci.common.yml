@@ -78,6 +78,8 @@ format:
   extends: .needs-2404
   stage: linting
   script:
+    # run-format needs aocommon, so run cmake to fetch it
+    - mkdir build && cd build && cmake .. && cd ..
     - ./scripts/run-format.sh
 
 clang-tidy:

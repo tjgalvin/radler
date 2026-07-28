@@ -33,7 +33,9 @@ else()
     set(PYTHON_LIBRARY_DIR ${CMAKE_MATCH_1})
   else()
     message(
-      FATAL_ERROR "Failed to parse PYTHON_DIST_PATH='${PYTHON_DIST_PATH}'")
+      FATAL_ERROR
+        "Failed to parse PYTHON_DIST_PATH='${PYTHON_DIST_PATH}. Expecting to find 'python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}' in the path."
+    )
   endif()
 endif()
 
