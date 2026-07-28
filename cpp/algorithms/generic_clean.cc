@@ -50,9 +50,9 @@ void RunComponentOptimization(ImageSet& residual_set, ImageSet& model_set,
 }
 }  // namespace
 
-GenericClean::GenericClean(bool use_sub_minor_optimization)
-    : convolution_padding_(1.1),
-      use_sub_minor_optimization_(use_sub_minor_optimization) {}
+GenericClean::GenericClean(bool use_sub_minor_optimization, bool find_rm_peak)
+    : use_sub_minor_optimization_(use_sub_minor_optimization),
+      find_rm_peak_(find_rm_peak) {}
 
 DeconvolutionResult GenericClean::ExecuteMajorIteration(
     ImageSet& dirty_set, ImageSet& model_set,
@@ -196,9 +196,15 @@ DeconvolutionResult GenericClean::ExecuteMajorIteration(
                             componentY, peakValues[i]);
       }
 
-      dirty_set.GetSquareIntegrated(integrated, scratchA);
-      maxValue = FindPeak(integrated, scratchA.Data(), componentX, componentY);
-
+      if (find_rm_peak_) {
+        const schaapcommon::fitters::RmFitter& rm_fitter =
+            *Fitter().GetRmFitter();
+        FindRmPeak(dirty_set, rm_fitter, CleanMask(), componentX, componentY);
+      } else {
+        dirty_set.GetSquareIntegrated(integrated, scratchA);
+        maxValue =
+            FindPeak(integrated, scratchA.Data(), componentX, componentY);
+      }
       peakIndex = componentX + componentY * width;
       if (maxValue && DivergenceLimit() != 0.0)
         diverging = std::abs(*maxValue) > initial_max_value * DivergenceLimit();
@@ -255,7 +261,7 @@ DeconvolutionResult GenericClean::ExecuteMajorIteration(
 
 OptionalNumber<float> GenericClean::FindPeak(const aocommon::Image& image,
                                              float* scratch_buffer, size_t& x,
-                                             size_t& y) {
+                                             size_t& y) const {
   const float* actual_image = image.Data();
   if (!RmsFactorImage().Empty()) {
     std::copy_n(image.Data(), image.Size(), scratch_buffer);
@@ -276,6 +282,7 @@ OptionalNumber<float> GenericClean::FindPeak(const aocommon::Image& image,
         CleanBorderRatio());
   }
 }
+
 void GenericClean::FitSpectra(ImageSet& model_set) const {
   aocommon::UVector<float> values(model_set.Size());
   const size_t width = model_set.Width();
@@ -296,4 +303,5 @@ void GenericClean::FitSpectra(ImageSet& model_set) const {
     }
   }
 }
+
 }  // namespace radler::algorithms

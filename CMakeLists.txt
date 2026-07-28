@@ -79,7 +79,7 @@ else()
   FetchContent_Declare(
     schaapcommon
     GIT_REPOSITORY https://git.astron.nl/RD/schaapcommon.git
-    GIT_TAG 68a606093b3c472115fbeb3caa659b680a200e34)
+    GIT_TAG 7c7b5339e1cda6ca25e99b7586840e599ae76962)
 
   FetchContent_MakeAvailable(schaapcommon)
   include_directories(${schaapcommon_SOURCE_DIR}/include)

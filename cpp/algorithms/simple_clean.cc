@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
+#include "image_set.h"
 #include "algorithms/simple_clean.h"
 
 #include <algorithm>
+
+#include <schaapcommon/threading/dynamicfor.h>
 
 #ifdef __SSE__
 #define USE_INTRINSICS
@@ -13,7 +16,9 @@
 #include <immintrin.h>
 #endif
 
-namespace radler::algorithms::simple_clean {
+namespace radler::algorithms {
+namespace simple_clean {
+
 void SubtractImage(float* image, const float* psf, size_t width, size_t height,
                    size_t x, size_t y, float factor) {
   size_t startX;
@@ -186,4 +191,54 @@ void PartialSubtractImageAVX(double* image, size_t image_width,
 }
 
 #endif
-}  // namespace radler::algorithms::simple_clean
+}  // namespace simple_clean
+
+aocommon::OptionalNumber<float> FindRmPeak(
+    const ImageSet& residual_set,
+    const schaapcommon::fitters::RmFitter& rm_fitter, const bool* mask,
+    size_t& x, size_t& y) {
+  const size_t width = residual_set.Width();
+  const size_t height = residual_set.Height();
+  const size_t n_channels = residual_set.NDeconvolutionChannels();
+  // This expects polarizations Q and U for all channels:
+  assert(residual_set.Size() == n_channels * 2);
+
+  std::mutex mutex;
+  size_t peak_position = 0;
+  aocommon::OptionalNumber<float> peak_amplitude;
+
+  schaapcommon::StaticFor<size_t> loop;
+  loop.Run(0, height, [&](size_t y_start, size_t y_end) {
+    std::vector<float> spectrum(n_channels * 2);
+    size_t local_peak_position = 0;
+    aocommon::OptionalNumber<float> local_peak_amplitude;
+    for (size_t y = y_start; y != y_end; ++y) {
+      for (size_t x = 0; x != width; ++x) {
+        const size_t position = y * width + x;
+        if (!mask || mask[position]) {
+          for (size_t ch = 0; ch != n_channels; ++ch) {
+            spectrum[ch * 2] = residual_set[ch * 2][position];
+            spectrum[ch * 2 + 1] = residual_set[ch * 2 + 1][position];
+          }
+          const auto [rm, amplitude] = rm_fitter.FindPeakRm(spectrum);
+          const float abs_amplitude = std::abs(amplitude);
+          if (!local_peak_amplitude || abs_amplitude > *local_peak_amplitude) {
+            local_peak_amplitude = abs_amplitude;
+            local_peak_position = position;
+          }
+        }
+      }
+    }
+    std::lock_guard lock(mutex);
+    if (local_peak_amplitude &&
+        (!peak_amplitude || *local_peak_amplitude > *peak_amplitude)) {
+      peak_amplitude = local_peak_amplitude;
+      peak_position = local_peak_position;
+    }
+  });
+  x = peak_position % width;
+  y = peak_position / width;
+  return peak_amplitude;
+}
+
+}  // namespace radler::algorithms

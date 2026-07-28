@@ -18,7 +18,7 @@ namespace radler::algorithms {
  */
 class GenericClean final : public DeconvolutionAlgorithm {
  public:
-  explicit GenericClean(bool use_sub_minor_optimization);
+  explicit GenericClean(bool use_sub_minor_optimization, bool find_rm_peak);
   GenericClean(const GenericClean&) = default;
   GenericClean(GenericClean&&) = delete;
   GenericClean& operator=(const GenericClean&) = delete;
@@ -33,16 +33,17 @@ class GenericClean final : public DeconvolutionAlgorithm {
   }
 
  private:
-  size_t convolution_width_;
-  size_t convolution_height_;
-  const float convolution_padding_;
-  bool use_sub_minor_optimization_;
+  size_t convolution_width_ = 0;
+  size_t convolution_height_ = 0;
+  const float convolution_padding_ = 1.1;
+  bool use_sub_minor_optimization_ = true;
+  bool find_rm_peak_ = false;
 
   // Scratch buffer should at least accomodate space for image.Size() floats
   // and is only used to avoid unnecessary memory allocations.
   aocommon::OptionalNumber<float> FindPeak(const aocommon::Image& image,
                                            float* scratch_buffer, size_t& x,
-                                           size_t& y);
+                                           size_t& y) const;
   void FitSpectra(ImageSet& model_set) const;
 };
 }  // namespace radler::algorithms

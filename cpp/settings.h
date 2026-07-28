@@ -425,6 +425,12 @@ struct Settings {
   bool use_sub_minor_optimization = true;
 
   /**
+   * When using RM-value fitting for the spectral fitting, this option enables
+   * searching the peak in RM space instead of total Q,U-squared intensity.
+   */
+  bool find_rm_peak = false;
+
+  /**
    * Settings related to cleaning relative to a local RMS value.
    */
   struct LocalRms {

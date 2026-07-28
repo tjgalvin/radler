@@ -201,7 +201,6 @@ class ImageSet {
    * @param index An image index.
    * @return A non-owning view of the image.
    */
-
   aocommon::Image GetView(size_t index) {
     return {images_[index].Data(), images_[index].Width(),
             images_[index].Height()};
