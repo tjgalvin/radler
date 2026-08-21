@@ -86,14 +86,15 @@ Radler::Radler(const Settings& settings, const aocommon::Image& psf_image,
 Radler::Radler(const Settings& settings, double beam_size,
                std::ostream& log_stream)
     : settings_(settings),
+      log_receiver_(log_stream),
       parallel_deconvolution_(
-          std::make_unique<algorithms::ParallelDeconvolution>(settings_)),
+          std::make_unique<algorithms::ParallelDeconvolution>(settings_,
+                                                              log_receiver_)),
       image_width_(settings_.trimmed_image_width),
       image_height_(settings_.trimmed_image_height),
       pixel_scale_x_(settings_.pixel_scale.x),
       pixel_scale_y_(settings_.pixel_scale.y),
-      beam_size_(beam_size),
-      log_receiver_(log_stream) {
+      beam_size_(beam_size) {
   if (settings.spectral_fitting.mode ==
           schaapcommon::fitters::SpectralFittingMode::kForcedTerms &&
       settings.spectral_fitting.forced_filename.empty()) {

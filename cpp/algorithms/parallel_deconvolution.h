@@ -43,7 +43,7 @@ struct ParallelDeconvolutionResult {
 
 class ParallelDeconvolution {
  public:
-  ParallelDeconvolution(const Settings& settings);
+  ParallelDeconvolution(const Settings& settings, aocommon::LogReceiver& log);
 
   ~ParallelDeconvolution();
 
@@ -53,10 +53,6 @@ class ParallelDeconvolution {
   DeconvolutionAlgorithm& FirstAlgorithm() { return *algorithms_.front(); }
   const DeconvolutionAlgorithm& FirstAlgorithm() const {
     return *algorithms_.front();
-  }
-
-  aocommon::LogReceiver& LogReceiver() {
-    return FirstAlgorithm().LogReceiver();
   }
 
   ComponentList GetComponentList(const WorkTable& table) const;
@@ -121,7 +117,7 @@ class ParallelDeconvolution {
                    std::mutex& mutex);
 
   std::vector<std::unique_ptr<DeconvolutionAlgorithm>> algorithms_;
-  logging::SubImageLogSet logs_;
+  logging::SubImageLogSet sub_image_logs_;
   // Radler::settings_ outlives ParallelDeconvolution::settings_
   const Settings& settings_;
   const bool* mask_;
@@ -131,6 +127,7 @@ class ParallelDeconvolution {
   std::vector<utils::CompressedMask> scale_masks_;
   std::unique_ptr<class ComponentList> component_list_;
   aocommon::Image rms_image_;
+  aocommon::LogReceiver* log_;
 };
 }  // namespace radler::algorithms
 #endif

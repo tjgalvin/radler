@@ -100,6 +100,7 @@ class Radler {
 
   std::unique_ptr<WorkTable> table_;
 
+  aocommon::LogReceiver log_receiver_;
   std::unique_ptr<algorithms::ParallelDeconvolution> parallel_deconvolution_;
 
   aocommon::UVector<bool> clean_mask_;
@@ -112,8 +113,6 @@ class Radler {
   double pixel_scale_y_ = 0.0;
   aocommon::UVector<bool> auto_mask_;
   double beam_size_ = 0.0;
-
-  aocommon::LogReceiver log_receiver_;
 };
 
 }  // namespace radler

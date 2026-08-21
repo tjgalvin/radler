@@ -169,11 +169,13 @@ std::vector<SubImage> MakeSubImages(const Image& image, const bool* mask,
 
 }  // namespace
 
-ParallelDeconvolution::ParallelDeconvolution(const Settings& settings)
+ParallelDeconvolution::ParallelDeconvolution(
+    const Settings& settings, aocommon::LogReceiver& log_receiver)
     : settings_(settings),
       mask_(nullptr),
       track_per_scale_masks_(false),
-      use_per_scale_masks_(false) {
+      use_per_scale_masks_(false),
+      log_(&log_receiver) {
   // Make all FFTWF plan calls inside ParallelDeconvolution
   // thread safe.
   schaapcommon::math::MakeFftwfPlannerThreadSafe();
@@ -233,9 +235,8 @@ void ParallelDeconvolution::SetAlgorithm(
       std::min(settings_.parallel.max_threads, algorithms_.size());
   const size_t threads_per_alg =
       (settings_.thread_count + parallel_subimages - 1) / parallel_subimages;
-  LogReceiver().Debug << "Parallel deconvolution will use "
-                      << algorithms_.size() << " subimages, each using "
-                      << threads_per_alg << " threads.\n";
+  log_->Debug << "Parallel deconvolution will use " << algorithms_.size()
+              << " subimages, each using " << threads_per_alg << " threads.\n";
   for (size_t i = 1; i != algorithms_.size(); ++i) {
     algorithms_[i] = algorithms_.front()->Clone();
   }
@@ -411,11 +412,19 @@ void ParallelDeconvolution::RunSubImage(
                 << " to "
                 << aocommon::units::FluxDensity::ToNiceString(sub_image.peak)
                 << " and deconvolution probably diverged: resetting.\n";
-    LogReceiver().Warn << warning_str.str();
+    log_->Warn << warning_str.str();
 
     // As we are diverging, this sub-image should not cause a new major
     // iteration
     sub_image.reached_major_threshold = false;
+  } else {
+    std::ostringstream sub_image_stat_str;
+    sub_image_stat_str
+        << "Peak of sub-image " << sub_image.index << " went from "
+        << aocommon::units::FluxDensity::ToNiceString(peak_at_start) << " to "
+        << aocommon::units::FluxDensity::ToNiceString(sub_image.peak)
+        << ". Sub-image is converging: accepting new model.\n";
+    log_->Info << sub_image_stat_str.str();
   }
 
   // Since this was an RMS image specifically for this subimage size, we free it
@@ -432,7 +441,7 @@ void ParallelDeconvolution::RunSubImage(
         scale_masks_.emplace_back(width, height);
       }
     }
-    LogReceiver().Debug << "Compressing scale-dependent masks...\n";
+    log_->Debug << "Compressing scale-dependent masks...\n";
     for (size_t scale_index = 0;
          scale_index != multi_scale_algorithm.ScaleCount(); ++scale_index) {
       const aocommon::UVector<bool>& ms_mask =
@@ -455,9 +464,9 @@ void ParallelDeconvolution::RunSubImage(
         compression_rate << std::fixed << std::setprecision(1)
                          << width * height /
                                 scale_masks_[scale_index].CompressedSize();
-        LogReceiver().Debug << std::fixed << std::setprecision(1);
-        LogReceiver().Debug << "Compression rate of scale mask " << scale_index
-                            << ": " << compression_rate.str() << "x\n";
+        log_->Debug << std::fixed << std::setprecision(1);
+        log_->Debug << "Compression rate of scale mask " << scale_index << ": "
+                    << compression_rate.str() << "x\n";
       }
     }
   }
@@ -563,14 +572,14 @@ ParallelDeconvolutionResult ParallelDeconvolution::ExecuteParallelRun(
   std::vector<size_t> psf_image_indices;
 
   std::vector<SubImage> subImages = MakeSubImages(
-      image, mask_, psf_offsets, settings_, psf_image_indices, LogReceiver());
+      image, mask_, psf_offsets, settings_, psf_image_indices, *log_);
 
   // Initialize loggers
   std::mutex mutex;
-  logs_.Initialize(settings_.parallel.grid_width,
-                   settings_.parallel.grid_height);
+  sub_image_logs_.Initialize(settings_.parallel.grid_width,
+                             settings_.parallel.grid_height);
   for (size_t i = 0; i != algorithms_.size(); ++i) {
-    algorithms_[i]->SetLogReceiver(logs_[i]);
+    algorithms_[i]->SetLogReceiver(sub_image_logs_[i]);
   }
 
   // Find the starting peak over all subimages
@@ -578,15 +587,15 @@ ParallelDeconvolutionResult ParallelDeconvolution::ExecuteParallelRun(
   resultModel = 0.0;
   schaapcommon::RecursiveFor::NestedRun(
       0, algorithms_.size(), [&](size_t index) {
-        logs_.Activate(index);
+        sub_image_logs_.Activate(index);
         RunSubImage(subImages[index], data_image, model_image, resultModel,
                     psf_images[psf_image_indices[index]], 0.0, true, mutex);
-        logs_.Deactivate(index);
+        sub_image_logs_.Deactivate(index);
 
-        logs_[index].Mute(false);
-        logs_[index].Info << "Sub-image " << index
-                          << " returned peak position.\n";
-        logs_[index].Mute(true);
+        sub_image_logs_[index].Mute(false);
+        sub_image_logs_[index].Info << "Sub-image " << index
+                                    << " returned peak position.\n";
+        sub_image_logs_[index].Mute(true);
       });
   double start_peak_value = 0.0;
   size_t indexOfMax = 0;
@@ -596,26 +605,25 @@ ParallelDeconvolutionResult ParallelDeconvolution::ExecuteParallelRun(
       indexOfMax = img.index;
     }
   }
-  LogReceiver().Info << "Subimage " << (indexOfMax + 1)
-                     << " has maximum peak of "
-                     << aocommon::units::FluxDensity::ToNiceString(
-                            start_peak_value)
-                     << ".\n";
+  log_->Info << "Subimage " << (indexOfMax + 1) << " has maximum peak of "
+             << aocommon::units::FluxDensity::ToNiceString(start_peak_value)
+             << ".\n";
   double mIterThreshold = start_peak_value * (1.0 - major_loop_gain);
 
   // Run the deconvolution
   schaapcommon::RecursiveFor::NestedRun(
       0, algorithms_.size(), [&](size_t index) {
-        logs_.Activate(index);
+        sub_image_logs_.Activate(index);
         RunSubImage(subImages[index], data_image, model_image, resultModel,
                     psf_images[psf_image_indices[index]], mIterThreshold, false,
                     mutex);
-        logs_.Deactivate(index);
+        sub_image_logs_.Deactivate(index);
 
-        logs_[index].Mute(false);
-        logs_[index].Info << "Sub-image " << index
-                          << " finished its deconvolution iteration.\n";
-        logs_[index].Mute(true);
+        sub_image_logs_[index].Mute(false);
+        sub_image_logs_[index].Info
+            << "Sub-image " << index
+            << " finished its deconvolution iteration.\n";
+        sub_image_logs_[index].Mute(true);
       });
   model_image.SetImages(std::move(resultModel));
 
@@ -639,18 +647,18 @@ ParallelDeconvolutionResult ParallelDeconvolution::ExecuteParallelRun(
   }
   global_result.end_peak = end_peak_value;
 
-  LogReceiver().Info << subImagesFinished << " / " << subImages.size()
-                     << " sub-images finished";
+  log_->Info << subImagesFinished << " / " << subImages.size()
+             << " sub-images finished";
   global_result.another_iteration_required =
       (subImagesFinished != subImages.size());
   if (global_result.another_iteration_required && !reachedMaxNIter) {
-    LogReceiver().Info << ": Continue next major iteration.\n";
+    log_->Info << ": Continue next major iteration.\n";
   } else if (global_result.another_iteration_required && reachedMaxNIter) {
-    LogReceiver().Info << ", but nr. of iterations reached at least once: "
-                          "Deconvolution finished.\n";
+    log_->Info << ", but nr. of iterations reached at least once: "
+                  "Deconvolution finished.\n";
     global_result.another_iteration_required = false;
   } else {
-    LogReceiver().Info << ": Deconvolution finished.\n";
+    log_->Info << ": Deconvolution finished.\n";
   }
   return global_result;
 }
