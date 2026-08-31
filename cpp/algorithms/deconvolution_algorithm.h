@@ -115,6 +115,9 @@ class DeconvolutionAlgorithm {
   void SetComponentOptimizationAlgorithm(OptimizationAlgorithm algorithm) {
     settings_.component_optimization_algorithm = algorithm;
   }
+  void SetUseSubMinorLoopOptimization(bool use_sub_minor_loop_optimization) {
+    settings_.use_sub_minor_loop_optimization = use_sub_minor_loop_optimization;
+  }
 
   size_t MaxIterations() const { return settings_.max_iterations; }
   float Threshold() const { return settings_.threshold; }
@@ -133,6 +136,10 @@ class DeconvolutionAlgorithm {
   OptimizationAlgorithm ComponentOptimizationAlgorithm() const {
     return settings_.component_optimization_algorithm;
   }
+  bool UseSubMinorLoopOptimization() const {
+    return settings_.use_sub_minor_loop_optimization;
+  }
+
   const bool* CleanMask() const { return settings_.clean_mask; }
 
   size_t IterationNumber() const { return iteration_number_; }
@@ -194,6 +201,7 @@ class DeconvolutionAlgorithm {
     float divergence_limit = 4.0;
     bool allow_negative_components = true;
     bool stop_on_negative_component = false;
+    bool use_sub_minor_loop_optimization = true;
     OptimizationAlgorithm component_optimization_algorithm =
         OptimizationAlgorithm::kClean;
     const bool* clean_mask = nullptr;

@@ -413,8 +413,8 @@ void Radler::InitializeDeconvolutionAlgorithm(
 
   switch (settings_.algorithm_type) {
     case AlgorithmType::kGenericClean:
-      algorithm = std::make_unique<algorithms::GenericClean>(
-          settings_.use_sub_minor_optimization, settings_.find_rm_peak);
+      algorithm =
+          std::make_unique<algorithms::GenericClean>(settings_.find_rm_peak);
       break;
     case AlgorithmType::kAdaptiveScalePixel:
       algorithm = std::make_unique<algorithms::AspAlgorithm>(
@@ -430,7 +430,7 @@ void Radler::InitializeDeconvolutionAlgorithm(
     case AlgorithmType::kMultiscale:
       algorithm = std::make_unique<algorithms::MultiScaleAlgorithm>(
           settings_.multiscale, beam_size_, pixel_scale_x_, pixel_scale_y_,
-          settings_.save_source_list, settings_.use_sub_minor_optimization);
+          settings_.save_source_list);
       break;
     case AlgorithmType::kPython:
       algorithm = std::make_unique<algorithms::PythonDeconvolution>(
@@ -446,6 +446,8 @@ void Radler::InitializeDeconvolutionAlgorithm(
   algorithm->SetDivergenceLimit(settings_.divergence_limit);
   algorithm->SetAllowNegativeComponents(settings_.allow_negative_components);
   algorithm->SetStopOnNegativeComponents(settings_.stop_on_negative_components);
+  algorithm->SetUseSubMinorLoopOptimization(
+      settings_.use_sub_minor_optimization);
   const size_t n_polarizations = table_->OriginalGroups().front().size();
   algorithm->SetSpectralFitter(CreateSpectralFitter(), n_polarizations);
   algorithm->SetLogReceiver(log_receiver_);

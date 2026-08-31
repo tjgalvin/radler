@@ -151,14 +151,12 @@ aocommon::OptionalNumber<size_t> SelectMaximumScale(
 MultiScaleAlgorithm::MultiScaleAlgorithm(const Settings::Multiscale& settings,
                                          double beamSize, double pixelScaleX,
                                          double pixelScaleY,
-                                         bool trackComponents,
-                                         bool use_sub_minor_loop)
+                                         bool trackComponents)
     : settings_(settings),
       beam_size_in_pixels_(beamSize / std::max(pixelScaleX, pixelScaleY)),
       track_per_scale_masks_(false),
       use_per_scale_masks_(false),
-      track_components_(trackComponents),
-      use_sub_minor_loop_(use_sub_minor_loop) {
+      track_components_(trackComponents) {
   if (beam_size_in_pixels_ <= 0.0) beam_size_in_pixels_ = 1;
 }
 
@@ -381,7 +379,7 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
     // TODO we could chose to run the non-fast loop until we hit e.g. 10
     // iterations in a scale, because the fast loop takes more constant time and
     // is only efficient when doing many iterations.
-    if (use_sub_minor_loop_ && !do_square_channels) {
+    if (UseSubMinorLoopOptimization() && !do_square_channels) {
       size_t subMinorStartIteration = IterationNumber();
       const size_t convolutionWidth =
           utils::GetConvolutionSize(scale_infos_[scaleWithPeak].scale, width,

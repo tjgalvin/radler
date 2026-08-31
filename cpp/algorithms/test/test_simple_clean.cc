@@ -127,8 +127,9 @@ BOOST_AUTO_TEST_CASE(find_rm_peak) {
 
   size_t x_result = kWidth;
   size_t y_result = kHeight;
+  double phi = 0.0;
   aocommon::OptionalNumber<float> amplitude =
-      FindRmPeak(image_set, rm_fitter, nullptr, x_result, y_result);
+      FindRmPeak(image_set, rm_fitter, nullptr, x_result, y_result, phi);
   BOOST_REQUIRE(amplitude.HasValue());
   BOOST_CHECK_EQUAL(x_result, kSignal2X);
   BOOST_CHECK_EQUAL(y_result, kSignal2Y);
@@ -138,7 +139,8 @@ BOOST_AUTO_TEST_CASE(find_rm_peak) {
   // returned.
   aocommon::UVector<bool> mask(kWidth * kHeight, true);
   mask[kSignal2X + kSignal2Y * kWidth] = false;
-  amplitude = FindRmPeak(image_set, rm_fitter, mask.data(), x_result, y_result);
+  amplitude =
+      FindRmPeak(image_set, rm_fitter, mask.data(), x_result, y_result, phi);
   BOOST_REQUIRE(amplitude.HasValue());
   BOOST_CHECK_EQUAL(x_result, kSignal1X);
   BOOST_CHECK_EQUAL(y_result, kSignal1Y);
@@ -148,13 +150,15 @@ BOOST_AUTO_TEST_CASE(find_rm_peak) {
   // The position is arbitrary (many pixels with amplitude zero), so don't
   // check the position.
   mask[kSignal1X + kSignal1Y * kWidth] = false;
-  amplitude = FindRmPeak(image_set, rm_fitter, mask.data(), x_result, y_result);
+  amplitude =
+      FindRmPeak(image_set, rm_fitter, mask.data(), x_result, y_result, phi);
   BOOST_REQUIRE(amplitude.HasValue());
   BOOST_CHECK_LT(std::abs(*amplitude), 1e-3);
 
   // Unselect all pixels; this should give no result.
   mask.assign(kWidth * kHeight, false);
-  amplitude = FindRmPeak(image_set, rm_fitter, mask.data(), x_result, y_result);
+  amplitude =
+      FindRmPeak(image_set, rm_fitter, mask.data(), x_result, y_result, phi);
   BOOST_REQUIRE(!amplitude.HasValue());
 }
 

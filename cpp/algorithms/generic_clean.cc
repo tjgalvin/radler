@@ -50,9 +50,7 @@ void RunComponentOptimization(ImageSet& residual_set, ImageSet& model_set,
 }
 }  // namespace
 
-GenericClean::GenericClean(bool use_sub_minor_optimization, bool find_rm_peak)
-    : use_sub_minor_optimization_(use_sub_minor_optimization),
-      find_rm_peak_(find_rm_peak) {}
+GenericClean::GenericClean(bool find_rm_peak) : find_rm_peak_(find_rm_peak) {}
 
 DeconvolutionResult GenericClean::ExecuteMajorIteration(
     ImageSet& dirty_set, ImageSet& model_set,
@@ -113,7 +111,7 @@ DeconvolutionResult GenericClean::ExecuteMajorIteration(
   }
 
   bool diverging = false;
-  if (use_sub_minor_optimization_) {
+  if (UseSubMinorLoopOptimization()) {
     size_t startIteration = IterationNumber();
     SubMinorLoop subMinorLoop(width, height, convolution_width_,
                               convolution_height_, LogReceiver());
@@ -164,6 +162,7 @@ DeconvolutionResult GenericClean::ExecuteMajorIteration(
   } else {
     ThreadedDeconvolutionTools tools;
     size_t peakIndex = componentX + componentY * width;
+    double component_phi = 0.0;
 
     aocommon::UVector<float> peakValues(dirty_set.Size());
 
@@ -176,8 +175,9 @@ DeconvolutionResult GenericClean::ExecuteMajorIteration(
           IterationNumber() % 1000 == 0) {
         LogReceiver().Info << "Iteration " << IterationNumber() << ": "
                            << peakDescription(integrated, componentX,
-                                              componentY)
-                           << '\n';
+                                              componentY);
+        if (find_rm_peak_) LogReceiver().Info << ", phi = " << component_phi;
+        LogReceiver().Info << '\n';
       }
 
       for (size_t i = 0; i != dirty_set.Size(); ++i) {
@@ -199,7 +199,8 @@ DeconvolutionResult GenericClean::ExecuteMajorIteration(
       if (find_rm_peak_) {
         const schaapcommon::fitters::RmFitter& rm_fitter =
             *Fitter().GetRmFitter();
-        FindRmPeak(dirty_set, rm_fitter, CleanMask(), componentX, componentY);
+        maxValue = FindRmPeak(dirty_set, rm_fitter, CleanMask(), componentX,
+                              componentY, component_phi);
       } else {
         dirty_set.GetSquareIntegrated(integrated, scratchA);
         maxValue =

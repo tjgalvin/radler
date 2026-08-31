@@ -49,7 +49,7 @@ void PartialSubtractImageAVX(double* image, size_t image_width,
 aocommon::OptionalNumber<float> FindRmPeak(
     const ImageSet& residual_set,
     const schaapcommon::fitters::RmFitter& rm_fitter, const bool* mask,
-    size_t& x, size_t& y);
+    size_t& x, size_t& y, double& phi);
 
 }  // namespace algorithms
 }  // namespace radler

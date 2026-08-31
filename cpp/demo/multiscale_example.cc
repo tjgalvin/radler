@@ -92,11 +92,10 @@ int main(int argc, char* argv[]) {
     constexpr bool trackComponents = false;
     constexpr bool allowNegativeComponents = true;
     constexpr double borderRatio = 0.05;
-    constexpr bool use_subminor_loop = true;
 
     radler::algorithms::MultiScaleAlgorithm algorithm(
         settings, beamScale, imgReader.PixelSizeX(), imgReader.PixelSizeY(),
-        trackComponents, use_subminor_loop);
+        trackComponents);
     algorithm.SetAllowNegativeComponents(allowNegativeComponents);
     algorithm.SetCleanBorderRatio(borderRatio);
     algorithm.ExecuteMajorIteration(residualSet, modelSet, {psf});

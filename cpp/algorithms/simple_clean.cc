@@ -196,7 +196,7 @@ void PartialSubtractImageAVX(double* image, size_t image_width,
 aocommon::OptionalNumber<float> FindRmPeak(
     const ImageSet& residual_set,
     const schaapcommon::fitters::RmFitter& rm_fitter, const bool* mask,
-    size_t& x, size_t& y) {
+    size_t& x, size_t& y, double& phi) {
   const size_t width = residual_set.Width();
   const size_t height = residual_set.Height();
   const size_t n_channels = residual_set.NDeconvolutionChannels();
@@ -211,6 +211,7 @@ aocommon::OptionalNumber<float> FindRmPeak(
   loop.Run(0, height, [&](size_t y_start, size_t y_end) {
     std::vector<float> spectrum(n_channels * 2);
     size_t local_peak_position = 0;
+    double local_peak_phi = 0.0;
     aocommon::OptionalNumber<float> local_peak_amplitude;
     for (size_t y = y_start; y != y_end; ++y) {
       for (size_t x = 0; x != width; ++x) {
@@ -220,11 +221,12 @@ aocommon::OptionalNumber<float> FindRmPeak(
             spectrum[ch * 2] = residual_set[ch * 2][position];
             spectrum[ch * 2 + 1] = residual_set[ch * 2 + 1][position];
           }
-          const auto [rm, amplitude] = rm_fitter.FindPeakRm(spectrum);
+          const auto [phi, amplitude] = rm_fitter.FindPeakRm(spectrum);
           const float abs_amplitude = std::abs(amplitude);
           if (!local_peak_amplitude || abs_amplitude > *local_peak_amplitude) {
             local_peak_amplitude = abs_amplitude;
             local_peak_position = position;
+            local_peak_phi = phi;
           }
         }
       }
@@ -234,6 +236,7 @@ aocommon::OptionalNumber<float> FindRmPeak(
         (!peak_amplitude || *local_peak_amplitude > *peak_amplitude)) {
       peak_amplitude = local_peak_amplitude;
       peak_position = local_peak_position;
+      phi = local_peak_phi;
     }
   });
   x = peak_position % width;
