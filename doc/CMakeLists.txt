@@ -47,7 +47,7 @@ if(BUILD_DOCSTRINGS)
   # Find libclang for cases where pybind11_mkdoc itself fails (like on DAS-6)
   find_library(LIBCLANG_PATH libclang${CMAKE_SHARED_LIBRARY_SUFFIX})
   find_program(PYBIND11_MKDOC "pybind11-mkdoc" REQUIRED)
-  set(PYBIND11_MKDOC_BASE_COMMAND "${PYBIND11_MKDOC}" -std=c++17)
+  set(PYBIND11_MKDOC_BASE_COMMAND "${PYBIND11_MKDOC}" -std=c++20)
   if(LIBCLANG_PATH)
     get_filename_component(LLVM_DIR_PATH ${LIBCLANG_PATH}/../.. ABSOLUTE)
     set(PYBIND11_MKDOC_BASE_COMMAND

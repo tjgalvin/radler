@@ -73,7 +73,10 @@ else()
     GIT_REPOSITORY https://gitlab.com/aroffringa/aocommon.git
     GIT_TAG 591854fcfa87c7a389c8f9f02462dce8ccf4a908)
   FetchContent_MakeAvailable(aocommon)
-
+  set(AOCOMMON_INCLUDE_DIR "${aocommon_SOURCE_DIR}/include")
+  set(AOCOMMON_CMAKE_DIR "${aocommon_SOURCE_DIR}/CMake")
+  # While we include aocommon for the Radler target later on, Schaapcommon needs
+  # the path included before fetching.
   include_directories(${AOCOMMON_INCLUDE_DIR})
 
   FetchContent_Declare(
@@ -82,7 +85,7 @@ else()
     GIT_TAG 7c7b5339e1cda6ca25e99b7586840e599ae76962)
 
   FetchContent_MakeAvailable(schaapcommon)
-  include_directories(${schaapcommon_SOURCE_DIR}/include)
+  set(SCHAAPCOMMON_SOURCE_DIR "${schaapcommon_SOURCE_DIR}")
 endif()
 
 # User may optionally set `TARGET_CPU` if `PORTABLE=OFF`
