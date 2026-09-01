@@ -71,7 +71,7 @@ else()
   FetchContent_Declare(
     aocommon
     GIT_REPOSITORY https://gitlab.com/aroffringa/aocommon.git
-    GIT_TAG 591854fcfa87c7a389c8f9f02462dce8ccf4a908)
+    GIT_TAG e1b7980e02211ade95eef176a3ac7f9ba3dcc55c)
   FetchContent_MakeAvailable(aocommon)
   set(AOCOMMON_INCLUDE_DIR "${aocommon_SOURCE_DIR}/include")
   set(AOCOMMON_CMAKE_DIR "${aocommon_SOURCE_DIR}/CMake")
@@ -82,7 +82,7 @@ else()
   FetchContent_Declare(
     schaapcommon
     GIT_REPOSITORY https://git.astron.nl/RD/schaapcommon.git
-    GIT_TAG 7c7b5339e1cda6ca25e99b7586840e599ae76962)
+    GIT_TAG fa27b39d4371f4575bac2fcfe17075a41776c679)
 
   FetchContent_MakeAvailable(schaapcommon)
   set(SCHAAPCOMMON_SOURCE_DIR "${schaapcommon_SOURCE_DIR}")

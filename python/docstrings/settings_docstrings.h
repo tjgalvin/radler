@@ -65,6 +65,11 @@ location to the Python code should be provided
 performing a major deconvolution iteration. The Python algorithm
 should then provide its best new estimate for the model image.)doc";
 
+static const char *mkd_doc_radler_AlgorithmType_kRmDeconvolution =
+R"doc(Deconvolves the data in Faraday rotation-measure domain. This searches
+peaks in the 3-dimensional (l,m,phi) cube and each deconvolved
+component is a component in this space.)doc";
+
 static const char *mkd_doc_radler_LocalRmsMethod =
 R"doc(The value of LocalRmsMethod describes if and how an RMS map should be
 used.)doc";

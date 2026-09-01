@@ -6,23 +6,17 @@
 #include <cmath>
 
 #include <aocommon/fits/fitsreader.h>
+#include <aocommon/fits/fitswriter.h>
 #include <aocommon/image.h>
 #include <aocommon/imagecoordinates.h>
 #include <aocommon/units/fluxdensity.h>
 
 #include <schaapcommon/math/convolution.h>
 #include <schaapcommon/threading/threadpool.h>
-
-#include "algorithms/asp_algorithm.h"
-#include "algorithms/generic_clean.h"
-#include "algorithms/iuwt_deconvolution.h"
-#include "algorithms/more_sane.h"
-#include "algorithms/multiscale_algorithm.h"
-#include "algorithms/parallel_deconvolution.h"
-#include "algorithms/python_deconvolution.h"
-#include "algorithms/simple_clean.h"
+#include <schaapcommon/threading/recursivefor.h>
 
 #include "image_set.h"
+#include "make_algorithm.h"
 #include "math/gain_calculations.h"
 #include "math/rms_image.h"
 #include "utils/casa_mask_reader.h"
@@ -409,34 +403,8 @@ void Radler::InitializeDeconvolutionAlgorithm(
     beam_size_ = 0.0;
   }
 
-  std::unique_ptr<algorithms::DeconvolutionAlgorithm> algorithm;
-
-  switch (settings_.algorithm_type) {
-    case AlgorithmType::kGenericClean:
-      algorithm =
-          std::make_unique<algorithms::GenericClean>(settings_.find_rm_peak);
-      break;
-    case AlgorithmType::kAdaptiveScalePixel:
-      algorithm = std::make_unique<algorithms::AspAlgorithm>(
-          settings_.multiscale, beam_size_, pixel_scale_x_, pixel_scale_y_);
-      break;
-    case AlgorithmType::kIuwt:
-      algorithm = std::make_unique<algorithms::IuwtDeconvolution>();
-      break;
-    case AlgorithmType::kMoreSane:
-      algorithm = std::make_unique<algorithms::MoreSane>(settings_.more_sane,
-                                                         settings_.prefix_name);
-      break;
-    case AlgorithmType::kMultiscale:
-      algorithm = std::make_unique<algorithms::MultiScaleAlgorithm>(
-          settings_.multiscale, beam_size_, pixel_scale_x_, pixel_scale_y_,
-          settings_.save_source_list);
-      break;
-    case AlgorithmType::kPython:
-      algorithm = std::make_unique<algorithms::PythonDeconvolution>(
-          settings_.python.filename);
-      break;
-  }
+  std::unique_ptr<algorithms::DeconvolutionAlgorithm> algorithm =
+      MakeAlgorithm(settings_, beam_size_, pixel_scale_x_, pixel_scale_y_);
 
   algorithm->SetMaxIterations(settings_.minor_iteration_count);
   algorithm->SetThreshold(settings_.absolute_threshold);

@@ -13,9 +13,11 @@ add_library(radler STATIC "")
 set_target_properties(radler PROPERTIES POSITION_INDEPENDENT_CODE True)
 
 set(RADLER_FILES
-    radler.cc
     component_list.cc
     image_set.cc
+    make_algorithm.cc
+    radler.cc
+    work_table.cc
     algorithms/asp_algorithm.cc
     algorithms/deconvolution_algorithm.cc
     algorithms/generic_clean.cc
@@ -25,6 +27,7 @@ set(RADLER_FILES
     algorithms/multiscale_algorithm.cc
     algorithms/parallel_deconvolution.cc
     algorithms/python_deconvolution.cc
+    algorithms/rm_deconvolution.cc
     algorithms/simple_clean.cc
     algorithms/subminor_loop.cc
     algorithms/threaded_deconvolution_tools.cc
@@ -32,13 +35,13 @@ set(RADLER_FILES
     algorithms/iuwt/iuwt_decomposition.cc
     algorithms/iuwt/iuwt_mask.cc
     algorithms/multiscale/multiscale_transforms.cc
+    algorithms/rm/rm_operations.cc
     math/dijkstra_splitter.cc
     math/peak_finder.cc
     math/component_optimization.cc
     math/rms_image.cc
     utils/casa_mask_reader.cc
-    utils/compressed_mask.cc
-    work_table.cc)
+    utils/compressed_mask.cc)
 
 # A number of files perform the 'core' high-performance floating point
 # operations. In these files, NaNs are avoided and thus -ffast-math is allowed.

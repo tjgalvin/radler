@@ -70,6 +70,12 @@ enum class AlgorithmType {
    */
   kMultiscale,
   /**
+   * Deconvolves the data in Faraday rotation-measure domain. This searches
+   * peaks in the 3-dimensional (l,m,phi) cube and each deconvolved component is
+   * a component in this space.
+   */
+  kRmDeconvolution,
+  /**
    * This option allows implementing a custom algorithm in Python. A location to
    * the Python code should be provided (@ref Settings::Python::filename), and
    * WSClean will call this for performing a major deconvolution iteration. The

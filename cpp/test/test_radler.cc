@@ -30,7 +30,7 @@ std::ostream& boost_test_print_type(std::ostream& stream,
       stream << "Adaptive scale pixel clean";
       break;
     case AlgorithmType::kMultiscale:
-      stream << "Multiscale clean";
+      stream << "Multi-scale clean";
       break;
     case AlgorithmType::kMoreSane:
       stream << "More sane clean";
@@ -40,6 +40,9 @@ std::ostream& boost_test_print_type(std::ostream& stream,
       break;
     case AlgorithmType::kPython:
       stream << "Python based deconvolver";
+      break;
+    case AlgorithmType::kRmDeconvolution:
+      stream << "Rotation measure deconvolution";
       break;
   }
   return stream;
