@@ -90,7 +90,7 @@ endif()
 # User may optionally set `TARGET_CPU` if `PORTABLE=OFF`
 include(${AOCOMMON_CMAKE_DIR}/SetTargetCPU.cmake)
 
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Boost date_time is needed in aocommon. date_time is header-only since Boost
 # version 1.73. (Using "COMPONENTS date_time" no longer works from Boost 1.89.)
@@ -116,7 +116,7 @@ add_definitions(${HDF5_DEFINITIONS} -DH5_USE_110_API)
 
 # Casacore
 set(CASACORE_MAKE_REQUIRED_EXTERNALS_OPTIONAL TRUE)
-find_package(Casacore 3.6.0 REQUIRED COMPONENTS casa tables measures)
+find_package(Casacore 3.6 REQUIRED COMPONENTS casa tables measures)
 
 # CFitsio
 find_package(CFITSIO REQUIRED)
