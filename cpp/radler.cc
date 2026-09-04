@@ -12,6 +12,7 @@
 #include <aocommon/units/fluxdensity.h>
 
 #include <schaapcommon/math/convolution.h>
+#include <schaapcommon/threading/recursivefor.h>
 #include <schaapcommon/threading/threadpool.h>
 #include <schaapcommon/threading/recursivefor.h>
 
@@ -155,11 +156,20 @@ void Radler::Perform(bool& another_iteration_required,
    * and because these itself occur in the deconvolution of different sub-images
    * that may also be parallelized over, it is necessary to have a recursive for
    * alive so that all fors are scheduled through this recursive for.
+   * Using RecursiveFor::GetSharedInstance ensures that concurrent Perform()
+   * calls are also supported, even in different Radler instances.
    */
-  std::optional<schaapcommon::RecursiveFor> recursive_for;
-  if (schaapcommon::RecursiveFor::GetInstance() == nullptr) {
-    schaapcommon::ThreadPool::GetInstance().SetNThreads(settings_.thread_count);
-    recursive_for.emplace();
+  std::shared_ptr<schaapcommon::RecursiveFor> recursive_for;
+  if (settings_.thread_count > 1) {
+    const size_t n_worker_threads =
+        schaapcommon::ThreadPool::GetInstance().NThreads();
+    if (settings_.thread_count > n_worker_threads) {
+      log_receiver_.Warn
+          << "Radler thread count (" << settings_.thread_count
+          << ") is larger than the number of available worker threads ("
+          << n_worker_threads << "). Parallel parts will run suboptimally.\n";
+    }
+    recursive_for = schaapcommon::RecursiveFor::GetSharedInstance();
   }
 
   assert(table_);

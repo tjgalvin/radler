@@ -11,6 +11,8 @@
 #include <aocommon/image.h>
 #include <aocommon/logger.h>
 
+#include <schaapcommon/threading/threadpool.h>
+
 #include "work_table.h"
 #include "utils/load_image_accessor.h"
 #include "utils/load_and_store_image_accessor.h"
@@ -25,7 +27,8 @@ void init_radler(py::module& m) {
       .def(py::init([](const radler::Settings& settings,
                        radler::WorkTable& work_table, double beam_size) {
              if (settings.thread_count == 0) {
-               throw std::runtime_error("Number of threads should be > 0.");
+               throw std::runtime_error(
+                   "Number of Radler threads should be > 0.");
              }
              return std::make_unique<radler::Radler>(
                  settings,
@@ -66,7 +69,8 @@ void init_radler(py::module& m) {
                       py::array_t<double>& weights,
                       aocommon::PolarizationEnum polarization) {
             if (settings.thread_count == 0) {
-              throw std::runtime_error("Number of threads should be > 0.");
+              throw std::runtime_error(
+                  "Number of Radler threads should be > 0.");
             }
 
             if (psf.ndim() != residual.ndim() || psf.ndim() != model.ndim()) {
@@ -252,5 +256,31 @@ void init_radler(py::module& m) {
       .def_property_readonly("component_list",
                              &radler::Radler::GetComponentList, R"pbdoc(
         Return the component list (only stored when specified in settings).
+       )pbdoc")
+      .def_property_static(
+          "worker_thread_count",
+          [](py::object) {
+            return schaapcommon::ThreadPool::GetInstance().NThreads();
+          },
+          [](py::object, size_t count) {
+            if (count == 0) {
+              throw std::invalid_argument(
+                  "Radler worker thread count must be greater than 0");
+            }
+            schaapcommon::ThreadPool::GetInstance().SetNThreads(count);
+          },
+          R"pbdoc(
+         Defines the number of worker threads Radler uses for parallel
+         processing. These workers threads are shared among all Radler
+         instances. The default setting is 1, which means Radler executes
+         sequentially.
+
+         This setting must be set before calling Radler.perform on any Radler
+         instance. It may not be changed while a Radler.perform call is active.
+
+         The settings.thread_count value passed to each instance determines
+         the amount of parallelism in that particular instance. Radler will
+         give a warning if it exceeds the number of worker threads.
        )pbdoc");
+  ;
 }
