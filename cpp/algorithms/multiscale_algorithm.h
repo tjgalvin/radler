@@ -12,13 +12,16 @@
 #include "component_list.h"
 #include "deconvolution_algorithm.h"
 #include "image_set.h"
+#include "scale_mask_algorithm.h"
 #include "settings.h"
+
 #include "algorithms/threaded_deconvolution_tools.h"
 #include "algorithms/multiscale/multiscale_transforms.h"
 
 namespace radler::algorithms {
 
-class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
+class MultiScaleAlgorithm final : public DeconvolutionAlgorithm,
+                                  public ScaleMaskAlgorithm {
  public:
   MultiScaleAlgorithm(const Settings::Multiscale& settings, double beamSize,
                       double pixelScaleX, double pixelScaleY,
@@ -38,21 +41,12 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
       ImageSet& data_image, ImageSet& model_image,
       const std::vector<aocommon::Image>& psf_images) final;
 
-  void SetAutoMaskMode(bool track_per_scale_masks, bool use_per_scale_masks) {
-    track_per_scale_masks_ = track_per_scale_masks;
-    use_per_scale_masks_ = use_per_scale_masks;
-  }
   size_t ScaleCount() const { return scale_infos_.size(); }
   void ClearComponentList() { component_list_.reset(); }
   ComponentList& GetComponentList() { return *component_list_; }
   const ComponentList& GetComponentList() const { return *component_list_; }
   float ScaleSize(size_t scale_index) const {
     return scale_infos_[scale_index].scale;
-  }
-  size_t GetScaleMaskCount() const { return scale_masks_.size(); }
-  void SetScaleMaskCount(size_t n) { scale_masks_.resize(n); }
-  aocommon::UVector<bool>& GetScaleMask(size_t index) {
-    return scale_masks_[index];
   }
 
   struct ScaleInfo {
@@ -82,10 +76,7 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm {
 
   std::vector<MultiScaleAlgorithm::ScaleInfo> scale_infos_;
 
-  bool track_per_scale_masks_;
-  bool use_per_scale_masks_;
   bool track_components_;
-  std::vector<aocommon::UVector<bool>> scale_masks_;
   aocommon::cloned_ptr<ComponentList> component_list_;
 
   /**

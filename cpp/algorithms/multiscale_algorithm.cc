@@ -154,8 +154,6 @@ MultiScaleAlgorithm::MultiScaleAlgorithm(const Settings::Multiscale& settings,
                                          bool trackComponents)
     : settings_(settings),
       beam_size_in_pixels_(beamSize / std::max(pixelScaleX, pixelScaleY)),
-      track_per_scale_masks_(false),
-      use_per_scale_masks_(false),
       track_components_(trackComponents) {
   if (beam_size_in_pixels_ <= 0.0) beam_size_in_pixels_ = 1;
 }
@@ -210,19 +208,18 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
                    settings_.shape, settings_.max_scales, settings_.scale_list,
                    LogReceiver());
 
-  if (track_per_scale_masks_) {
+  if (TrackPerScaleMasks()) {
     // Note that in a second round the nr of scales can be different (due to
     // different width/height, e.g. caused by a different subdivision in
     // parallel cleaning).
-    for (const aocommon::UVector<bool>& mask : scale_masks_) {
+    for (const aocommon::UVector<bool>& mask : GetScaleMasks()) {
       if (mask.size() != width * height) {
         throw std::runtime_error(
             "Invalid automask size in multiscale algorithm");
       }
     }
-    while (scale_masks_.size() < scale_infos_.size()) {
-      scale_masks_.emplace_back(width * height, false);
-    }
+    SetScaleMaskCount(std::max(scale_infos_.size(), GetScaleMaskCount()),
+                      width * height, false);
   }
   if (track_components_) {
     if (component_list_ == nullptr) {
@@ -238,7 +235,7 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
     throw std::runtime_error("Error in RMS factor image dimensions!");
   }
 
-  if (use_per_scale_masks_ &&
+  if (UsePerScaleMasks() &&
       ComponentOptimizationAlgorithm() != OptimizationAlgorithm::kClean) {
     RunComponentOptimization(data_image, model_image, psf_images);
     DeconvolutionResult result;
@@ -405,8 +402,8 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
       subLoop.SetCleanBorders(horBorderSize, vertBorderSize);
       if (!RmsFactorImage().Empty())
         subLoop.SetRmsFactorImage(RmsFactorImage());
-      if (use_per_scale_masks_) {
-        subLoop.SetMask(scale_masks_[scaleWithPeak].data());
+      if (UsePerScaleMasks()) {
+        subLoop.SetMask(GetScaleMask(scaleWithPeak).data());
       } else if (CleanMask()) {
         subLoop.SetMask(CleanMask());
       }
@@ -446,8 +443,8 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
 
         subLoop.GetFullIndividualModel(imageIndex, scratch.Data());
         if (imageIndex == 0) {
-          if (track_per_scale_masks_) {
-            subLoop.UpdateAutoMask(scale_masks_[scaleWithPeak].data());
+          if (TrackPerScaleMasks()) {
+            subLoop.UpdateAutoMask(GetScaleMask(scaleWithPeak).data());
           }
           if (track_components_) {
             subLoop.UpdateComponentList(*component_list_, scaleWithPeak);
@@ -597,7 +594,7 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
   image_set.GetLinearIntegrated(integrated_scratch);
   aocommon::UVector<float> transformScales;
   aocommon::UVector<size_t> transformIndices;
-  std::vector<aocommon::UVector<bool>> transformScaleMasks;
+  std::vector<const bool*> transformScaleMasks;
   for (size_t scaleIndex = 0; scaleIndex != scale_infos_.size(); ++scaleIndex) {
     ScaleInfo& scaleEntry = scale_infos_[scaleIndex];
     if (scaleEntry.is_active) {
@@ -611,8 +608,8 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
       } else {
         transformScales.push_back(scaleEntry.scale);
         transformIndices.push_back(scaleIndex);
-        if (use_per_scale_masks_) {
-          transformScaleMasks.push_back(scale_masks_[scaleIndex]);
+        if (UsePerScaleMasks()) {
+          transformScaleMasks.push_back(GetScaleMask(scaleIndex).data());
         }
       }
     }
@@ -738,8 +735,8 @@ void MultiScaleAlgorithm::AddComponentToModel(ImageSet& model_image,
         settings_.shape);
   }
 
-  if (track_per_scale_masks_) {
-    scale_masks_[scale_with_peak][x + model_image.Width() * y] = true;
+  if (TrackPerScaleMasks()) {
+    GetScaleMask(scale_with_peak)[x + model_image.Width() * y] = true;
   }
 }
 
@@ -759,11 +756,11 @@ void MultiScaleAlgorithm::FindPeakDirect(const aocommon::Image& image,
   }
 
   aocommon::OptionalNumber<float> maxValue;
-  if (use_per_scale_masks_) {
+  if (UsePerScaleMasks()) {
     maxValue = math::peak_finder::FindWithMask(
         actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
         scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
-        image.Height(), scale_masks_[scale_index].data(), horBorderSize,
+        image.Height(), GetScaleMask(scale_index).data(), horBorderSize,
         vertBorderSize);
   } else if (!CleanMask()) {
     maxValue = math::peak_finder::Find(
@@ -905,7 +902,7 @@ void MultiScaleAlgorithm::RunComponentOptimization(
     std::vector<std::pair<size_t, size_t>>& list_for_scale =
         list.emplace_back();
     aocommon::UVector<bool>::const_iterator mask_iter =
-        scale_masks_[scale_index].begin();
+        GetScaleMask(scale_index).begin();
     for (size_t y = 0; y != height; ++y) {
       for (size_t x = 0; x != width; ++x) {
         if (*mask_iter) {

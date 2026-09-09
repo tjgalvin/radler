@@ -111,7 +111,7 @@ class Radler {
   size_t image_height_ = 0;
   double pixel_scale_x_ = 0.0;
   double pixel_scale_y_ = 0.0;
-  aocommon::UVector<bool> auto_mask_;
+  aocommon::UVector<bool> single_scale_auto_mask_;
   double beam_size_ = 0.0;
 };
 

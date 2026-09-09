@@ -262,9 +262,8 @@ void ParallelDeconvolution::SetMultiscaleAutoMaskMode(
     bool track_per_scale_masks, bool use_per_scale_masks) {
   track_per_scale_masks_ = track_per_scale_masks;
   use_per_scale_masks_ = use_per_scale_masks;
-  for (auto& alg : algorithms_) {
-    assert(dynamic_cast<MultiScaleAlgorithm*>(alg.get()));
-    MultiScaleAlgorithm& algorithm = static_cast<MultiScaleAlgorithm&>(*alg);
+  for (std::unique_ptr<DeconvolutionAlgorithm>& alg : algorithms_) {
+    ScaleMaskAlgorithm& algorithm = dynamic_cast<ScaleMaskAlgorithm&>(*alg);
     algorithm.SetAutoMaskMode(track_per_scale_masks, use_per_scale_masks);
   }
 }
@@ -359,20 +358,21 @@ void ParallelDeconvolution::RunSubImage(
 
   if (use_per_scale_masks_ || track_per_scale_masks_) {
     const std::lock_guard<std::mutex> lock(mutex);
-    MultiScaleAlgorithm& multi_scale_algorithm =
-        static_cast<class MultiScaleAlgorithm&>(*algorithms_[sub_image.index]);
+    ScaleMaskAlgorithm& scale_masking_algorithm =
+        dynamic_cast<ScaleMaskAlgorithm&>(*algorithms_[sub_image.index]);
     // During the first iteration, multi_scale_algorithm will not have
     // scales/masks yet and the nr scales has also not been determined yet.
     if (!scale_masks_.empty()) {
-      // Here we set the scale mask for the multiscale algorithm.
+      // Here we set the scale mask for multiscale algorithms.
       // The maximum number of scales in the previous iteration can be found by
       // scale_masks_.size(). Not all multi_scale_algorithms might have used
       // that many scales, so we have to take this into account
-      multi_scale_algorithm.SetScaleMaskCount(std::max(
-          multi_scale_algorithm.GetScaleMaskCount(), scale_masks_.size()));
-      for (size_t i = 0; i != multi_scale_algorithm.GetScaleMaskCount(); ++i) {
-        aocommon::UVector<bool>& scale_mask =
-            multi_scale_algorithm.GetScaleMask(i);
+      scale_masking_algorithm.SetScaleMaskCount(std::max(
+          scale_masking_algorithm.GetScaleMaskCount(), scale_masks_.size()));
+      for (size_t i = 0; i != scale_masking_algorithm.GetScaleMaskCount();
+           ++i) {
+        aocommon::UVector<bool> scale_mask =
+            scale_masking_algorithm.TakeScaleMask(i);
         scale_mask.assign(sub_image.width * sub_image.height, false);
         if (i < scale_masks_.size()) {
           scale_masks_[i].GetBox(scale_mask.data(), sub_image.x, sub_image.y,
@@ -386,6 +386,7 @@ void ParallelDeconvolution::RunSubImage(
             scale_mask[i] = scale_mask[i] && sub_image.mask[i];
           }
         }
+        scale_masking_algorithm.SetScaleMask(i, std::move(scale_mask));
       }
     }
   }

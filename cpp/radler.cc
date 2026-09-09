@@ -129,18 +129,19 @@ void Radler::SetAutoMaskMode(ImageSet& model_set, bool use_mask) {
   if (settings_.algorithm_type == AlgorithmType::kMultiscale) {
     parallel_deconvolution_->SetMultiscaleAutoMaskMode(!use_mask, use_mask);
   } else if (use_mask) {
-    if (auto_mask_.empty()) {
+    if (single_scale_auto_mask_.empty()) {
       // Generate the auto-mask from the model image(s)
-      auto_mask_.assign(image_width_ * image_height_, false);
+      single_scale_auto_mask_.assign(image_width_ * image_height_, false);
       for (size_t image_index = 0; image_index != model_set.Size();
            ++image_index) {
         const aocommon::Image& image = model_set[image_index];
         for (size_t i = 0; i != image_width_ * image_height_; ++i) {
-          if (std::isfinite(image[i]) && image[i] != 0.0) auto_mask_[i] = true;
+          if (std::isfinite(image[i]) && image[i] != 0.0)
+            single_scale_auto_mask_[i] = true;
         }
       }
     }
-    parallel_deconvolution_->SetCleanMask(auto_mask_.data());
+    parallel_deconvolution_->SetCleanMask(single_scale_auto_mask_.data());
   } else {
     if (clean_mask_.empty())
       parallel_deconvolution_->SetCleanMask(nullptr);
@@ -401,7 +402,7 @@ Radler::CreateSpectralFitter() const {
 void Radler::InitializeDeconvolutionAlgorithm(
     std::unique_ptr<WorkTable> table) {
   auto_mask_is_finished_ = false;
-  auto_mask_.clear();
+  single_scale_auto_mask_.clear();
   FreeDeconvolutionAlgorithms();
   table_ = std::move(table);
   if (table_->OriginalGroups().empty()) {

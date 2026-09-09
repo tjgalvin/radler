@@ -29,13 +29,15 @@ class ThreadedDeconvolutionTools {
   void SubtractImage(float* image, const aocommon::Image& psf, size_t x,
                      size_t y, float factor);
 
-  void FindMultiScalePeak(
-      multiscale::MultiScaleTransforms* ms_transforms,
-      const aocommon::Image& image, const aocommon::UVector<float>& scales,
-      std::vector<PeakData>& results, bool allowNegativeComponents,
-      const bool* mask, const std::vector<aocommon::UVector<bool>>& scaleMasks,
-      float borderRatio, const aocommon::Image& rmsFactorImage,
-      bool calculateRMS);
+  void FindMultiScalePeak(multiscale::MultiScaleTransforms* ms_transforms,
+                          const aocommon::Image& image,
+                          const aocommon::UVector<float>& scales,
+                          std::vector<PeakData>& results,
+                          bool allowNegativeComponents, const bool* mask,
+                          const std::vector<const bool*>& scaleMasks,
+                          float borderRatio,
+                          const aocommon::Image& rmsFactorImage,
+                          bool calculateRMS);
 
   static float RMS(const aocommon::Image& image, size_t n) {
     float result = 0.0;
