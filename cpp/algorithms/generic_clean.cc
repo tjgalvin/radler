@@ -50,7 +50,7 @@ void RunComponentOptimization(ImageSet& residual_set, ImageSet& model_set,
 }
 }  // namespace
 
-GenericClean::GenericClean(bool find_rm_peak) : find_rm_peak_(find_rm_peak) {}
+GenericClean::GenericClean() = default;
 
 DeconvolutionResult GenericClean::ExecuteMajorIteration(
     ImageSet& dirty_set, ImageSet& model_set,
@@ -162,7 +162,6 @@ DeconvolutionResult GenericClean::ExecuteMajorIteration(
   } else {
     ThreadedDeconvolutionTools tools;
     size_t peakIndex = componentX + componentY * width;
-    double component_phi = 0.0;
 
     aocommon::UVector<float> peakValues(dirty_set.Size());
 
@@ -176,7 +175,6 @@ DeconvolutionResult GenericClean::ExecuteMajorIteration(
         LogReceiver().Info << "Iteration " << IterationNumber() << ": "
                            << peakDescription(integrated, componentX,
                                               componentY);
-        if (find_rm_peak_) LogReceiver().Info << ", phi = " << component_phi;
         LogReceiver().Info << '\n';
       }
 
@@ -196,16 +194,8 @@ DeconvolutionResult GenericClean::ExecuteMajorIteration(
                             componentY, peakValues[i]);
       }
 
-      if (find_rm_peak_) {
-        const schaapcommon::fitters::RmFitter& rm_fitter =
-            *Fitter().GetRmFitter();
-        maxValue = FindRmPeak(dirty_set, rm_fitter, CleanMask(), componentX,
-                              componentY, component_phi);
-      } else {
-        dirty_set.GetSquareIntegrated(integrated, scratchA);
-        maxValue =
-            FindPeak(integrated, scratchA.Data(), componentX, componentY);
-      }
+      dirty_set.GetSquareIntegrated(integrated, scratchA);
+      maxValue = FindPeak(integrated, scratchA.Data(), componentX, componentY);
       peakIndex = componentX + componentY * width;
       if (maxValue && DivergenceLimit() != 0.0)
         diverging = std::abs(*maxValue) > initial_max_value * DivergenceLimit();

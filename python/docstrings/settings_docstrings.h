@@ -326,11 +326,6 @@ iteration is considered to be diverging. When parallel deconvolution
 is used, a diverged subimage that diverges is reset to its state
 before the major iteration.)doc";
 
-static const char *mkd_doc_radler_Settings_find_rm_peak =
-R"doc(When using RM-value fitting for the spectral fitting, this option
-enables searching the peak in RM space instead of total Q,U-squared
-intensity.)doc";
-
 static const char *mkd_doc_radler_Settings_fits_mask =
 R"doc(Filename path of a FITS file containing a mask to be used during
 deconvolution. If empty, no FITS mask is used.)doc";

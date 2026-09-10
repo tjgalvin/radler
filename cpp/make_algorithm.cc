@@ -20,7 +20,7 @@ std::unique_ptr<algorithms::DeconvolutionAlgorithm> MakeAlgorithm(
 
   switch (settings.algorithm_type) {
     case AlgorithmType::kGenericClean:
-      return std::make_unique<algorithms::GenericClean>(settings.find_rm_peak);
+      return std::make_unique<algorithms::GenericClean>();
 
     case AlgorithmType::kAdaptiveScalePixel:
       return std::make_unique<algorithms::AspAlgorithm>(

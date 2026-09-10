@@ -18,7 +18,7 @@ namespace radler::algorithms {
  */
 class GenericClean final : public DeconvolutionAlgorithm {
  public:
-  explicit GenericClean(bool find_rm_peak);
+  explicit GenericClean();
   GenericClean(const GenericClean&) = default;
   GenericClean(GenericClean&&) = delete;
   GenericClean& operator=(const GenericClean&) = delete;
@@ -36,7 +36,6 @@ class GenericClean final : public DeconvolutionAlgorithm {
   size_t convolution_width_ = 0;
   size_t convolution_height_ = 0;
   const float convolution_padding_ = 1.1;
-  bool find_rm_peak_ = false;
 
   // Scratch buffer should at least accomodate space for image.Size() floats
   // and is only used to avoid unnecessary memory allocations.
