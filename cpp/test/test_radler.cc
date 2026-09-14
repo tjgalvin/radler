@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_SUITE(radler)
 
 // Initialise Radler in the most basic way possible and do some basic checks.
 // https://gitlab.com/ska-telescope/sdp/ska-sdp-spack/-/tree/main/packages/radler
-// will contain a copy of this test, since it's also a good smoke test.
+// contains a copy of this test, since it's also a good smoke test.
 BOOST_FIXTURE_TEST_CASE(constructor_worktable, SettingsFixture) {
   std::vector<PsfOffset> psf_offsets = {PsfOffset(0, 0)};
   const std::size_t kNOriginalGroups = 0;
