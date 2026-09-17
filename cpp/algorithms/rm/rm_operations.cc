@@ -91,17 +91,26 @@ std::vector<CImage> TransformPsfToRm(
 
 std::pair<float, float> AbsMeanAndStdDevEstimates(
     const std::vector<CImage>& rm_cube) {
+  std::vector<std::pair<float, float>> values(rm_cube.size());
+  schaapcommon::RunStaticFor<size_t>(
+      0, rm_cube.size(), [&](size_t slice_index_start, size_t slice_index_end) {
+        aocommon::Image image(rm_cube.front().Width(),
+                              rm_cube.front().Height());
+        for (size_t slice_index = slice_index_start;
+             slice_index != slice_index_end; ++slice_index) {
+          const CImage& slice = rm_cube[slice_index];
+          for (size_t i = 0; i != slice.Size(); ++i) {
+            image[i] = std::abs(slice[i]);
+          }
+          values[slice_index] = image.MedianAndStdDevFromMAD();
+        }
+      });
+
   float sum_median = 0.0;
   float sum_stddev = 0.0;
-  aocommon::Image image(rm_cube.front().Width(), rm_cube.front().Height());
-  for (const CImage& slice : rm_cube) {
-    for (size_t i = 0; i != slice.Size(); ++i) {
-      image[i] = std::abs(slice[i]);
-    }
-    const std::pair<float, float> median_and_stddev =
-        image.MedianAndStdDevFromMAD();
-    sum_median += median_and_stddev.first;
-    sum_stddev += median_and_stddev.second;
+  for (const std::pair<float, float>& slice_values : values) {
+    sum_median += slice_values.first;
+    sum_stddev += slice_values.second;
   }
   return {sum_median / rm_cube.size(), sum_stddev / rm_cube.size()};
 }
