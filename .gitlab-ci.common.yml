@@ -10,9 +10,6 @@ workflow:
       when: never
     - when: always
 
-variables:
-  GIT_SUBMODULE_STRATEGY: recursive
-
 stages:
   - prepare
   - linting
@@ -30,8 +27,6 @@ stages:
   stage: prepare
   extends: .dind-requester
   image: docker:29.0
-  variables:
-    GIT_SUBMODULE_STRATEGY: none
   before_script:
     - apk add git
     - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
@@ -188,6 +183,7 @@ build-docstrings-2404:
 
 build-python-source-tarball:
   stage: deploy
+  needs: []
   image: python:3.12
   variables:
     # Start with a clean working copy to avoid including unwanted files in the tarball
@@ -210,9 +206,8 @@ build-python-source-tarball:
 cibuild-python-wheels:
   extends: .cibuildwheels-custom
   stage: deploy
+  needs: []
   image: python:3.12
-  variables:
-    GIT_SUBMODULE_STRATEGY: normal
   before_script:
     - wget -qO - https://get.docker.com/ | sh
     - pip install cibuildwheel --break-system-packages

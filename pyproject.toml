@@ -54,6 +54,10 @@ build-backend = "scikit_build_core.build"
 before-all = "cibuildwheel/before_all.sh"
 build = "cp3{9,10,11,12,13}-*"
 build-verbosity = 1
+# The CXXFLAGS avoid conflicts with other Python packages that use casacore,
+# like EveryBeam. In binary wheels, those libraries are bundled with the wheel.
+# When installing Radler from source, Radler links to existing libraries
+# for casacore, hdf5, cfitsio etc so this workaround is not needed.
 environment = """ \
     CASACORE_VERSION="3.7.1" \
     CXXFLAGS="-Dcasacore=radler::casacore" \

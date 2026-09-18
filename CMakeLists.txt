@@ -82,7 +82,7 @@ else()
   FetchContent_Declare(
     schaapcommon
     GIT_REPOSITORY https://git.astron.nl/RD/schaapcommon.git
-    GIT_TAG b47f19dace28ad420c0a7c8ab1014b55b75205e9)
+    GIT_TAG 4b2eda4c42e55c0bd5717f04f6bdf35676ad19b5)
   FetchContent_MakeAvailable(schaapcommon)
   set(SCHAAPCOMMON_SOURCE_DIR "${schaapcommon_SOURCE_DIR}")
 endif()
