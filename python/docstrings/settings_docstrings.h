@@ -50,6 +50,10 @@ specification of the location of MORESANE (with
 Settings::MoreSane::location). This method does not support multi-
 frequency/polarization cleaning.)doc";
 
+static const char *mkd_doc_radler_AlgorithmType_kMsRmDeconvolution =
+R"doc(Similar to kRmDeconvolution, but performs multiscale deconvolution
+such that diffuse emission can be modelled.)doc";
+
 static const char *mkd_doc_radler_AlgorithmType_kMultiscale =
 R"doc(Implements the algorithm described by Offringa & Smirnov (2017). This
 algorithms allows deconvolving resolved and/or diffuse emission. It

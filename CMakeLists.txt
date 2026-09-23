@@ -71,7 +71,7 @@ else()
   FetchContent_Declare(
     aocommon
     GIT_REPOSITORY https://gitlab.com/aroffringa/aocommon.git
-    GIT_TAG e1b7980e02211ade95eef176a3ac7f9ba3dcc55c)
+    GIT_TAG 97bbc3e3b6dcd9b392271ec45d0c528a62e530ab)
   FetchContent_MakeAvailable(aocommon)
   set(AOCOMMON_INCLUDE_DIR "${aocommon_SOURCE_DIR}/include")
   set(AOCOMMON_CMAKE_DIR "${aocommon_SOURCE_DIR}/CMake")

@@ -9,6 +9,7 @@
 #include "algorithms/parallel_deconvolution.h"
 #include "algorithms/python_deconvolution.h"
 #include "algorithms/rm_deconvolution.h"
+#include "algorithms/ms_rm_deconvolution.h"
 #include "algorithms/simple_clean.h"
 
 namespace radler {
@@ -42,6 +43,11 @@ std::unique_ptr<algorithms::DeconvolutionAlgorithm> MakeAlgorithm(
       return std::make_unique<algorithms::RmDeconvolution>(
           settings.auto_threshold_sigma, beam_size, pixel_scale_x,
           pixel_scale_y);
+
+    case AlgorithmType::kMsRmDeconvolution:
+      return std::make_unique<algorithms::MsRmDeconvolution>(
+          settings.multiscale, settings.auto_threshold_sigma, beam_size,
+          pixel_scale_x, pixel_scale_y);
 
     case AlgorithmType::kPython:
       return std::make_unique<algorithms::PythonDeconvolution>(

@@ -76,6 +76,11 @@ enum class AlgorithmType {
    */
   kRmDeconvolution,
   /**
+   * Similar to kRmDeconvolution, but performs multiscale deconvolution such
+   * that diffuse emission can be modelled.
+   */
+  kMsRmDeconvolution,
+  /**
    * This option allows implementing a custom algorithm in Python. A location to
    * the Python code should be provided (@ref Settings::Python::filename), and
    * WSClean will call this for performing a major deconvolution iteration. The

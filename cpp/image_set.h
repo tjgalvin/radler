@@ -41,6 +41,12 @@ class ImageSet {
   ImageSet(ImageSet&&) = delete;
   ImageSet& operator=(ImageSet&&) = delete;
 
+  /**
+   * Copies the meta data and allocates image buffers, but does not
+   * initialize the buffers.
+   */
+  ImageSet MakeUnsetCopy() const { return ImageSet(*this, Width(), Height()); }
+
   aocommon::Image Release(size_t image_index) {
     return std::move(images_[image_index]);
   }

@@ -3,7 +3,6 @@
 
 #include <aocommon/uvector.h>
 
-#include <span>
 #include <vector>
 
 namespace radler::algorithms {
@@ -60,7 +59,7 @@ class ScaleMaskAlgorithm {
    * Moves the scale masks for all scales from the @p source_algorithm into this
    * algorithm.
    */
-  void MoveScaleMasks(ScaleMaskAlgorithm& source_algorithm) {
+  void MoveScaleMasksFrom(ScaleMaskAlgorithm& source_algorithm) {
     scale_masks_.resize(source_algorithm.GetScaleMaskCount());
     for (size_t scale_index = 0; scale_index != GetScaleMaskCount();
          ++scale_index) {

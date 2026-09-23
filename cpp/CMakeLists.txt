@@ -24,6 +24,7 @@ set(RADLER_FILES
     algorithms/iuwt_deconvolution_algorithm.cc
     algorithms/ls_deconvolution.cc
     algorithms/more_sane.cc
+    algorithms/ms_rm_deconvolution.cc
     algorithms/multiscale_algorithm.cc
     algorithms/parallel_deconvolution.cc
     algorithms/python_deconvolution.cc

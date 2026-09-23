@@ -44,6 +44,9 @@ std::ostream& boost_test_print_type(std::ostream& stream,
     case AlgorithmType::kRmDeconvolution:
       stream << "Rotation measure deconvolution";
       break;
+    case AlgorithmType::kMsRmDeconvolution:
+      stream << "Multi-scale rotation measure deconvolution";
+      break;
   }
   return stream;
 }

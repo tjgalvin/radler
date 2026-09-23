@@ -417,12 +417,11 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
                                      initial_peak_value * DivergenceLimit();
       }
       if (!peak_value) {
-        LogReceiver().Error << "Could not continue multi-scale clean, because "
-                               "the sub-minor loop failed to find\n"
-                               "components. This may be caused by combining "
-                               "multi-scale with squared-channel joining.\n"
-                               "It may help to turn off the sub-minor loop "
-                               "optimization with -no-fast-subminor.\n";
+        LogReceiver().Error
+            << "Could not continue multi-scale clean, because "
+               "the sub-minor loop failed to find\n"
+               "components. It may help to turn off the sub-minor "
+               "loop optimization with -no-fast-subminor.\n";
         break;
       }
 
