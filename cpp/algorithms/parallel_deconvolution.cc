@@ -282,6 +282,18 @@ void ParallelDeconvolution::SetCleanMask(const bool* mask) {
   }
 }
 
+void ParallelDeconvolution::SetScaleCleanMask(
+    std::vector<utils::CompressedMask>&& scale_masks) {
+  user_scale_masks_ = std::move(scale_masks);
+  if (algorithms_.size() == 1) {
+    assert(dynamic_cast<MultiScaleAlgorithm*>(algorithms_.front().get()));
+    static_cast<MultiScaleAlgorithm&>(*algorithms_.front())
+        .SetUserScaleMasks(&user_scale_masks_, 0, 0,
+                           algorithms_.front()->CleanMask());
+  }
+  // With multiple sub-images, the masks are set per sub-image in RunSubImage.
+}
+
 void ParallelDeconvolution::SetSpectrallyForcedImages(
     std::vector<Image>&& images) {
   if (algorithms_.size() == 1) {
@@ -329,6 +341,13 @@ void ParallelDeconvolution::RunSubImage(
     sub_psfs.emplace_back(psf_image.Resize(sub_image.width, sub_image.height));
   }
   algorithms_[sub_image.index]->SetCleanMask(sub_image.mask.data());
+  if (!user_scale_masks_.empty()) {
+    // The user scale masks are intersected with the sub-image mask, which
+    // combines the boundary and the clean mask.
+    static_cast<MultiScaleAlgorithm&>(*algorithms_[sub_image.index])
+        .SetUserScaleMasks(&user_scale_masks_, sub_image.x, sub_image.y,
+                           sub_image.mask.data());
+  }
 
   // Construct smaller RMS image if necessary
   if (!rms_image_.Empty()) {
@@ -421,6 +440,12 @@ void ParallelDeconvolution::RunSubImage(
   // Since this was an RMS image specifically for this subimage size, we free it
   // immediately
   algorithms_[sub_image.index]->SetRmsFactorImage(Image());
+  // The same holds for the inflated user scale masks, which also refer to the
+  // boundary mask of this sub-image.
+  if (!user_scale_masks_.empty()) {
+    static_cast<MultiScaleAlgorithm&>(*algorithms_[sub_image.index])
+        .SetUserScaleMasks(nullptr, 0, 0, nullptr);
+  }
 
   if (track_per_scale_masks_ && converging && !find_peak_only) {
     const std::lock_guard<std::mutex> lock(mutex);

@@ -29,11 +29,15 @@ class ThreadedDeconvolutionTools {
   void SubtractImage(float* image, const aocommon::Image& psf, size_t x,
                      size_t y, float factor);
 
+  /**
+   * @param scaleMasks If not empty, it holds the mask for each scale (nullptr
+   * meaning no mask) and replaces @p mask.
+   */
   void FindMultiScalePeak(
       multiscale::MultiScaleTransforms* ms_transforms,
       const aocommon::Image& image, const aocommon::UVector<float>& scales,
       std::vector<PeakData>& results, bool allowNegativeComponents,
-      const bool* mask, const std::vector<aocommon::UVector<bool>>& scaleMasks,
+      const bool* mask, const std::vector<const bool*>& scaleMasks,
       float borderRatio, const aocommon::Image& rmsFactorImage,
       bool calculateRMS);
 

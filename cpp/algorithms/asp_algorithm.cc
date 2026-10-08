@@ -379,7 +379,7 @@ void AspAlgorithm::FindScaleConvolvedMaxima(const ImageSet& image_set,
   image_set.GetLinearIntegrated(integrated_scratch);
   aocommon::UVector<float> transform_scales;
   aocommon::UVector<size_t> transform_indices;
-  std::vector<aocommon::UVector<bool>> transform_scale_masks;
+  std::vector<const bool*> transform_scale_masks;
   for (size_t scale_index = 0; scale_index != scale_infos_.size();
        ++scale_index) {
     ScaleInfo& scale_entry = scale_infos_[scale_index];

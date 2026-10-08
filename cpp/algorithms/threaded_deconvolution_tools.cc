@@ -32,7 +32,7 @@ void ThreadedDeconvolutionTools::FindMultiScalePeak(
     const aocommon::UVector<float>& scales,
     std::vector<ThreadedDeconvolutionTools::PeakData>& results,
     bool allow_negative_components, const bool* mask,
-    const std::vector<aocommon::UVector<bool>>& scale_masks, float border_ratio,
+    const std::vector<const bool*>& scale_masks, float border_ratio,
     const Image& rms_factor_image, bool calculate_rms) {
   const size_t n_scales = scales.size();
   results.resize(n_scales);
@@ -41,7 +41,7 @@ void ThreadedDeconvolutionTools::FindMultiScalePeak(
   loop.Run(0, n_scales, [&](size_t scale_index) {
     Image image_copy(image);
     const bool* selected_mask =
-        scale_masks.empty() ? mask : scale_masks[scale_index].data();
+        scale_masks.empty() ? mask : scale_masks[scale_index];
     results[scale_index] =
         FindSingleScalePeak(ms_transforms, image_copy, scales[scale_index],
                             allow_negative_components, selected_mask,

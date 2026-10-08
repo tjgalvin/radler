@@ -211,7 +211,8 @@ just contains scales that are too large.)doc";
 static const char *__doc_radler_Settings_Multiscale_scale_mask_filename =
 R"doc(Filename for the per-scale fits mask. Each pixel represents a bit-
 mapped quantity, with the n'th bit corresponding to the n'th scale.
-For consistency the data should be of type float)doc";
+For consistency the data should be of type float. Uses about one byte
+of memory per pixel per scale in use.)doc";
 
 static const char *__doc_radler_Settings_Multiscale_shape =
 R"doc(Shape of kernel to be used for deconvolution.

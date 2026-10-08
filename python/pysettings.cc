@@ -157,6 +157,9 @@ void init_settings(py::module& m) {
                      DOC(radler_Settings_Multiscale_convolution_padding))
       .def_readwrite("scale_list", &radler::Settings::Multiscale::scale_list,
                      DOC(radler_Settings_Multiscale_scale_list))
+      .def_readwrite("scale_mask_filename",
+                     &radler::Settings::Multiscale::scale_mask_filename,
+                     DOC(radler_Settings_Multiscale_scale_mask_filename))
       .def_readwrite("shape", &radler::Settings::Multiscale::shape,
                      DOC(radler_Settings_Multiscale_shape));
 

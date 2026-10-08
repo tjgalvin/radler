@@ -2,6 +2,7 @@
 
 #include "algorithms/multiscale_algorithm.h"
 
+#include <cassert>
 #include <memory>
 #include <set>
 
@@ -223,6 +224,7 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
       scale_masks_.emplace_back(width * height, false);
     }
   }
+  InflateUserScaleMasks(width, height);
   if (track_components_) {
     if (component_list_ == nullptr) {
       component_list_.reset(new ComponentList(
@@ -400,10 +402,8 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
       subLoop.SetCleanBorders(horBorderSize, vertBorderSize);
       if (!RmsFactorImage().Empty())
         subLoop.SetRmsFactorImage(RmsFactorImage());
-      if (use_per_scale_masks_) {
-        subLoop.SetMask(scale_masks_[scaleWithPeak].data());
-      } else if (CleanMask()) {
-        subLoop.SetMask(CleanMask());
+      if (const bool* mask = ScaleMask(scaleWithPeak)) {
+        subLoop.SetMask(mask);
       }
       subLoop.SetParentAlgorithm(this);
 
@@ -583,11 +583,15 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
   image_set.GetLinearIntegrated(integrated_scratch);
   aocommon::UVector<float> transformScales;
   aocommon::UVector<size_t> transformIndices;
-  std::vector<aocommon::UVector<bool>> transformScaleMasks;
+  std::vector<const bool*> transformScaleMasks;
   for (size_t scaleIndex = 0; scaleIndex != scale_infos_.size(); ++scaleIndex) {
     ScaleInfo& scaleEntry = scale_infos_[scaleIndex];
     if (scaleEntry.is_active) {
-      if (scaleEntry.scale == 0) {
+      if (IsScaleExcluded(scaleIndex)) {
+        scaleEntry.max_normalized_image_value = 0.0;
+        scaleEntry.max_unnormalized_image_value = 0.0;
+        if (report_rms) scaleEntry.rms = 0.0;
+      } else if (scaleEntry.scale == 0) {
         // Don't convolve scale 0: this is the delta function scale
         FindPeakDirect(integrated_scratch, scratch, scaleIndex);
         if (report_rms) {
@@ -597,9 +601,7 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
       } else {
         transformScales.push_back(scaleEntry.scale);
         transformIndices.push_back(scaleIndex);
-        if (use_per_scale_masks_) {
-          transformScaleMasks.push_back(scale_masks_[scaleIndex]);
-        }
+        transformScaleMasks.push_back(ScaleMask(scaleIndex));
       }
     }
   }
@@ -713,13 +715,9 @@ void MultiScaleAlgorithm::FindPeakDirect(const aocommon::Image& image,
   }
 
   aocommon::OptionalNumber<float> maxValue;
-  if (use_per_scale_masks_) {
-    maxValue = math::peak_finder::FindWithMask(
-        actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
-        scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
-        image.Height(), scale_masks_[scale_index].data(), horBorderSize,
-        vertBorderSize);
-  } else if (!CleanMask()) {
+  if (IsScaleExcluded(scale_index)) {
+    // No pixel is allowed for this scale, so leave maxValue unset.
+  } else if (const bool* mask = ScaleMask(scale_index); !mask) {
     maxValue = math::peak_finder::Find(
         actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
         scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
@@ -728,7 +726,7 @@ void MultiScaleAlgorithm::FindPeakDirect(const aocommon::Image& image,
     maxValue = math::peak_finder::FindWithMask(
         actualImage, image.Width(), image.Height(), scaleInfo.max_image_value_x,
         scaleInfo.max_image_value_y, AllowNegativeComponents(), 0,
-        image.Height(), CleanMask(), horBorderSize, vertBorderSize);
+        image.Height(), mask, horBorderSize, vertBorderSize);
   }
 
   if (maxValue) {
@@ -744,6 +742,71 @@ void MultiScaleAlgorithm::FindPeakDirect(const aocommon::Image& image,
   } else {
     scaleInfo.max_unnormalized_image_value = 0.0;
     scaleInfo.max_normalized_image_value = 0.0;
+  }
+}
+
+void MultiScaleAlgorithm::SetUserScaleMasks(
+    const std::vector<utils::CompressedMask>* masks, size_t x, size_t y,
+    const bool* boundary_mask) {
+  FreeUserScaleMasks();
+  user_scale_mask_source_ = masks;
+  user_scale_mask_x_ = x;
+  user_scale_mask_y_ = y;
+  user_scale_mask_boundary_ = boundary_mask;
+}
+
+void MultiScaleAlgorithm::FreeUserScaleMasks() {
+  // Swap with an empty vector to make sure that the memory is released.
+  std::vector<aocommon::UVector<bool>>().swap(user_scale_masks_);
+  user_scale_masks_inflated_ = false;
+}
+
+void MultiScaleAlgorithm::InflateUserScaleMasks(size_t width, size_t height) {
+  if (!UsesUserScaleMasks()) {
+    // When the auto-mask is in use, it replaces the user scale masks.
+    FreeUserScaleMasks();
+    return;
+  }
+  // The masks don't change between major iterations, unless the nr of scales
+  // or the image size changes.
+  if (user_scale_masks_inflated_ &&
+      user_scale_masks_.size() == scale_infos_.size() &&
+      user_scale_masks_width_ == width && user_scale_masks_height_ == height) {
+    return;
+  }
+  FreeUserScaleMasks();
+  user_scale_masks_width_ = width;
+  user_scale_masks_height_ = height;
+  // Only the scales that are used are inflated, and only when they allow
+  // at least one pixel, because an inflated mask takes one byte per pixel.
+  user_scale_masks_.resize(scale_infos_.size());
+  const size_t n_masks =
+      std::min(user_scale_mask_source_->size(), scale_infos_.size());
+  for (size_t scale_index = 0; scale_index != n_masks; ++scale_index) {
+    aocommon::UVector<bool>& mask = user_scale_masks_[scale_index];
+    mask.resize(width * height);
+    (*user_scale_mask_source_)[scale_index].GetBox(
+        mask.data(), user_scale_mask_x_, user_scale_mask_y_, width, height);
+    bool has_allowed_pixels = false;
+    for (size_t i = 0; i != mask.size(); ++i) {
+      if (user_scale_mask_boundary_) {
+        mask[i] = mask[i] && user_scale_mask_boundary_[i];
+      }
+      has_allowed_pixels = has_allowed_pixels || mask[i];
+    }
+    if (!has_allowed_pixels) aocommon::UVector<bool>().swap(mask);
+  }
+  user_scale_masks_inflated_ = true;
+}
+
+const bool* MultiScaleAlgorithm::ScaleMask(size_t scale_index) const {
+  if (use_per_scale_masks_) {
+    return scale_masks_[scale_index].data();
+  } else if (user_scale_mask_source_) {
+    assert(!user_scale_masks_[scale_index].empty());
+    return user_scale_masks_[scale_index].data();
+  } else {
+    return CleanMask();
   }
 }
 

@@ -519,7 +519,8 @@ struct Settings {
     /**
      * Filename for the per-scale fits mask. Each pixel represents a bit-mapped
      * quantity, with the n'th bit corresponding to the n'th scale. For
-     * consistency the data should be of type float
+     * consistency the data should be of type float. Uses about one byte of
+     * memory per pixel per scale in use.
      */
     std::string scale_mask_filename;
 

@@ -109,7 +109,6 @@ class Radler {
   std::unique_ptr<algorithms::ParallelDeconvolution> parallel_deconvolution_;
 
   aocommon::UVector<bool> clean_mask_;
-  aocommon::UVector<float> scale_clean_mask_;
 
   bool auto_mask_is_finished_ = false;
   size_t auto_mask_finishing_iteration = 0;
