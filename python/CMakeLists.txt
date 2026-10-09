@@ -11,10 +11,13 @@ target_include_directories(${PROJECT_NAME}
 # Required to hide symols in target, see
 # https://pybind11.readthedocs.io/en/stable/faq.html#someclass-declared-with-greater-visibility-than-the-type-of-its-field-someclass-member-wattributes
 target_compile_options(
-  ${PROJECT_NAME} PRIVATE -O3 -Wall -Wzero-as-null-pointer-constant
-                          -fvisibility=hidden)
-target_link_libraries(${PROJECT_NAME} PRIVATE radler)
-set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME radler)
+  pyradler PRIVATE -O3 -Wall -Wzero-as-null-pointer-constant
+                   -fvisibility=hidden)
+
+# Use the static schaapthreading library for the Python bindings.
+target_link_libraries(pyradler PRIVATE radler-object schaapthreading_static)
+
+set_target_properties(pyradler PROPERTIES OUTPUT_NAME radler)
 
 # Define where the python module will be installed. When using scikit-build, it
 # must be the current directory; otherwise, use site-packages directory.

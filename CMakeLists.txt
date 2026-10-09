@@ -82,7 +82,7 @@ else()
   FetchContent_Declare(
     schaapcommon
     GIT_REPOSITORY https://git.astron.nl/RD/schaapcommon.git
-    GIT_TAG 4b2eda4c42e55c0bd5717f04f6bdf35676ad19b5)
+    GIT_TAG af6b2d5e9fb580e7e7e0593886a08fb55f4d4523)
   FetchContent_MakeAvailable(schaapcommon)
   set(SCHAAPCOMMON_SOURCE_DIR "${schaapcommon_SOURCE_DIR}")
 endif()
@@ -170,13 +170,14 @@ set(RADLER_TARGET_INCLUDE_DIRS
     ${pybind11_INCLUDE_DIRS}
     ${SCHAAPCOMMON_SOURCE_DIR}/include)
 
+# schaapthreading is not in this list, since the Python bindings library links
+# schaapthreading statically and the C++ library uses dynamic linking.
 set(RADLER_TARGET_LIBS
     ${CMAKE_THREAD_LIBS_INIT}
     ${CASACORE_LIBRARIES}
     ${CFITSIO_LIBRARY}
     pybind11::embed
     schaapcommon
-    schaapthreading
     GSL::gsl
     GSL::gslcblas)
 
