@@ -13,7 +13,7 @@ option(BUILD_PYTHON_BINDINGS "Build python bindings" OFF)
 option(BUILD_DOCUMENTATION "Build documentation" OFF)
 option(BUILD_DOCSTRINGS "Build docstrings (implies BUILD_DOCUMENTATION)" OFF)
 
-set(RADLER_VERSION 1.1.0) # Keep in sync with `pyproject.toml` file
+set(RADLER_VERSION 1.2.0) # Keep in sync with `pyproject.toml` file
 project(
   radler
   VERSION ${RADLER_VERSION}

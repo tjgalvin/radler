@@ -1,13 +1,22 @@
 # Radler change log
 
+## Version 1.2.0 (October 12, 2026)
+
+### Improvements
+
+- A multiscale RM algorithm was added that performs multiscale CLEAN in Faraday-depth space.
+
+### Bug fixes
+
+- Fix Python binary wheel, which was incompatible with AOFlagger.
+
 ## Version 1.1.0 (September 4, 2026)
 
 ### Improvements
 
 - There are new options to perform polarimetric deconvolution:
   - A new spectral fitting mode was added to fit spectra to RM values during deconvolution. Enabling this by itself will not perform peak finding in RM space.
-  - Option `find_rm_peak` can be used in non-multiscale mode to search for peaks in RM space, instead of summed total intensity. In this mode, Radler will still keep the images in frequency space, and it is therefore relatively expensive.
-  - A new algorithm called "RmDeconvolution" was added, which does perform peak finding in RM space. Because of this, it is able to use the Clark optimization, and is generally much faster than `find_rm_peak`. This can not yet be combined with multiscale ; this will be added in the next version.
+  - A new algorithm called "RmDeconvolution" was added, which does perform peak finding in RM space. This can not yet be combined with multiscale ; this is added in version 1.2.0.
   - It is now possible to square channels in combination with multiscale and do deep deconvolutions that minimize the total intensity. In older version, this often led to clean not progressing.
 - Combine the point clean `fast_sub_minor_loop` and multi-scale
   `use_sub_minor_optimization` settings into one option.
