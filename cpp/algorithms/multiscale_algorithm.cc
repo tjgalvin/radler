@@ -134,8 +134,8 @@ aocommon::OptionalNumber<size_t> SelectMaximumScale(
   // Find max component
   std::map<float, size_t> peak_to_scale_map;
   for (size_t i = 0; i != scales.size(); ++i) {
-    if (scales[i].is_active) {
-      const float max_val = std::fabs(scales[i].max_unnormalized_image_value *
+    if (scales[i].is_active && scales[i].max_unnormalized_image_value) {
+      const float max_val = std::fabs(*scales[i].max_unnormalized_image_value *
                                       scales[i].bias_factor);
       peak_to_scale_map.insert(std::make_pair(max_val, i));
     }
@@ -297,7 +297,7 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
 
   bool isFinalThreshold = false;
   const float initial_peak_value =
-      std::fabs(scale_infos_[scaleWithPeak].max_unnormalized_image_value *
+      std::fabs(*scale_infos_[scaleWithPeak].max_unnormalized_image_value *
                 scale_infos_[scaleWithPeak].bias_factor);
   result.starting_peak_value = initial_peak_value;
   float mGainThreshold = initial_peak_value * (1.0 - MajorLoopGain());
@@ -311,7 +311,7 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
   LogReceiver().Info
       << "Starting multi-scale cleaning. Start peak="
       << FluxDensity::ToNiceString(
-             scale_infos_[scaleWithPeak].max_unnormalized_image_value *
+             *scale_infos_[scaleWithPeak].max_unnormalized_image_value *
              scale_infos_[scaleWithPeak].bias_factor)
       << ", major iteration threshold="
       << FluxDensity::ToNiceString(firstThreshold);
@@ -325,7 +325,8 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
   // The minor iteration loop
   //
   while (IterationNumber() < MaxIterations() &&
-         std::fabs(scale_infos_[scaleWithPeak].max_unnormalized_image_value *
+         scale_infos_[scaleWithPeak].max_unnormalized_image_value &&
+         std::fabs(*scale_infos_[scaleWithPeak].max_unnormalized_image_value *
                    scale_infos_[scaleWithPeak].bias_factor) > firstThreshold &&
          (!StopOnNegativeComponents() ||
           scale_infos_[scaleWithPeak].max_unnormalized_image_value >= 0.0) &&
@@ -361,7 +362,7 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
     // The sub-minor iteration loop for this scale
     //
     float subIterationGainThreshold =
-        std::fabs(scale_infos_[scaleWithPeak].max_unnormalized_image_value *
+        std::fabs(*scale_infos_[scaleWithPeak].max_unnormalized_image_value *
                   scale_infos_[scaleWithPeak].bias_factor) *
         (1.0 - settings_.sub_minor_loop_gain);
     float firstSubIterationThreshold = subIterationGainThreshold;
@@ -467,7 +468,8 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
       // Start of the (non-optimized) sub-minor loop.
       //
       while (IterationNumber() < MaxIterations() &&
-             std::fabs(maxScaleInfo.max_unnormalized_image_value *
+             maxScaleInfo.max_unnormalized_image_value &&
+             std::fabs(*maxScaleInfo.max_unnormalized_image_value *
                        maxScaleInfo.bias_factor) > firstSubIterationThreshold &&
              (!StopOnNegativeComponents() ||
               maxScaleInfo.max_unnormalized_image_value >= 0.0) &&
@@ -509,9 +511,9 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
         // Find maximum for this scale
         individualConvolvedImages.GetLinearIntegrated(integratedScratch);
         FindPeakDirect(integratedScratch, scratch, scaleWithPeak);
-        const float abs_peak_value =
-            std::fabs(scale_infos_[scaleWithPeak].max_unnormalized_image_value *
-                      scale_infos_[scaleWithPeak].bias_factor);
+        const float abs_peak_value = std::fabs(
+            *scale_infos_[scaleWithPeak].max_unnormalized_image_value *
+            scale_infos_[scaleWithPeak].bias_factor);
         maxScaleInfo.n_components_cleaned++;
         maxScaleInfo.total_flux_cleaned += abs_peak_value;
 
@@ -542,14 +544,15 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
     }
     scaleWithPeak = *optional_scale_with_peak;
 
-    LogReceiver().Info
-        << "Iteration " << IterationNumber() << ", scale "
-        << round(scale_infos_[scaleWithPeak].scale) << " px : "
-        << FluxDensity::ToNiceString(
-               scale_infos_[scaleWithPeak].max_unnormalized_image_value *
-               scale_infos_[scaleWithPeak].bias_factor)
-        << " at " << scale_infos_[scaleWithPeak].max_image_value_x << ','
-        << scale_infos_[scaleWithPeak].max_image_value_y << '\n';
+    LogReceiver().Info << "Iteration " << IterationNumber() << ", scale "
+                       << round(scale_infos_[scaleWithPeak].scale) << " px : "
+                       << FluxDensity::ToNiceString(
+                              scale_infos_[scaleWithPeak]
+                                  .max_unnormalized_image_value.ValueOr(0.0f) *
+                              scale_infos_[scaleWithPeak].bias_factor)
+                       << " at "
+                       << scale_infos_[scaleWithPeak].max_image_value_x << ','
+                       << scale_infos_[scaleWithPeak].max_image_value_y << '\n';
   }
 
   const bool maxIterReached = IterationNumber() >= MaxIterations();
@@ -576,12 +579,14 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
                           "inversion/prediction round.\n";
   }
 
+  const aocommon::OptionalNumber<float> max_value =
+      scale_infos_[scaleWithPeak].max_unnormalized_image_value;
   result.is_diverging = diverging;
-  result.another_iteration_required =
-      !maxIterReached && !isFinalThreshold && !negativeReached && !diverging;
+  result.another_iteration_required = !maxIterReached && !isFinalThreshold &&
+                                      !negativeReached && !diverging &&
+                                      max_value;
   result.final_peak_value =
-      scale_infos_[scaleWithPeak].max_unnormalized_image_value *
-      scale_infos_[scaleWithPeak].bias_factor;
+      *max_value * scale_infos_[scaleWithPeak].bias_factor;
   return result;
 }
 
@@ -624,10 +629,8 @@ void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
 
   for (size_t i = 0; i != results.size(); ++i) {
     ScaleInfo& scaleEntry = scale_infos_[transformIndices[i]];
-    scaleEntry.max_normalized_image_value =
-        results[i].normalized_value.ValueOr(0.0);
-    scaleEntry.max_unnormalized_image_value =
-        results[i].unnormalized_value.ValueOr(0.0);
+    scaleEntry.max_normalized_image_value = results[i].normalized_value;
+    scaleEntry.max_unnormalized_image_value = results[i].unnormalized_value;
     scaleEntry.max_image_value_x = results[i].x;
     scaleEntry.max_image_value_y = results[i].y;
     if (report_rms) scaleEntry.rms = results[i].rms;
@@ -682,14 +685,16 @@ void MultiScaleAlgorithm::FindSquaredScaleConvolvedMaxima(
 
 void MultiScaleAlgorithm::ActivateScales(size_t scale_with_last_peak) {
   for (size_t i = 0; i != scale_infos_.size(); ++i) {
-    bool doActivate = i == scale_with_last_peak ||
-                      /*i == runnerUp ||*/ std::fabs(
-                          scale_infos_[i].max_unnormalized_image_value) *
-                              scale_infos_[i].bias_factor >
-                          std::fabs(scale_infos_[scale_with_last_peak]
-                                        .max_unnormalized_image_value) *
-                              (1.0 - MinorLoopGain()) *
-                              scale_infos_[scale_with_last_peak].bias_factor;
+    bool doActivate =
+        i == scale_with_last_peak ||
+        (scale_infos_[i].max_unnormalized_image_value &&
+         /*i == runnerUp ||*/ std::fabs(
+             *scale_infos_[i].max_unnormalized_image_value) *
+                 scale_infos_[i].bias_factor >
+             std::fabs(scale_infos_[scale_with_last_peak]
+                           .max_unnormalized_image_value.ValueOr(0.0f)) *
+                 (1.0 - MinorLoopGain()) *
+                 scale_infos_[scale_with_last_peak].bias_factor);
     if (!scale_infos_[i].is_active && doActivate) {
       LogReceiver().Debug << "Scale " << scale_infos_[i].scale
                           << " is now significant and is activated.\n";
@@ -709,7 +714,8 @@ void MultiScaleAlgorithm::MeasureComponentValues(
   component_values.resize(image_set.Size());
   LogReceiver().Debug << "Measuring " << scale.max_image_value_x << ','
                       << scale.max_image_value_y << ", scale " << scale.scale
-                      << ", integrated=" << scale.max_unnormalized_image_value
+                      << ", integrated="
+                      << scale.max_unnormalized_image_value.ValueOr(0.0f)
                       << ":";
   for (size_t i = 0; i != image_set.Size(); ++i) {
     component_values[i] =

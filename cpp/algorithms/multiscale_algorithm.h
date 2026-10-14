@@ -60,8 +60,8 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm,
      * The difference between the normalized and unnormalized value is
      * that the unnormalized value is relative to the RMS factor.
      */
-    float max_normalized_image_value = 0.0;
-    float max_unnormalized_image_value = 0.0;
+    aocommon::OptionalNumber<float> max_normalized_image_value;
+    aocommon::OptionalNumber<float> max_unnormalized_image_value;
     float rms = 0.0;
     size_t max_image_value_x = 0;
     size_t max_image_value_y = 0;

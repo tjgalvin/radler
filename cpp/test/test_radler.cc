@@ -279,9 +279,7 @@ BOOST_DATA_TEST_CASE(scale_mask,
     for (size_t x = 16; x != 48; ++x) mask[y * kSize + x] = 1.0f;
     for (size_t x = 80; x != 112; ++x) mask[y * kSize + x] = 14.0f;
   }
-  const std::string mask_filename =
-      (std::filesystem::temp_directory_path() / "radler-test-scale-mask.fits")
-          .string();
+  const std::string mask_filename = "radler-test-scale-mask.fits";
   aocommon::FitsWriter writer;
   writer.SetImageDimensions(kSize, kSize, kPixelScale, kPixelScale);
   writer.Write(mask_filename, mask.Data());

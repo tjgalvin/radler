@@ -104,7 +104,7 @@ DeconvolutionResult AspAlgorithm::ExecuteMajorIteration(
 
   bool is_final_threshold = false;
   float m_gain_threshold =
-      std::fabs(scale_infos_[scale_with_peak].max_unnormalized_image_value *
+      std::fabs(*scale_infos_[scale_with_peak].max_unnormalized_image_value *
                 scale_infos_[scale_with_peak].bias_factor) *
       (1.0 - MajorLoopGain());
   m_gain_threshold = std::max(m_gain_threshold, MajorIterationThreshold());
@@ -117,7 +117,7 @@ DeconvolutionResult AspAlgorithm::ExecuteMajorIteration(
   LogReceiver().Info
       << "Starting ASP cleaning. Start peak="
       << FluxDensity::ToNiceString(
-             scale_infos_[scale_with_peak].max_unnormalized_image_value *
+             *scale_infos_[scale_with_peak].max_unnormalized_image_value *
              scale_infos_[scale_with_peak].bias_factor)
       << ", major iteration threshold="
       << FluxDensity::ToNiceString(first_threshold);
@@ -130,7 +130,8 @@ DeconvolutionResult AspAlgorithm::ExecuteMajorIteration(
   // The minor iteration loop
   //
   while (IterationNumber() < MaxIterations() &&
-         std::fabs(scale_infos_[scale_with_peak].max_unnormalized_image_value *
+         scale_infos_[scale_with_peak].max_unnormalized_image_value &&
+         std::fabs(*scale_infos_[scale_with_peak].max_unnormalized_image_value *
                    scale_infos_[scale_with_peak].bias_factor) >
              first_threshold &&
          (!StopOnNegativeComponents() ||
@@ -164,9 +165,10 @@ DeconvolutionResult AspAlgorithm::ExecuteMajorIteration(
     individually_convolved_images.GetLinearIntegrated(integrated);
     FindPeakDirect(integrated, scratch_a, scale_with_peak);
     LogReceiver().Debug << "Scale now "
-                        << std::fabs(scale_infos_[scale_with_peak]
-                                         .max_unnormalized_image_value *
-                                     scale_infos_[scale_with_peak].bias_factor)
+                        << std::fabs(
+                               scale_infos_[scale_with_peak]
+                                   .max_unnormalized_image_value.ValueOr(0.0f) *
+                               scale_infos_[scale_with_peak].bias_factor)
                         << '\n';
 
     SetIterationNumber(IterationNumber() + 1);
@@ -182,14 +184,16 @@ DeconvolutionResult AspAlgorithm::ExecuteMajorIteration(
     }
     scale_with_peak = *optional_scale_with_peak;
 
-    LogReceiver().Info
-        << "Iteration " << IterationNumber() << ", scale "
-        << round(scale_infos_[scale_with_peak].scale) << " px : "
-        << FluxDensity::ToNiceString(
-               scale_infos_[scale_with_peak].max_unnormalized_image_value *
-               scale_infos_[scale_with_peak].bias_factor)
-        << " at " << scale_infos_[scale_with_peak].max_image_value_x << ','
-        << scale_infos_[scale_with_peak].max_image_value_y << '\n';
+    LogReceiver().Info << "Iteration " << IterationNumber() << ", scale "
+                       << round(scale_infos_[scale_with_peak].scale) << " px : "
+                       << FluxDensity::ToNiceString(
+                              scale_infos_[scale_with_peak]
+                                  .max_unnormalized_image_value.ValueOr(0.0f) *
+                              scale_infos_[scale_with_peak].bias_factor)
+                       << " at "
+                       << scale_infos_[scale_with_peak].max_image_value_x << ','
+                       << scale_infos_[scale_with_peak].max_image_value_y
+                       << '\n';
 
     if (scale_infos_[scale_with_peak].scale == 0.0) {
       const size_t x = scale_infos_[scale_with_peak].max_image_value_x;
@@ -220,11 +224,13 @@ DeconvolutionResult AspAlgorithm::ExecuteMajorIteration(
                           "inversion/prediction round.\n";
   }
 
-  result.another_iteration_required =
-      !max_iter_reached && !is_final_threshold && !negative_reached;
+  const aocommon::OptionalNumber<float> max_value =
+      scale_infos_[scale_with_peak].max_unnormalized_image_value;
+  result.another_iteration_required = !max_iter_reached &&
+                                      !is_final_threshold &&
+                                      !negative_reached && max_value;
   result.final_peak_value =
-      scale_infos_[scale_with_peak].max_unnormalized_image_value *
-      scale_infos_[scale_with_peak].bias_factor;
+      max_value.ValueOr(0.0f) * scale_infos_[scale_with_peak].bias_factor;
   return result;
 }
 
@@ -260,7 +266,7 @@ void AspAlgorithm::DeconvolveGaussian(
   const size_t width = data_image.Width();
   const size_t height = data_image.Height();
   double fit_a =
-      peak_scale.max_unnormalized_image_value * peak_scale.bias_factor;
+      *peak_scale.max_unnormalized_image_value * peak_scale.bias_factor;
   double fit_x = peak_scale.max_image_value_x;
   double fit_y = peak_scale.max_image_value_y;
   Ellipse gaussian{peak_scale.scale, peak_scale.scale, 0.0};
