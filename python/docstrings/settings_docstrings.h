@@ -207,13 +207,13 @@ size. It is rarely ever necessary to set this parameter. Also consider
 using max_scales instead of a manual ``scale_list`` when the default
 just contains scales that are too large.)doc";
 
-static const char *mkd_doc_radler_Settings_Multiscale_shape = R"doc(Shape of kernel to be used for deconvolution. @see MultiscaleShape.)doc";
-
 static const char *mkd_doc_radler_Settings_Multiscale_scale_mask_filename =
 R"doc(Filename for the per-scale fits mask. Each pixel represents a bit-
 mapped quantity, with the n'th bit corresponding to the n'th scale.
 For consistency the data should be of type float. Uses about one byte
 of memory per pixel per scale in use.)doc";
+
+static const char *mkd_doc_radler_Settings_Multiscale_shape = R"doc(Shape of kernel to be used for deconvolution. @see MultiscaleShape.)doc";
 
 static const char *mkd_doc_radler_Settings_Multiscale_sub_minor_loop_gain =
 R"doc(Controls how long to keep the scale fixed. The default value of 0.2
