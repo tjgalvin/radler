@@ -52,15 +52,22 @@ DeconvolutionResult RmDeconvolution::ExecuteMajorIteration(
   std::vector<CImage> residual_rm =
       rm::TransformImageToRm(rm_fitter, residual_set);
   LogReceiver().Info << "Transforming PSF to RM space...\n";
-  std::vector<CImage> psf_rm = rm::TransformPsfToRm(rm_fitter, psfs);
   const size_t max_psf_size = std::min(width, height);
-  const size_t new_psf_size =
+  const size_t reduced_psf_size =
       std::clamp<size_t>(psf_pixel_size_ * 8, 1, max_psf_size);
   const size_t requested_rm_size =
       rm_fitter.GetNPhi() * rm_psf_kernel_size_ / n_channels;
-  const size_t new_rm_size =
+  const size_t reduced_psf_rm_size =
       std::clamp<size_t>(requested_rm_size, 1, rm_fitter.GetNPhi());
-  psf_rm = rm::ShrinkRmCube(psf_rm, new_psf_size, new_rm_size);
+  const size_t rm_psf_start =
+      (std::max(rm_fitter.GetNPhi(), reduced_psf_rm_size) -
+       reduced_psf_rm_size) /
+      2;
+  const size_t rm_psf_end =
+      std::min(rm_psf_start + reduced_psf_rm_size, rm_fitter.GetNPhi());
+  std::vector<CImage> psf_rm =
+      rm::PartiallyTransformPsfToRm(rm_fitter, psfs, rm_psf_start, rm_psf_end);
+  psf_rm = rm::ShrinkRmCube(psf_rm, reduced_psf_size, psf_rm.size());
   LogReceiver().Info << "PSF size: " << psf_rm.size() << " x "
                      << psf_rm.front().Width() << " x "
                      << psf_rm.front().Height() << '\n';

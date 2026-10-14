@@ -56,11 +56,22 @@ void PartiallyTransformImageToRm(
     size_t start_phi_index, size_t end_phi_index, bool with_progress = false);
 
 /**
+ * Calculates a partial RM PSF cube from the frequency PSF cube. The returned
+ * cube will have (end_rm_index - start_rm_index) slices.
+ */
+std::vector<CImage> PartiallyTransformPsfToRm(
+    const schaapcommon::fitters::RmFitter& rm_fitter,
+    const std::vector<aocommon::Image>& psfs, size_t start_rm_index,
+    size_t end_rm_index);
+
+/**
  * Calculates an RM PSF cube from the frequency PSF cube.
  */
-std::vector<CImage> TransformPsfToRm(
+inline std::vector<CImage> TransformPsfToRm(
     const schaapcommon::fitters::RmFitter& rm_fitter,
-    const std::vector<aocommon::Image>& psfs);
+    const std::vector<aocommon::Image>& psfs) {
+  return PartiallyTransformPsfToRm(rm_fitter, psfs, 0, rm_fitter.GetNPhi());
+}
 
 /**
  * Calculates the mean and standard deviation of the absolute values of an RM

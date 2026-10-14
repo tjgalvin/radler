@@ -53,22 +53,27 @@ std::vector<CImage> TransformImageToRm(
   return rm_cube;
 }
 
-std::vector<CImage> TransformPsfToRm(
+std::vector<CImage> PartiallyTransformPsfToRm(
     const schaapcommon::fitters::RmFitter& rm_fitter,
-    const std::vector<aocommon::Image>& psfs) {
+    const std::vector<aocommon::Image>& psfs, size_t start_rm_index,
+    size_t end_rm_index) {
   assert(!psfs.empty());
   const size_t width = psfs.front().Width();
   const size_t height = psfs.front().Height();
   const size_t n_channels = psfs.size();
   const size_t n_phi = rm_fitter.GetNPhi();
 
+  assert(start_rm_index <= end_rm_index);
+  assert(end_rm_index <= n_phi);
+
   std::vector<CImage> rm_cube;
-  for (size_t i = 0; i != n_phi; ++i) rm_cube.emplace_back(width, height, 0.0f);
+  for (size_t i = start_rm_index; i != end_rm_index; ++i)
+    rm_cube.emplace_back(width, height, 0.0f);
 
   schaapcommon::StaticFor<size_t> loop;
   loop.Run(0, height, [&](size_t y_start, size_t y_end, size_t thread_index) {
     std::vector<std::complex<float>> spectrum(n_channels);
-    std::vector<std::complex<float>> rm_values(rm_fitter.GetNPhi());
+    std::vector<std::complex<float>> rm_values(end_rm_index - start_rm_index);
     std::optional<aocommon::ProgressBar> progress;
     if (thread_index == 0) progress.emplace();
     for (size_t y = y_start; y != y_end; ++y) {
@@ -77,8 +82,8 @@ std::vector<CImage> TransformPsfToRm(
         for (size_t i = 0; i != n_channels; ++i) {
           spectrum[i] = psfs[i][position];
         }
-        rm_fitter.TransformToPhi(spectrum, rm_values);
-        for (size_t i = 0; i != n_phi; ++i) {
+        rm_fitter.PartiallyTransformToPhi(spectrum, rm_values, start_rm_index);
+        for (size_t i = 0; i != rm_values.size(); ++i) {
           rm_cube[i][position] = rm_values[i];
         }
       }
