@@ -17,7 +17,6 @@
 
 #include "algorithms/threaded_deconvolution_tools.h"
 #include "algorithms/multiscale/multiscale_transforms.h"
-#include "utils/compressed_mask.h"
 
 namespace radler::algorithms {
 
@@ -50,25 +49,6 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm,
     return scale_infos_[scale_index].scale;
   }
 
-  /**
-   * Set user-provided per-scale clean masks, which restrict peak finding per
-   * scale wherever the scale-independent clean mask would otherwise be used.
-   * They are independent of the auto-mask: once auto-masking uses its
-   * per-scale masks, those take precedence.
-   *
-   * The masks are only inflated during @ref ExecuteMajorIteration(), and only
-   * for the scales in use that allow at least one pixel.
-   * @param masks Full-image masks, one per scale. Scales beyond its size are
-   * not allowed anywhere. Is not copied, so must remain valid. nullptr
-   * disables user scale masks and frees the inflated masks.
-   * @param x, y Offset of the deconvolved image inside @p masks.
-   * @param boundary_mask Optional mask, with the size of the deconvolved
-   * image, that is intersected with @p masks, e.g. the clean mask. Is not
-   * copied.
-   */
-  void SetUserScaleMasks(const std::vector<utils::CompressedMask>* masks,
-                         size_t x, size_t y, const bool* boundary_mask);
-
   struct ScaleInfo {
     float scale = 0.0;
     float psf_peak = 0.0;
@@ -98,21 +78,6 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm,
 
   bool track_components_;
   aocommon::cloned_ptr<ComponentList> component_list_;
-
-  void InflateUserScaleMasks(size_t width, size_t height);
-  void FreeUserScaleMasks();
-  bool UsesUserScaleMasks() const {
-    return user_scale_mask_source_ && !use_per_scale_masks_;
-  }
-  /** True if a user scale mask excludes the scale from the entire image. */
-  bool IsScaleExcluded(size_t scale_index) const {
-    return UsesUserScaleMasks() && user_scale_masks_[scale_index].empty();
-  }
-  /**
-   * The mask that restricts peak finding for the given scale, or nullptr if
-   * no mask applies. Should not be called for excluded scales.
-   */
-  const bool* ScaleMask(size_t scale_index) const;
 
   /**
    * Finds the maximum peak values for each scale in the integrated image,
