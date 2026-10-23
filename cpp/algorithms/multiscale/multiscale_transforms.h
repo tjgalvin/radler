@@ -81,6 +81,16 @@ class MultiScaleTransforms {
     size_t n;
     aocommon::Image kernel =
         MakeShapeFunction(scaleSizeInPixels, n, std::min(width, height), shape);
+    AddKernel(image, width, height, kernel, n, x, y, gain);
+  }
+
+  /**
+   * Adds a kernel of size n x n, made with MakeShapeFunction(), times the gain
+   * to the image, centred on position (x, y).
+   */
+  static void AddKernel(float* image, size_t width, size_t height,
+                        const aocommon::Image& kernel, size_t n, size_t x,
+                        size_t y, float gain) {
     int left;
     if (x > n / 2)
       left = x - n / 2;

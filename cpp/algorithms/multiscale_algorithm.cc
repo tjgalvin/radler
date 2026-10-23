@@ -3,6 +3,7 @@
 #include "algorithms/multiscale_algorithm.h"
 
 #include <cassert>
+#include <cstdlib>
 #include <memory>
 #include <set>
 
@@ -24,6 +25,56 @@ using aocommon::Image;
 using aocommon::units::FluxDensity;
 
 namespace radler::algorithms {
+namespace {
+
+/**
+ * Adds the components of one image that were found by the sub-minor loop,
+ * convolved with the kernel of the given scale, to the model image. When there
+ * are few components, the kernels are added directly at the component
+ * positions, otherwise the model is convolved with an FFT. Both give the same
+ * result, because components are never closer to the border than half the
+ * scale, so that the circular FFT convolution does not wrap them around.
+ */
+void AddComponentsToModel(const SubMinorLoop& sub_loop, size_t image_index,
+                          float scale,
+                          multiscale::MultiScaleTransforms& ms_transforms,
+                          float* model, Image& scratch) {
+  const size_t width = ms_transforms.Width();
+  const size_t height = ms_transforms.Height();
+  size_t n_components = 0;
+  sub_loop.ForEachComponent(image_index,
+                            [&](size_t, size_t, float) { ++n_components; });
+  if (scale == 0.0) {
+    sub_loop.ForEachComponent(image_index,
+                              [&](size_t x, size_t y, float value) {
+                                model[x + y * width] += value;
+                              });
+    return;
+  }
+  size_t kernel_size;
+  const Image kernel = ms_transforms.MakeShapeFunction(scale, kernel_size);
+  // A forward and inverse FFT cost a few tens of passes over the image, so
+  // adding the kernels directly is cheaper as long as the number of
+  // kernel pixels is below a few times the image size.
+  constexpr size_t kDirectFactor = 4;
+  if (n_components * kernel_size * kernel_size <
+      kDirectFactor * width * height) {
+    sub_loop.ForEachComponent(
+        image_index, [&](size_t x, size_t y, float value) {
+          multiscale::MultiScaleTransforms::AddKernel(
+              model, width, height, kernel, kernel_size, x, y, value);
+        });
+  } else {
+    sub_loop.GetFullIndividualModel(image_index, scratch.Data());
+    ms_transforms.Convolver().Convolve(scratch.Data(),
+                                       ms_transforms.KernelSpectrum(scale));
+    for (size_t i = 0; i != width * height; ++i) {
+      model[i] += scratch.Data()[i];
+    }
+  }
+}
+
+}  // namespace
 
 void ConvolvePsfs(std::vector<Image>& convolved_psfs, const Image& psf,
                   Image& /*scratch*/, bool is_integrated,
@@ -42,10 +93,13 @@ void ConvolvePsfs(std::vector<Image>& convolved_psfs, const Image& psf,
                   bool is_integrated,
                   std::vector<MultiScaleAlgorithm::ScaleInfo>& scales,
                   double beam_size_in_pixels, double scale_bias,
-                  double minor_loop_gain, aocommon::LogReceiver& log) {
+                  double minor_loop_gain, aocommon::LogReceiver& log,
+                  math::FftConvolver::Spectrum* psf_spectrum_out) {
   convolved_psfs = std::vector<Image>(scales.size());
   // The spectrum of the psf is shared by all scales.
-  math::FftConvolver::Spectrum psf_spectrum;
+  math::FftConvolver::Spectrum local_psf_spectrum;
+  math::FftConvolver::Spectrum& psf_spectrum =
+      psf_spectrum_out ? *psf_spectrum_out : local_psf_spectrum;
   ms_transforms.Convolver().Forward(psf.Data(), psf_spectrum);
   if (is_integrated) log.Info << "Scale info:\n";
   const double first_auto_scale_size = beam_size_in_pixels * 2.0;
@@ -269,10 +323,12 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
   integratedScratch = Image(width, height);
   multiscale::MultiScaleTransforms msTransforms(width, height, settings_.shape);
   std::vector<std::vector<Image>> convolvedPSFs(data_image.PsfCount());
+  // The spectra of the psfs, used to make the twice-convolved psfs
+  std::vector<math::FftConvolver::Spectrum> psfSpectra(data_image.PsfCount());
   data_image.GetIntegratedPsf(integratedScratch, psf_images);
   ConvolvePsfs(convolvedPSFs[0], integratedScratch, msTransforms, true,
                scale_infos_, beam_size_in_pixels_, settings_.scale_bias,
-               MinorLoopGain(), LogReceiver());
+               MinorLoopGain(), LogReceiver(), &psfSpectra[0]);
 
   // If there's only one, the integrated equals the first, so we can skip this.
   // The per-image convolved psfs are only used in the minor loop, so they are
@@ -283,7 +339,7 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
     for (size_t i = 0; i != data_image.PsfCount(); ++i) {
       ConvolvePsfs(convolvedPSFs[i], psf_images[i], msTransforms, false,
                    scale_infos_, beam_size_in_pixels_, settings_.scale_bias,
-                   MinorLoopGain(), LogReceiver());
+                   MinorLoopGain(), LogReceiver(), &psfSpectra[i]);
     }
   }
 
@@ -343,28 +399,33 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
     // Create double-convolved PSFs & individually convolved images for this
     // scale
     std::vector<Image> transformList;
-    transformList.reserve(data_image.PsfCount() + data_image.Size());
-    for (size_t i = 0; i != data_image.PsfCount(); ++i) {
-      transformList.push_back(convolvedPSFs[i][scaleWithPeak]);
-    }
+    transformList.reserve(data_image.Size());
     for (size_t i = 0; i != data_image.Size(); ++i) {
       transformList.emplace_back(width, height);
       std::copy_n(data_image.Data(i), width * height,
                   transformList.back().Data());
     }
-    if (scale_infos_[scaleWithPeak].scale != 0.0) {
-      msTransforms.Transform(transformList, scratch,
-                             scale_infos_[scaleWithPeak].scale);
-    }
-
     std::vector<Image> twiceConvolvedPSFs;
     twiceConvolvedPSFs.reserve(data_image.PsfCount());
-    for (size_t i = 0; i != data_image.PsfCount(); ++i) {
-      twiceConvolvedPSFs.emplace_back(std::move(transformList[i]));
+    const float scale = scale_infos_[scaleWithPeak].scale;
+    if (scale != 0.0) {
+      msTransforms.Transform(transformList, scratch, scale);
+      // The twice-convolved psfs are made from the psf spectra, which takes
+      // only one FFT per psf.
+      const math::FftConvolver::Spectrum& kernel =
+          msTransforms.KernelSpectrum(scale);
+      for (size_t i = 0; i != data_image.PsfCount(); ++i) {
+        Image& psf = twiceConvolvedPSFs.emplace_back(width, height);
+        msTransforms.Convolver().MultiplyInverse(psfSpectra[i], kernel, kernel,
+                                                 psf.Data());
+      }
+    } else {
+      for (size_t i = 0; i != data_image.PsfCount(); ++i) {
+        twiceConvolvedPSFs.push_back(convolvedPSFs[i][scaleWithPeak]);
+      }
     }
     for (size_t i = 0; i != data_image.Size(); ++i) {
-      individualConvolvedImages.SetImage(
-          i, std::move(transformList[i + data_image.PsfCount()]));
+      individualConvolvedImages.SetImage(i, std::move(transformList[i]));
     }
 
     //
@@ -450,7 +511,6 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
                                      integratedScratch.Data(), imageIndex,
                                      data_image.Data(imageIndex), psf.Data());
 
-        subLoop.GetFullIndividualModel(imageIndex, scratch.Data());
         if (imageIndex == 0) {
           if (TrackPerScaleMasks()) {
             subLoop.UpdateAutoMask(GetScaleMask(scaleWithPeak).data());
@@ -459,16 +519,8 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
             subLoop.UpdateComponentList(*component_list_, scaleWithPeak);
           }
         }
-        if (scale_infos_[scaleWithPeak].scale != 0.0) {
-          std::vector<Image> transformList{std::move(scratch)};
-          msTransforms.Transform(transformList, integratedScratch,
-                                 scale_infos_[scaleWithPeak].scale);
-          scratch = std::move(transformList[0]);
-        }
-        float* model = model_image.Data(imageIndex);
-        for (size_t i = 0; i != width * height; ++i) {
-          model[i] += scratch.Data()[i];
-        }
+        AddComponentsToModel(subLoop, imageIndex, scale, msTransforms,
+                             model_image.Data(imageIndex), scratch);
       }
 
     } else {  // don't use the sub-minor optimization
