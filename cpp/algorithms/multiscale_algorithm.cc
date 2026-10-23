@@ -19,6 +19,7 @@
 #include "math/peak_finder.h"
 #include "multiscale/multiscale_transforms.h"
 #include "utils/fft_size_calculations.h"
+#include "utils/phase_timer.h"
 
 using aocommon::Image;
 using aocommon::units::FluxDensity;
@@ -43,6 +44,8 @@ void AddComponentsToModel(const SubMinorLoop& sub_loop, size_t image_index,
   size_t n_components = 0;
   sub_loop.ForEachComponent(image_index,
                             [&](size_t, size_t, float) { ++n_components; });
+  utils::PhaseTimers::Instance().Count(utils::Counter::kModelComponents,
+                                       n_components);
   if (scale == 0.0) {
     sub_loop.ForEachComponent(image_index,
                               [&](size_t x, size_t y, float value) {
@@ -58,12 +61,15 @@ void AddComponentsToModel(const SubMinorLoop& sub_loop, size_t image_index,
   constexpr size_t kDirectFactor = 4;
   if (n_components * kernel_size * kernel_size <
       kDirectFactor * width * height) {
+    utils::PhaseTimers::Instance().Count(utils::Counter::kModelUpdatesDirect,
+                                         1);
     sub_loop.ForEachComponent(
         image_index, [&](size_t x, size_t y, float value) {
           multiscale::MultiScaleTransforms::AddKernel(
               model, width, height, kernel, kernel_size, x, y, value);
         });
   } else {
+    utils::PhaseTimers::Instance().Count(utils::Counter::kModelUpdatesFft, 1);
     sub_loop.GetFullIndividualModel(image_index, scratch.Data());
     ms_transforms.Convolver().Convolve(scratch.Data(),
                                        ms_transforms.KernelSpectrum(scale));
@@ -322,29 +328,38 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
   std::vector<std::vector<Image>> convolvedPSFs(data_image.PsfCount());
   // The spectra of the psfs, used to make the twice-convolved psfs
   std::vector<math::FftConvolver::Spectrum> psfSpectra(data_image.PsfCount());
-  data_image.GetIntegratedPsf(integratedScratch, psf_images);
-  ConvolvePsfs(convolvedPSFs[0], integratedScratch, msTransforms, true,
-               scale_infos_, beam_size_in_pixels_, settings_.scale_bias,
-               MinorLoopGain(), LogReceiver(), &psfSpectra[0]);
+  {
+    utils::ScopedPhaseTimer setup_timer(utils::Phase::kSetupConvolvePsfs);
+    data_image.GetIntegratedPsf(integratedScratch, psf_images);
+    ConvolvePsfs(convolvedPSFs[0], integratedScratch, msTransforms, true,
+                 scale_infos_, beam_size_in_pixels_, settings_.scale_bias,
+                 MinorLoopGain(), LogReceiver(), &psfSpectra[0]);
 
-  // If there's only one, the integrated equals the first, so we can skip this.
-  // The per-image convolved psfs are only used in the minor loop, so they are
-  // also not needed when no iterations are performed (e.g. when parallel
-  // deconvolution only searches for the peak).
-  const bool minor_loop_required = IterationNumber() < MaxIterations();
-  if (data_image.PsfCount() > 1 && minor_loop_required) {
-    for (size_t i = 0; i != data_image.PsfCount(); ++i) {
-      ConvolvePsfs(convolvedPSFs[i], psf_images[i], msTransforms, false,
-                   scale_infos_, beam_size_in_pixels_, settings_.scale_bias,
-                   MinorLoopGain(), LogReceiver(), &psfSpectra[i]);
+    // If there's only one, the integrated equals the first, so we can skip
+    // this. The per-image convolved psfs are only used in the minor loop, so
+    // they are also not needed when no iterations are performed (e.g. when
+    // parallel deconvolution only searches for the peak).
+    const bool minor_loop_required = IterationNumber() < MaxIterations();
+    if (minor_loop_required) {
+      utils::PhaseTimers::Instance().CountDimensions(this, width, height);
+    }
+    if (data_image.PsfCount() > 1 && minor_loop_required) {
+      for (size_t i = 0; i != data_image.PsfCount(); ++i) {
+        ConvolvePsfs(convolvedPSFs[i], psf_images[i], msTransforms, false,
+                     scale_infos_, beam_size_in_pixels_, settings_.scale_bias,
+                     MinorLoopGain(), LogReceiver(), &psfSpectra[i]);
+      }
     }
   }
 
-  if (do_square_channels) {
-    FindSquaredScaleConvolvedMaxima(data_image, integratedScratch, scratch);
-  } else {
-    FindActiveScaleConvolvedMaxima(data_image, integratedScratch, scratch, true,
-                                   tools, msTransforms);
+  {
+    utils::ScopedPhaseTimer search_timer(utils::Phase::kInitialScaleSearch);
+    if (do_square_channels) {
+      FindSquaredScaleConvolvedMaxima(data_image, integratedScratch, scratch);
+    } else {
+      FindActiveScaleConvolvedMaxima(data_image, integratedScratch, scratch,
+                                     true, tools, msTransforms);
+    }
   }
   DeconvolutionResult result;
   aocommon::OptionalNumber<size_t> optional_scale_with_peak =
@@ -406,6 +421,7 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
     twiceConvolvedPSFs.reserve(data_image.PsfCount());
     const float scale = scale_infos_[scaleWithPeak].scale;
     if (scale != 0.0) {
+      utils::ScopedPhaseTimer transform_timer(utils::Phase::kTransformList);
       msTransforms.Transform(transformList, scratch, scale);
       // The twice-convolved psfs are made from the psf spectra, which takes
       // only one FFT per psf.
@@ -478,8 +494,11 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
       subLoop.SetParentAlgorithm(this);
 
       aocommon::OptionalNumber<float> peak_value;
-      std::tie(diverging, peak_value) =
-          subLoop.Run(individualConvolvedImages, twiceConvolvedPSFs);
+      {
+        utils::ScopedPhaseTimer subminor_timer(utils::Phase::kSubMinorLoopRun);
+        std::tie(diverging, peak_value) =
+            subLoop.Run(individualConvolvedImages, twiceConvolvedPSFs);
+      }
       if (DivergenceLimit() != 0.0 && peak_value) {
         diverging = diverging || std::fabs(*peak_value) >
                                      initial_peak_value * DivergenceLimit();
@@ -504,9 +523,14 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
         // temporaries
         const aocommon::Image& psf =
             convolvedPSFs[data_image.PsfIndex(imageIndex)][scaleWithPeak];
-        subLoop.SubtractComponents(imageIndex, data_image.Data(imageIndex),
-                                   psf.Data());
+        {
+          utils::ScopedPhaseTimer correct_timer(
+              utils::Phase::kCorrectResidualDirty);
+          subLoop.SubtractComponents(imageIndex, data_image.Data(imageIndex),
+                                     psf.Data());
+        }
 
+        utils::ScopedPhaseTimer model_timer(utils::Phase::kModelUpdate);
         if (imageIndex == 0) {
           if (TrackPerScaleMasks()) {
             subLoop.UpdateAutoMask(GetScaleMask(scaleWithPeak).data());
@@ -585,11 +609,14 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
 
     ActivateScales(scaleWithPeak);
 
-    if (do_square_channels) {
-      FindSquaredScaleConvolvedMaxima(data_image, integratedScratch, scratch);
-    } else {
-      FindActiveScaleConvolvedMaxima(data_image, integratedScratch, scratch,
-                                     false, tools, msTransforms);
+    {
+      utils::ScopedPhaseTimer search_timer(utils::Phase::kScaleSearch);
+      if (do_square_channels) {
+        FindSquaredScaleConvolvedMaxima(data_image, integratedScratch, scratch);
+      } else {
+        FindActiveScaleConvolvedMaxima(data_image, integratedScratch, scratch,
+                                       false, tools, msTransforms);
+      }
     }
 
     optional_scale_with_peak = SelectMaximumScale(scale_infos_);

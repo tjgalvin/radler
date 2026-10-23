@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <sstream>
 
 #include <aocommon/units/fluxdensity.h>
@@ -13,6 +14,7 @@
 
 #include "algorithms/multiscale_algorithm.h"
 #include "math/dijkstra_splitter.h"
+#include "utils/phase_timer.h"
 
 using aocommon::Image;
 
@@ -611,6 +613,8 @@ ParallelDeconvolutionResult ParallelDeconvolution::ExecuteParallelRun(
   // Find the starting peak over all subimages
   ImageSet resultModel(model_image, model_image.Width(), model_image.Height());
   resultModel = 0.0;
+  std::optional<utils::ScopedPhaseTimer> pass_timer(
+      std::in_place, utils::Phase::kPeakOnlyPassWall);
   schaapcommon::RecursiveFor::NestedRun(
       0, algorithms_.size(), [&](size_t index) {
         sub_image_logs_.Activate(index);
@@ -623,6 +627,7 @@ ParallelDeconvolutionResult ParallelDeconvolution::ExecuteParallelRun(
                                     << " returned peak position.\n";
         sub_image_logs_[index].Mute(true);
       });
+  pass_timer.reset();
   double start_peak_value = 0.0;
   size_t indexOfMax = 0;
   for (const SubImage& img : subImages) {
@@ -637,6 +642,7 @@ ParallelDeconvolutionResult ParallelDeconvolution::ExecuteParallelRun(
   double mIterThreshold = start_peak_value * (1.0 - major_loop_gain);
 
   // Run the deconvolution
+  pass_timer.emplace(utils::Phase::kMainPassWall);
   schaapcommon::RecursiveFor::NestedRun(
       0, algorithms_.size(), [&](size_t index) {
         sub_image_logs_.Activate(index);
@@ -651,6 +657,7 @@ ParallelDeconvolutionResult ParallelDeconvolution::ExecuteParallelRun(
             << " finished its deconvolution iteration.\n";
         sub_image_logs_[index].Mute(true);
       });
+  pass_timer.reset();
   model_image.SetImages(std::move(resultModel));
 
   rms_image_.Reset();
