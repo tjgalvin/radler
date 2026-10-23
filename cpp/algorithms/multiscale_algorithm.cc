@@ -26,27 +26,42 @@ using aocommon::units::FluxDensity;
 namespace radler::algorithms {
 
 void ConvolvePsfs(std::vector<Image>& convolved_psfs, const Image& psf,
-                  Image& scratch, bool is_integrated,
+                  Image& /*scratch*/, bool is_integrated,
                   std::vector<MultiScaleAlgorithm::ScaleInfo>& scales,
                   double beam_size_in_pixels, double scale_bias,
                   double minor_loop_gain, MultiscaleShape shape,
                   aocommon::LogReceiver& log) {
   multiscale::MultiScaleTransforms ms_transforms(psf.Width(), psf.Height(),
                                                  shape);
+  ConvolvePsfs(convolved_psfs, psf, ms_transforms, is_integrated, scales,
+               beam_size_in_pixels, scale_bias, minor_loop_gain, log);
+}
+
+void ConvolvePsfs(std::vector<Image>& convolved_psfs, const Image& psf,
+                  multiscale::MultiScaleTransforms& ms_transforms,
+                  bool is_integrated,
+                  std::vector<MultiScaleAlgorithm::ScaleInfo>& scales,
+                  double beam_size_in_pixels, double scale_bias,
+                  double minor_loop_gain, aocommon::LogReceiver& log) {
   convolved_psfs = std::vector<Image>(scales.size());
+  // The spectrum of the psf is shared by all scales.
+  math::FftConvolver::Spectrum psf_spectrum;
+  ms_transforms.Convolver().Forward(psf.Data(), psf_spectrum);
   if (is_integrated) log.Info << "Scale info:\n";
   const double first_auto_scale_size = beam_size_in_pixels * 2.0;
   for (size_t scale_index = 0; scale_index != scales.size(); ++scale_index) {
     MultiScaleAlgorithm::ScaleInfo& scale_entry = scales[scale_index];
 
-    convolved_psfs[scale_index] = psf;
+    if (scale_entry.scale == 0.0) {
+      convolved_psfs[scale_index] = psf;
+    } else {
+      convolved_psfs[scale_index] = Image(psf.Width(), psf.Height());
+      ms_transforms.Convolver().MultiplyInverse(
+          psf_spectrum, ms_transforms.KernelSpectrum(scale_entry.scale),
+          convolved_psfs[scale_index].Data());
+    }
 
     if (is_integrated) {
-      if (scale_entry.scale != 0.0) {
-        ms_transforms.Transform(convolved_psfs[scale_index], scratch,
-                                scale_entry.scale);
-      }
-
       scale_entry.psf_peak =
           convolved_psfs[scale_index]
                         [psf.Width() / 2 + (psf.Height() / 2) * psf.Width()];
@@ -68,20 +83,11 @@ void ConvolvePsfs(std::vector<Image>& convolved_psfs, const Image& psf,
 
       scale_entry.is_active = true;
 
-      if (scale_entry.scale == 0.0) {
-        convolved_psfs[scale_index] = psf;
-      }
-
       log.Info << "- Scale " << round(scale_entry.scale) << ", bias factor="
                << round(scale_entry.bias_factor * 10.0) / 10.0
                << ", psfpeak=" << scale_entry.psf_peak
                << ", gain=" << scale_entry.gain
                << ", kernel peak=" << scale_entry.kernel_peak << '\n';
-    } else {
-      if (scale_entry.scale != 0.0) {
-        ms_transforms.Transform(convolved_psfs[scale_index], scratch,
-                                scale_entry.scale);
-      }
     }
   }
 }
@@ -261,28 +267,27 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
   scratch = Image(scratchWidth, scratchHeight);
   scratchB = Image(scratchWidth, scratchHeight);
   integratedScratch = Image(width, height);
+  multiscale::MultiScaleTransforms msTransforms(width, height, settings_.shape);
   std::vector<std::vector<Image>> convolvedPSFs(data_image.PsfCount());
   data_image.GetIntegratedPsf(integratedScratch, psf_images);
-  ConvolvePsfs(convolvedPSFs[0], integratedScratch, scratch, true, scale_infos_,
-               beam_size_in_pixels_, settings_.scale_bias, MinorLoopGain(),
-               settings_.shape, LogReceiver());
+  ConvolvePsfs(convolvedPSFs[0], integratedScratch, msTransforms, true,
+               scale_infos_, beam_size_in_pixels_, settings_.scale_bias,
+               MinorLoopGain(), LogReceiver());
 
   // If there's only one, the integrated equals the first, so we can skip this
   if (data_image.PsfCount() > 1) {
     for (size_t i = 0; i != data_image.PsfCount(); ++i) {
-      ConvolvePsfs(convolvedPSFs[i], psf_images[i], scratch, false,
+      ConvolvePsfs(convolvedPSFs[i], psf_images[i], msTransforms, false,
                    scale_infos_, beam_size_in_pixels_, settings_.scale_bias,
-                   MinorLoopGain(), settings_.shape, LogReceiver());
+                   MinorLoopGain(), LogReceiver());
     }
   }
-
-  multiscale::MultiScaleTransforms msTransforms(width, height, settings_.shape);
 
   if (do_square_channels) {
     FindSquaredScaleConvolvedMaxima(data_image, integratedScratch, scratch);
   } else {
     FindActiveScaleConvolvedMaxima(data_image, integratedScratch, scratch, true,
-                                   tools);
+                                   tools, msTransforms);
   }
   DeconvolutionResult result;
   aocommon::OptionalNumber<size_t> optional_scale_with_peak =
@@ -532,7 +537,7 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
       FindSquaredScaleConvolvedMaxima(data_image, integratedScratch, scratch);
     } else {
       FindActiveScaleConvolvedMaxima(data_image, integratedScratch, scratch,
-                                     false, tools);
+                                     false, tools, msTransforms);
     }
 
     optional_scale_with_peak = SelectMaximumScale(scale_infos_);
@@ -592,9 +597,8 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
 
 void MultiScaleAlgorithm::FindActiveScaleConvolvedMaxima(
     const ImageSet& image_set, Image& integrated_scratch, Image& scratch,
-    bool report_rms, ThreadedDeconvolutionTools& tools) {
-  multiscale::MultiScaleTransforms msTransforms(
-      image_set.Width(), image_set.Height(), settings_.shape);
+    bool report_rms, ThreadedDeconvolutionTools& tools,
+    multiscale::MultiScaleTransforms& msTransforms) {
   image_set.GetLinearIntegrated(integrated_scratch);
   aocommon::UVector<float> transformScales;
   aocommon::UVector<size_t> transformIndices;

@@ -37,14 +37,24 @@ void ThreadedDeconvolutionTools::FindMultiScalePeak(
     const Image& rms_factor_image, bool calculate_rms) {
   const size_t n_scales = scales.size();
   results.resize(n_scales);
+  if (n_scales == 0) return;
+
+  // The spectrum of the image is shared by all scales, so that each scale
+  // only requires a multiplication and an inverse FFT.
+  const math::FftConvolver& convolver = ms_transforms->Convolver();
+  math::FftConvolver::Spectrum image_spectrum;
+  convolver.Forward(image.Data(), image_spectrum);
 
   schaapcommon::DynamicFor<size_t> loop;
   loop.Run(0, n_scales, [&](size_t scale_index) {
-    Image image_copy(image);
+    Image convolved(image.Width(), image.Height());
+    convolver.MultiplyInverse(
+        image_spectrum, ms_transforms->KernelSpectrum(scales[scale_index]),
+        convolved.Data());
     const bool* selected_mask =
         scale_masks.empty() ? mask : scale_masks[scale_index];
     results[scale_index] =
-        FindSingleScalePeak(ms_transforms, image_copy, scales[scale_index],
+        FindSingleScalePeak(ms_transforms, convolved, scales[scale_index],
                             allow_negative_components, selected_mask,
                             border_ratio, rms_factor_image, calculate_rms);
   });
@@ -56,7 +66,6 @@ ThreadedDeconvolutionTools::FindSingleScalePeak(
     bool allow_negative_components, const bool* mask, float border_ratio,
     const Image& rms_factor_image, bool calculate_rms) {
   Image scratch(ms_transforms->Width(), ms_transforms->Height());
-  ms_transforms->Transform(image, scratch, scale);
   const size_t width = ms_transforms->Width();
   const size_t height = ms_transforms->Height();
   const size_t border_scale = std::ceil(scale * 0.5);

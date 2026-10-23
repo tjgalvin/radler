@@ -50,6 +50,10 @@ class ThreadedDeconvolutionTools {
   }
 
  private:
+  /**
+   * Finds the peak in an image that has already been convolved with the
+   * kernel of the given scale.
+   */
   ThreadedDeconvolutionTools::PeakData FindSingleScalePeak(
       multiscale::MultiScaleTransforms* ms_transforms, aocommon::Image& image,
       float scale, bool allow_negative_components, const bool* mask,

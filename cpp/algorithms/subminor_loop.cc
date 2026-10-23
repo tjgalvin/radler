@@ -5,6 +5,7 @@
 #include <schaapcommon/math/convolution.h>
 
 #include "algorithms/deconvolution_algorithm.h"
+#include "math/fft_convolver.h"
 
 using aocommon::Image;
 
@@ -207,8 +208,10 @@ void SubMinorLoop::CorrectResidualDirty(
                 _height);
 
   // Convolve and store in scratch_a
-  schaapcommon::math::Convolve(scratch_a, scratch_b, _paddedWidth,
-                               _paddedHeight);
+  const math::FftConvolver convolver(_paddedWidth, _paddedHeight);
+  math::FftConvolver::Spectrum psf_spectrum;
+  convolver.Forward(scratch_b, psf_spectrum);
+  convolver.Convolve(scratch_a, psf_spectrum);
 
   // Trim the result into scratch_c
   Image::Trim(scratch_c, _width, _height, scratch_a, _paddedWidth,

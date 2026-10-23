@@ -35,6 +35,7 @@ set(RADLER_FILES
     algorithms/multiscale/multiscale_transforms.cc
     algorithms/rm/rm_operations.cc
     math/dijkstra_splitter.cc
+    math/fft_convolver.cc
     math/peak_finder.cc
     math/component_optimization.cc
     math/rms_image.cc
