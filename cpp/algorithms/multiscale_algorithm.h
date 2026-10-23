@@ -155,7 +155,8 @@ void ConvolvePsfs(std::vector<aocommon::Image>& convolved_psfs,
                   bool is_integrated,
                   std::vector<MultiScaleAlgorithm::ScaleInfo>& scales,
                   double beam_size_in_pixels, double scale_bias,
-                  double minor_loop_gain, aocommon::LogReceiver& log);
+                  double minor_loop_gain, aocommon::LogReceiver& log,
+                  math::FftConvolver::Spectrum* psf_spectrum = nullptr);
 
 /**
  * Finds the most dominating scale in the list of scales.

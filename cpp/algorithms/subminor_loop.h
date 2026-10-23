@@ -196,6 +196,20 @@ class SubMinorLoop {
   void GetFullIndividualModel(size_t image_index,
                               float* individualModelImg) const;
 
+  /**
+   * Calls function(x, y, value) for each non-zero component of the model of
+   * the given image. To be called after Run().
+   */
+  template <typename Function>
+  void ForEachComponent(size_t image_index, Function function) const {
+    const float* data = _subMinorModel.Model()[image_index].Data();
+    for (size_t px = 0; px != _subMinorModel.size(); ++px) {
+      if (data[px] != 0.0f) {
+        function(_subMinorModel.X(px), _subMinorModel.Y(px), data[px]);
+      }
+    }
+  }
+
   void UpdateAutoMask(bool* mask) const;
 
   void UpdateComponentList(ComponentList& list, size_t scale_index) const;
