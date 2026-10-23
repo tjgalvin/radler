@@ -3,7 +3,6 @@
 #include "algorithms/multiscale_algorithm.h"
 
 #include <cassert>
-#include <cstdlib>
 #include <memory>
 #include <set>
 
@@ -308,18 +307,16 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
   size_t thresholdCountdown = std::max(size_t{8}, scale_infos_.size() * 3 / 2);
 
   Image scratch;
-  Image scratchB;
   Image integratedScratch;
-  // scratch and scratchB are used by the subminorloop, which convolves the
-  // images and requires therefore more space. This space depends on the scale,
-  // so here the required size for the largest scale is calculated.
+  // scratch is sized for the padded convolutions of the largest scale. This
+  // space depends on the scale, so here the required size for the largest
+  // scale is calculated.
   const size_t scratchWidth = utils::GetConvolutionSize(
       scale_infos_.back().scale, width, settings_.convolution_padding);
   const size_t scratchHeight = utils::GetConvolutionSize(
       scale_infos_.back().scale, height, settings_.convolution_padding);
 
   scratch = Image(scratchWidth, scratchHeight);
-  scratchB = Image(scratchWidth, scratchHeight);
   integratedScratch = Image(width, height);
   multiscale::MultiScaleTransforms msTransforms(width, height, settings_.shape);
   std::vector<std::vector<Image>> convolvedPSFs(data_image.PsfCount());
@@ -507,9 +504,8 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
         // temporaries
         const aocommon::Image& psf =
             convolvedPSFs[data_image.PsfIndex(imageIndex)][scaleWithPeak];
-        subLoop.CorrectResidualDirty(scratch.Data(), scratchB.Data(),
-                                     integratedScratch.Data(), imageIndex,
-                                     data_image.Data(imageIndex), psf.Data());
+        subLoop.SubtractComponents(imageIndex, data_image.Data(imageIndex),
+                                   psf.Data());
 
         if (imageIndex == 0) {
           if (TrackPerScaleMasks()) {

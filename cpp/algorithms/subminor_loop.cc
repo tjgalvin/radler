@@ -4,8 +4,12 @@
 
 #include <schaapcommon/math/convolution.h>
 
+#include <schaapcommon/threading/staticfor.h>
+
 #include "algorithms/deconvolution_algorithm.h"
+#include "algorithms/simple_clean.h"
 #include "math/fft_convolver.h"
+#include "utils/fft_size_calculations.h"
 
 using aocommon::Image;
 
@@ -218,6 +222,60 @@ void SubMinorLoop::CorrectResidualDirty(
               _paddedHeight);
 
   for (size_t i = 0; i != _width * _height; ++i) residual[i] -= scratch_c[i];
+}
+
+void SubMinorLoop::SubtractComponents(size_t image_index, float* residual,
+                                      const float* single_convolved_psf) const {
+  struct Component {
+    size_t x;
+    size_t y;
+    float value;
+  };
+  std::vector<Component> components;
+  ForEachComponent(image_index, [&](size_t x, size_t y, float value) {
+    components.push_back(Component{x, y, value});
+  });
+
+  // Each directly subtracted component costs a pass over the image, whereas
+  // the padded FFT convolution costs the equivalent of a few tens of passes.
+  constexpr size_t kMaxDirectComponents = 32;
+  if (components.size() <= kMaxDirectComponents) {
+    schaapcommon::StaticFor<size_t> loop;
+    loop.Run(0, _height, [&](size_t start_y, size_t end_y) {
+      for (const Component& component : components) {
+        simple_clean::PartialSubtractImage(
+            residual, single_convolved_psf, _width, _height, component.x,
+            component.y, component.value, start_y, end_y);
+      }
+    });
+  } else {
+    // The psf covers offsets of -size/2 to size/2 and the components and the
+    // residual cover 0 to size, so a padded size of 1.5 x size is sufficient
+    // to avoid wrapping.
+    const size_t padded_width = std::max(
+        _paddedWidth, utils::CalculateGoodFFTSize(std::ceil(1.5 * _width)));
+    const size_t padded_height = std::max(
+        _paddedHeight, utils::CalculateGoodFFTSize(std::ceil(1.5 * _height)));
+    Image padded(padded_width, padded_height);
+    Image kernel(padded_width, padded_height);
+    Image::Untrim(padded.Data(), padded_width, padded_height,
+                  single_convolved_psf, _width, _height);
+    schaapcommon::math::PrepareConvolutionKernel(kernel.Data(), padded.Data(),
+                                                 padded_width, padded_height);
+    Image model(_width, _height);
+    GetFullIndividualModel(image_index, model.Data());
+    Image::Untrim(padded.Data(), padded_width, padded_height, model.Data(),
+                  _width, _height);
+
+    const math::FftConvolver convolver(padded_width, padded_height);
+    math::FftConvolver::Spectrum kernel_spectrum;
+    convolver.Forward(kernel.Data(), kernel_spectrum);
+    convolver.Convolve(padded.Data(), kernel_spectrum);
+
+    Image::Trim(model.Data(), _width, _height, padded.Data(), padded_width,
+                padded_height);
+    for (size_t i = 0; i != _width * _height; ++i) residual[i] -= model[i];
+  }
 }
 
 void SubMinorLoop::UpdateAutoMask(bool* mask) const {
