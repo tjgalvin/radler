@@ -83,10 +83,11 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm,
    * Finds the maximum peak values for each scale in the integrated image,
    * and modifies the maximum values in the scale_infos_ accordingly.
    */
-  void FindActiveScaleConvolvedMaxima(const ImageSet& image_set,
-                                      aocommon::Image& integrated_scratch,
-                                      aocommon::Image& scratch, bool report_rms,
-                                      ThreadedDeconvolutionTools& tools);
+  void FindActiveScaleConvolvedMaxima(
+      const ImageSet& image_set, aocommon::Image& integrated_scratch,
+      aocommon::Image& scratch, bool report_rms,
+      ThreadedDeconvolutionTools& tools,
+      multiscale::MultiScaleTransforms& ms_transforms);
 
   /**
    * Same as @ref FindActiveScaleConvolvedMaxima(), but will convolve the data
@@ -143,6 +144,18 @@ void ConvolvePsfs(std::vector<aocommon::Image>& convolved_psfs,
                   double beam_size_in_pixels, double scale_bias,
                   double minor_loop_gain, MultiscaleShape shape,
                   aocommon::LogReceiver& log);
+
+/**
+ * Like the other overload, but uses the provided transforms object, so that
+ * the kernel spectra it caches can be shared over several calls.
+ */
+void ConvolvePsfs(std::vector<aocommon::Image>& convolved_psfs,
+                  const aocommon::Image& psf,
+                  multiscale::MultiScaleTransforms& ms_transforms,
+                  bool is_integrated,
+                  std::vector<MultiScaleAlgorithm::ScaleInfo>& scales,
+                  double beam_size_in_pixels, double scale_bias,
+                  double minor_loop_gain, aocommon::LogReceiver& log);
 
 /**
  * Finds the most dominating scale in the list of scales.

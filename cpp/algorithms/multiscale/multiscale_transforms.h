@@ -5,12 +5,16 @@
 
 #include <cmath>
 #include <initializer_list>
+#include <map>
+#include <memory>
+#include <mutex>
 #include <vector>
 
 #include <aocommon/image.h>
 #include <aocommon/uvector.h>
 
 #include "settings.h"
+#include "math/fft_convolver.h"
 
 namespace radler::algorithms::multiscale {
 
@@ -19,7 +23,10 @@ class MultiScaleTransforms {
   using Shape = radler::MultiscaleShape;
 
   MultiScaleTransforms(size_t width, size_t height, Shape shape)
-      : _width(width), _height(height), _shape(shape) {}
+      : _width(width),
+        _height(height),
+        _shape(shape),
+        _fftData(std::make_shared<FftData>(width, height)) {}
 
   MultiScaleTransforms(const MultiScaleTransforms&) = default;
   MultiScaleTransforms(MultiScaleTransforms&&) = default;
@@ -38,6 +45,15 @@ class MultiScaleTransforms {
 
   void Transform(std::vector<aocommon::Image>& images, aocommon::Image& scratch,
                  float scale);
+
+  /**
+   * Returns the spectrum of the prepared convolution kernel of the given scale.
+   * Spectra are calculated on first use and cached by this object (and its
+   * copies). This function is thread safe.
+   */
+  const math::FftConvolver::Spectrum& KernelSpectrum(float scale);
+
+  const math::FftConvolver& Convolver() const { return _fftData->convolver; }
 
   size_t Width() const { return _width; }
   size_t Height() const { return _height; }
@@ -109,8 +125,17 @@ class MultiScaleTransforms {
   }
 
  private:
+  struct FftData {
+    FftData(size_t width, size_t height) : convolver(width, height) {}
+    math::FftConvolver convolver;
+    std::mutex mutex;
+    std::map<float, std::unique_ptr<math::FftConvolver::Spectrum>>
+        kernelSpectra;
+  };
+
   size_t _width, _height;
   Shape _shape;
+  std::shared_ptr<FftData> _fftData;
 
   static size_t taperedQuadraticKernelSize(double scaleInPixels) {
     return size_t(ceil(scaleInPixels * 0.5) * 2.0) + 1;
