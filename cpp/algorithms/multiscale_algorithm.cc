@@ -272,8 +272,12 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
                scale_infos_, beam_size_in_pixels_, settings_.scale_bias,
                MinorLoopGain(), LogReceiver());
 
-  // If there's only one, the integrated equals the first, so we can skip this
-  if (data_image.PsfCount() > 1) {
+  // If there's only one, the integrated equals the first, so we can skip this.
+  // The per-image convolved psfs are only used in the minor loop, so they are
+  // also not needed when no iterations are performed (e.g. when parallel
+  // deconvolution only searches for the peak).
+  const bool minor_loop_required = IterationNumber() < MaxIterations();
+  if (data_image.PsfCount() > 1 && minor_loop_required) {
     for (size_t i = 0; i != data_image.PsfCount(); ++i) {
       ConvolvePsfs(convolvedPSFs[i], psf_images[i], msTransforms, false,
                    scale_infos_, beam_size_in_pixels_, settings_.scale_bias,
