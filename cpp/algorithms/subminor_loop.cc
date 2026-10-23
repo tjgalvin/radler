@@ -10,6 +10,7 @@
 #include "algorithms/simple_clean.h"
 #include "math/fft_convolver.h"
 #include "utils/fft_size_calculations.h"
+#include "utils/phase_timer.h"
 
 using aocommon::Image;
 
@@ -240,6 +241,8 @@ void SubMinorLoop::SubtractComponents(size_t image_index, float* residual,
   // the padded FFT convolution costs the equivalent of a few tens of passes.
   constexpr size_t kMaxDirectComponents = 32;
   if (components.size() <= kMaxDirectComponents) {
+    utils::PhaseTimers::Instance().Count(utils::Counter::kSubtractionsDirect,
+                                         1);
     schaapcommon::StaticFor<size_t> loop;
     loop.Run(0, _height, [&](size_t start_y, size_t end_y) {
       for (const Component& component : components) {
@@ -249,6 +252,7 @@ void SubMinorLoop::SubtractComponents(size_t image_index, float* residual,
       }
     });
   } else {
+    utils::PhaseTimers::Instance().Count(utils::Counter::kSubtractionsFft, 1);
     // The psf covers offsets of -size/2 to size/2 and the components and the
     // residual cover 0 to size, so a padded size of 1.5 x size is sufficient
     // to avoid wrapping.
