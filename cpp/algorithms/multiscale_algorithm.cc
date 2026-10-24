@@ -359,11 +359,11 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
   // with them.
   std::vector<bool> empty_scales(scale_infos_.size());
   for (size_t i = 0; i != scale_infos_.size(); ++i) {
-    empty_scales[i] = IsScaleExcluded(i) ||
-                      (UsePerScaleMasks() && i < GetScaleMaskCount() &&
-                       std::none_of(
-                           GetScaleMask(i).begin(), GetScaleMask(i).end(),
-                           [](bool allowed) { return allowed; }));
+    empty_scales[i] =
+        IsScaleExcluded(i) ||
+        (UsePerScaleMasks() && i < GetScaleMaskCount() &&
+         std::none_of(GetScaleMask(i).begin(), GetScaleMask(i).end(),
+                      [](bool allowed) { return allowed; }));
   }
   if (track_components_) {
     if (component_list_ == nullptr) {
