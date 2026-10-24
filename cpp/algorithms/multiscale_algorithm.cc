@@ -152,6 +152,27 @@ float CentralConvolvedValue(const Image& psf,
   return sum;
 }
 
+/**
+ * Convolves the psf with the kernel of the given scale.
+ * @param psf_spectrum The spectrum of the psf, which can be shared by all
+ * scales. It is calculated when it is empty.
+ */
+void ConvolvePsf(Image& convolved_psf, const Image& psf, float scale,
+                 multiscale::MultiScaleTransforms& ms_transforms,
+                 math::FftConvolver::Spectrum& psf_spectrum) {
+  if (scale == 0.0) {
+    convolved_psf = psf;
+  } else {
+    if (psf_spectrum.empty()) {
+      ms_transforms.Convolver().Forward(psf.Data(), psf_spectrum);
+    }
+    convolved_psf = Image(psf.Width(), psf.Height());
+    ms_transforms.Convolver().MultiplyInverse(
+        psf_spectrum, ms_transforms.KernelSpectrum(scale),
+        convolved_psf.Data());
+  }
+}
+
 }  // namespace
 
 void ConvolvePsfs(std::vector<Image>& convolved_psfs, const Image& psf,
@@ -159,40 +180,15 @@ void ConvolvePsfs(std::vector<Image>& convolved_psfs, const Image& psf,
                   bool is_integrated,
                   std::vector<MultiScaleAlgorithm::ScaleInfo>& scales,
                   double beam_size_in_pixels, double scale_bias,
-                  double minor_loop_gain, aocommon::LogReceiver& log,
-                  math::FftConvolver::Spectrum* psf_spectrum_out,
-                  const std::vector<bool>* skip_scales) {
-  assert(!(is_integrated && skip_scales));
-  const auto is_skipped = [&](size_t scale_index) {
-    return skip_scales && (*skip_scales)[scale_index];
-  };
+                  double minor_loop_gain, aocommon::LogReceiver& log) {
   convolved_psfs = std::vector<Image>(scales.size());
-  // The spectrum of the psf is shared by all scales. It is only needed when
-  // the psf is convolved with at least one non-zero scale.
-  bool needs_spectrum = false;
-  for (size_t scale_index = 0; scale_index != scales.size(); ++scale_index) {
-    needs_spectrum = needs_spectrum || (scales[scale_index].scale != 0.0 &&
-                                        !is_skipped(scale_index));
-  }
-  math::FftConvolver::Spectrum local_psf_spectrum;
-  math::FftConvolver::Spectrum& psf_spectrum =
-      psf_spectrum_out ? *psf_spectrum_out : local_psf_spectrum;
-  if (needs_spectrum) {
-    ms_transforms.Convolver().Forward(psf.Data(), psf_spectrum);
-  }
+  // The spectrum of the psf is shared by all scales.
+  math::FftConvolver::Spectrum psf_spectrum;
   if (is_integrated) log.Info << "Scale info:\n";
   for (size_t scale_index = 0; scale_index != scales.size(); ++scale_index) {
     MultiScaleAlgorithm::ScaleInfo& scale_entry = scales[scale_index];
-    if (is_skipped(scale_index)) continue;
-
-    if (scale_entry.scale == 0.0) {
-      convolved_psfs[scale_index] = psf;
-    } else {
-      convolved_psfs[scale_index] = Image(psf.Width(), psf.Height());
-      ms_transforms.Convolver().MultiplyInverse(
-          psf_spectrum, ms_transforms.KernelSpectrum(scale_entry.scale),
-          convolved_psfs[scale_index].Data());
-    }
+    ConvolvePsf(convolved_psfs[scale_index], psf, scale_entry.scale,
+                ms_transforms, psf_spectrum);
 
     if (is_integrated) {
       SetScaleInfo(
@@ -356,8 +352,8 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
   }
   InflateUserScaleMasks(width, height, scale_infos_.size());
   // Scales that a user scale mask or the auto-mask allows nowhere in this
-  // image are never cleaned, so the psf and the image are not convolved with
-  // them.
+  // image are never cleaned, so the scale search does not convolve the image
+  // with them.
   std::vector<bool> empty_scales(scale_infos_.size());
   for (size_t i = 0; i != scale_infos_.size(); ++i) {
     empty_scales[i] = IsScaleExcluded(i) ||
@@ -403,9 +399,17 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
   scratch = Image(scratchWidth, scratchHeight);
   integratedScratch = Image(width, height);
   multiscale::MultiScaleTransforms msTransforms(width, height, settings_.shape);
-  std::vector<std::vector<Image>> convolvedPSFs(data_image.PsfCount());
-  // The spectra of the psfs, used to make the twice-convolved psfs
+  // The psfs convolved with each scale. The minor loop selects only a few of
+  // the scales in an image, so a psf is convolved with a scale when that scale
+  // is selected for the first time.
+  std::vector<std::vector<Image>> convolvedPSFs(
+      data_image.PsfCount(), std::vector<Image>(scale_infos_.size()));
+  // The spectra of the psfs, used to make the convolved and twice-convolved
+  // psfs. They are calculated when the first non-zero scale is selected.
   std::vector<math::FftConvolver::Spectrum> psfSpectra(data_image.PsfCount());
+  // With one psf, the integrated psf equals it. It is kept for the
+  // convolutions, because integratedScratch is reused as scratch space.
+  Image singlePsf;
   data_image.GetIntegratedPsf(integratedScratch, psf_images);
   // The scale gains and bias factors only need the peak of the integrated
   // psf convolved with each scale, which is calculated without an FFT.
@@ -413,25 +417,12 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
                        beam_size_in_pixels_, settings_.scale_bias,
                        MinorLoopGain(), LogReceiver());
 
-  // The convolved psfs are only used in the minor loop, so they are not
-  // needed when no iterations are performed (e.g. when parallel
-  // deconvolution only searches for the peak), nor for empty scales.
+  // The psfs are only used in the minor loop, so they are not needed when no
+  // iterations are performed (e.g. when parallel deconvolution only searches
+  // for the peak).
   const bool minor_loop_required = IterationNumber() < MaxIterations();
-  if (minor_loop_required) {
-    if (data_image.PsfCount() == 1) {
-      // With one psf, the integrated psf equals it.
-      ConvolvePsfs(convolvedPSFs[0], integratedScratch, msTransforms, false,
-                   scale_infos_, beam_size_in_pixels_, settings_.scale_bias,
-                   MinorLoopGain(), LogReceiver(), &psfSpectra[0],
-                   &empty_scales);
-    } else {
-      for (size_t i = 0; i != data_image.PsfCount(); ++i) {
-        ConvolvePsfs(convolvedPSFs[i], psf_images[i], msTransforms, false,
-                     scale_infos_, beam_size_in_pixels_, settings_.scale_bias,
-                     MinorLoopGain(), LogReceiver(), &psfSpectra[i],
-                     &empty_scales);
-      }
-    }
+  if (minor_loop_required && data_image.PsfCount() == 1) {
+    singlePsf = integratedScratch;
   }
 
   if (do_square_channels) {
@@ -487,6 +478,15 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
          (!StopOnNegativeComponents() ||
           scale_infos_[scaleWithPeak].max_unnormalized_image_value >= 0.0) &&
          thresholdCountdown > 0 && !diverging) {
+    const float scale = scale_infos_[scaleWithPeak].scale;
+    for (size_t i = 0; i != data_image.PsfCount(); ++i) {
+      if (convolvedPSFs[i][scaleWithPeak].Empty()) {
+        ConvolvePsf(convolvedPSFs[i][scaleWithPeak],
+                    data_image.PsfCount() == 1 ? singlePsf : psf_images[i],
+                    scale, msTransforms, psfSpectra[i]);
+      }
+    }
+
     // Create double-convolved PSFs & individually convolved images for this
     // scale
     std::vector<Image> transformList;
@@ -498,7 +498,6 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
     }
     std::vector<Image> twiceConvolvedPSFs;
     twiceConvolvedPSFs.reserve(data_image.PsfCount());
-    const float scale = scale_infos_[scaleWithPeak].scale;
     if (scale != 0.0) {
       msTransforms.Transform(transformList, scratch, scale);
       // The twice-convolved psfs are made from the psf spectra, which takes
