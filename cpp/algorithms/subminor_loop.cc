@@ -2,18 +2,47 @@
 
 #include "subminor_loop.h"
 
+#include <algorithm>
+
 #include <schaapcommon/math/convolution.h>
 
 #include <schaapcommon/threading/staticfor.h>
 
 #include "algorithms/deconvolution_algorithm.h"
-#include "algorithms/simple_clean.h"
 #include "math/fft_convolver.h"
 #include "utils/fft_size_calculations.h"
 
 using aocommon::Image;
 
 namespace radler::algorithms {
+
+namespace {
+
+/**
+ * Subtracts the psf, truncated to the image and multiplied by the factor, at
+ * pixel (x, y), for the image rows from start_y to end_y. Pixel (x, y)
+ * receives the centre pixel of the psf, (width / 2, height / 2). Unlike
+ * simple_clean::PartialSubtractImage(), this includes the last row and column
+ * of the psf when the image size is odd.
+ */
+void SubtractTruncatedPsf(float* image, const float* psf, size_t width,
+                          size_t height, size_t x, size_t y, float factor,
+                          size_t start_y, size_t end_y) {
+  const size_t start_x = x > width / 2 ? x - width / 2 : 0;
+  const size_t end_x = std::min(x + (width - width / 2), width);
+  start_y = std::max(start_y, y > height / 2 ? y - height / 2 : 0);
+  end_y = std::min(end_y, y + (height - height / 2));
+  for (size_t image_y = start_y; image_y < end_y; ++image_y) {
+    float* image_row = &image[image_y * width + start_x];
+    const float* psf_row =
+        &psf[(image_y + height / 2 - y) * width + start_x + width / 2 - x];
+    for (size_t i = 0; i != end_x - start_x; ++i) {
+      image_row[i] -= psf_row[i] * factor;
+    }
+  }
+}
+
+}  // namespace
 
 template <bool AllowNegatives>
 size_t SubMinorModel::GetMaxComponent(Image& scratch, float& max_value) const {
@@ -212,10 +241,8 @@ void SubMinorLoop::CorrectResidualDirty(
                 _height);
 
   // Convolve and store in scratch_a
-  const math::FftConvolver convolver(_paddedWidth, _paddedHeight);
-  math::FftConvolver::Spectrum psf_spectrum;
-  convolver.Forward(scratch_b, psf_spectrum);
-  convolver.Convolve(scratch_a, psf_spectrum);
+  schaapcommon::math::Convolve(scratch_a, scratch_b, _paddedWidth,
+                               _paddedHeight);
 
   // Trim the result into scratch_c
   Image::Trim(scratch_c, _width, _height, scratch_a, _paddedWidth,
@@ -243,9 +270,9 @@ void SubMinorLoop::SubtractComponents(size_t image_index, float* residual,
     schaapcommon::StaticFor<size_t> loop;
     loop.Run(0, _height, [&](size_t start_y, size_t end_y) {
       for (const Component& component : components) {
-        simple_clean::PartialSubtractImage(
-            residual, single_convolved_psf, _width, _height, component.x,
-            component.y, component.value, start_y, end_y);
+        SubtractTruncatedPsf(residual, single_convolved_psf, _width, _height,
+                             component.x, component.y, component.value, start_y,
+                             end_y);
       }
     });
   } else {
@@ -256,10 +283,17 @@ void SubMinorLoop::SubtractComponents(size_t image_index, float* residual,
         _paddedWidth, utils::CalculateGoodFFTSize(std::ceil(1.5 * _width)));
     const size_t padded_height = std::max(
         _paddedHeight, utils::CalculateGoodFFTSize(std::ceil(1.5 * _height)));
-    Image padded(padded_width, padded_height);
+    // The centre pixel of the psf is placed at the centre of the padded image,
+    // which PrepareConvolutionKernel() moves to pixel (0, 0). Untrim() would
+    // place an odd-sized psf one pixel before it.
+    Image padded(padded_width, padded_height, 0.0f);
+    const size_t psf_x = padded_width / 2 - _width / 2;
+    const size_t psf_y = padded_height / 2 - _height / 2;
+    for (size_t y = 0; y != _height; ++y) {
+      std::copy_n(&single_convolved_psf[y * _width], _width,
+                  &padded[psf_x + (psf_y + y) * padded_width]);
+    }
     Image kernel(padded_width, padded_height);
-    Image::Untrim(padded.Data(), padded_width, padded_height,
-                  single_convolved_psf, _width, _height);
     schaapcommon::math::PrepareConvolutionKernel(kernel.Data(), padded.Data(),
                                                  padded_width, padded_height);
     Image model(_width, _height);

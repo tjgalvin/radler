@@ -141,6 +141,11 @@ float CentralConvolvedValue(const Image& psf,
   if (scale == 0.0) return psf[width / 2 + (height / 2) * width];
   size_t n;
   const Image kernel = ms_transforms.MakeShapeFunction(scale, n);
+  // Convolving the psf fails for a kernel that does not fit in the image, so
+  // this fails in the same way.
+  if (n > width || n > height) {
+    throw std::runtime_error("Kernel size > image dimension");
+  }
   // Kernel pixel (kx, ky) has offset (kx - n/2, ky - n/2) from the kernel
   // centre, so it multiplies the psf at the centre minus that offset. The
   // indices wrap around like the circular convolution does.
@@ -410,23 +415,12 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
   // The spectra of the psfs, used to make the convolved and twice-convolved
   // psfs. They are calculated when the first non-zero scale is selected.
   std::vector<math::FftConvolver::Spectrum> psfSpectra(data_image.PsfCount());
-  // With one psf, the integrated psf equals it. It is kept for the
-  // convolutions, because integratedScratch is reused as scratch space.
-  Image singlePsf;
   data_image.GetIntegratedPsf(integratedScratch, psf_images);
   // The scale gains and bias factors only need the peak of the integrated
   // psf convolved with each scale, which is calculated without an FFT.
   InitializeScaleInfos(integratedScratch, msTransforms, scale_infos_,
                        beam_size_in_pixels_, settings_.scale_bias,
                        MinorLoopGain(), LogReceiver());
-
-  // The psfs are only used in the minor loop, so they are not needed when no
-  // iterations are performed (e.g. when parallel deconvolution only searches
-  // for the peak).
-  const bool minor_loop_required = IterationNumber() < MaxIterations();
-  if (minor_loop_required && data_image.PsfCount() == 1) {
-    singlePsf = integratedScratch;
-  }
 
   if (do_square_channels) {
     FindSquaredScaleConvolvedMaxima(data_image, integratedScratch, scratch);
@@ -484,9 +478,8 @@ DeconvolutionResult MultiScaleAlgorithm::ExecuteMajorIteration(
     const float scale = scale_infos_[scaleWithPeak].scale;
     for (size_t i = 0; i != data_image.PsfCount(); ++i) {
       if (convolvedPSFs[i][scaleWithPeak].Empty()) {
-        ConvolvePsf(convolvedPSFs[i][scaleWithPeak],
-                    data_image.PsfCount() == 1 ? singlePsf : psf_images[i],
-                    scale, msTransforms, psfSpectra[i]);
+        ConvolvePsf(convolvedPSFs[i][scaleWithPeak], psf_images[i], scale,
+                    msTransforms, psfSpectra[i]);
       }
     }
 

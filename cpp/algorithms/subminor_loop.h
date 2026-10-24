@@ -196,10 +196,13 @@ class SubMinorLoop {
   /**
    * Like CorrectResidualDirty(), but subtracts the components with the psf
    * truncated to the image size, without the wrap-around of the circular
-   * convolution in CorrectResidualDirty(). This is the same as the
-   * subtraction in the non-optimized minor loop. When there are few
-   * components, they are subtracted directly, otherwise with an FFT that is
-   * padded enough to avoid wrapping; both give the same result.
+   * convolution in CorrectResidualDirty(). This is the subtraction of the
+   * non-optimized minor loop, except that for odd image sizes it also
+   * subtracts the last row and column of the psf, which
+   * simple_clean::PartialSubtractImage() leaves out. (For odd sizes,
+   * CorrectResidualDirty() also places the psf one pixel off.) When there are
+   * few components, they are subtracted directly, otherwise with an FFT that
+   * is padded enough to avoid wrapping; both give the same result.
    */
   void SubtractComponents(size_t image_index, float* residual,
                           const float* single_convolved_psf) const;

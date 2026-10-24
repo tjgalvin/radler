@@ -6,6 +6,8 @@
 #include <cmath>
 #include <memory>
 #include <random>
+#include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include <aocommon/image.h>
@@ -99,14 +101,13 @@ size_t CountComponents(const SubMinorLoop& loop) {
  * A single image to deconvolve, with the work table and the algorithm that
  * a sub-minor loop needs.
  */
-struct SubMinorLoopFixture {
-  static constexpr size_t kWidth = 80;
-  static constexpr size_t kHeight = 64;
-
-  SubMinorLoopFixture()
-      : table({}, 1, 1),
+struct SubMinorLoopSetup {
+  SubMinorLoopSetup(size_t width_, size_t height_)
+      : width(width_),
+        height(height_),
+        table({}, 1, 1),
         algorithm(Settings::Multiscale(), 1.0, 1.0, 1.0, false),
-        psf(MakePsf(kWidth, kHeight)) {
+        psf(MakePsf(width, height)) {
     aocommon::Logger::SetVerbosity(aocommon::LogVerbosityLevel::kQuiet);
     auto entry = std::make_unique<WorkTableEntry>();
     entry->original_channel_index = 0;
@@ -129,15 +130,15 @@ struct SubMinorLoopFixture {
     // threshold of the sub-minor loop.
     std::mt19937 generator(42);
     std::normal_distribution<float> noise(0.0f, 0.05f);
-    residual = Image(kWidth, kHeight);
+    residual = Image(width, height);
     for (float& value : residual) value = noise(generator);
     const double sources[][3] = {{20, 15, 1.0}, {55, 40, 0.8}, {40, 25, 0.6}};
     for (const auto& [source_x, source_y, flux] : sources) {
-      for (size_t y = 0; y != kHeight; ++y) {
-        for (size_t x = 0; x != kWidth; ++x) {
+      for (size_t y = 0; y != height; ++y) {
+        for (size_t x = 0; x != width; ++x) {
           const double dx = double(x) - source_x;
           const double dy = double(y) - source_y;
-          residual[x + y * kWidth] +=
+          residual[x + y * width] +=
               flux * std::exp(-(dx * dx + dy * dy) / 50.0);
         }
       }
@@ -149,9 +150,9 @@ struct SubMinorLoopFixture {
    * psf, for at most the given number of iterations.
    */
   std::unique_ptr<SubMinorLoop> RunLoop(size_t max_iterations) {
-    ImageSet residual_set(table, false, {}, kWidth, kHeight);
+    ImageSet residual_set(table, false, {}, width, height);
     std::copy_n(residual.Data(), residual.Size(), residual_set.Data(0));
-    auto loop = std::make_unique<SubMinorLoop>(kWidth, kHeight, kWidth, kHeight,
+    auto loop = std::make_unique<SubMinorLoop>(width, height, width, height,
                                                log_receiver);
     const float threshold = 0.2f * MaxAbs(residual);
     loop->SetThreshold(threshold, threshold);
@@ -162,13 +163,20 @@ struct SubMinorLoopFixture {
     return loop;
   }
 
-  // Declared first, because the algorithm logs when it is destructed.
+  size_t width;
+  size_t height;
+  // Declared before the algorithm, because the algorithm logs when it is
+  // destructed.
   aocommon::LogReceiver log_receiver;
   WorkTable table;
   MultiScaleAlgorithm algorithm;
   Image psf;
   Image residual;
 };
+
+// An even and an odd image size, because the psf centre lies half a pixel
+// differently in them.
+const std::pair<size_t, size_t> kSubMinorLoopSizes[] = {{80, 64}, {79, 63}};
 
 }  // namespace
 
@@ -177,35 +185,36 @@ BOOST_AUTO_TEST_CASE(direct_model_update_matches_fft) {
   // components, and convolves the components with an FFT otherwise. Both must
   // agree for components that are not closer to the edge than the clean border
   // of half the scale.
-  constexpr size_t kWidth = 120;
-  constexpr size_t kHeight = 100;
-  for (const float scale : {8.0f, 24.0f, 40.0f}) {
-    MultiScaleTransforms transforms(kWidth, kHeight,
-                                    Shape::kTaperedQuadraticShape);
-    size_t n;
-    const Image kernel = transforms.MakeShapeFunction(scale, n);
-    const size_t border = std::ceil(scale * 0.5);
-    struct Component {
-      size_t x;
-      size_t y;
-      float value;
-    };
-    const Component components[] = {
-        {border, border, 1.0f},
-        {kWidth - 1 - border, kHeight - 1 - border, -0.5f},
-        {60, 50, 2.0f},
-        {61, 50, 0.25f}};
-    Image direct(kWidth, kHeight, 0.0f);
-    Image fft(kWidth, kHeight, 0.0f);
-    for (const Component& component : components) {
-      MultiScaleTransforms::AddKernel(direct.Data(), kWidth, kHeight, kernel, n,
-                                      component.x, component.y,
-                                      component.value);
-      fft[component.x + component.y * kWidth] += component.value;
+  for (const auto& [width, height] : {std::pair<size_t, size_t>{120, 100},
+                                      std::pair<size_t, size_t>{121, 99}}) {
+    for (const float scale : {8.0f, 24.0f, 40.0f}) {
+      MultiScaleTransforms transforms(width, height,
+                                      Shape::kTaperedQuadraticShape);
+      size_t n;
+      const Image kernel = transforms.MakeShapeFunction(scale, n);
+      const size_t border = std::ceil(scale * 0.5);
+      struct Component {
+        size_t x;
+        size_t y;
+        float value;
+      };
+      const Component components[] = {
+          {border, border, 1.0f},
+          {width - 1 - border, height - 1 - border, -0.5f},
+          {60, 50, 2.0f},
+          {61, 50, 0.25f}};
+      Image direct(width, height, 0.0f);
+      Image fft(width, height, 0.0f);
+      for (const Component& component : components) {
+        MultiScaleTransforms::AddKernel(direct.Data(), width, height, kernel, n,
+                                        component.x, component.y,
+                                        component.value);
+        fft[component.x + component.y * width] += component.value;
+      }
+      transforms.Convolver().Convolve(fft.Data(),
+                                      transforms.KernelSpectrum(scale));
+      CheckClose(direct, fft);
     }
-    transforms.Convolver().Convolve(fft.Data(),
-                                    transforms.KernelSpectrum(scale));
-    CheckClose(direct, fft);
   }
 }
 
@@ -248,27 +257,54 @@ BOOST_AUTO_TEST_CASE(scale_infos_without_convolution) {
       BOOST_CHECK(direct_scales[i].is_active);
     }
   }
+
+  // A kernel that does not fit in the image fails in both, as the scale lists
+  // that users give are not limited to the image size.
+  aocommon::LogReceiver log;
+  std::vector<MultiScaleAlgorithm::ScaleInfo> convolved_scales;
+  InitializeScales(convolved_scales, kBeamSize, std::min(kWidth, kHeight),
+                   Shape::kTaperedQuadraticShape, 0, {0.0, 128.0}, log);
+  std::vector<MultiScaleAlgorithm::ScaleInfo> direct_scales = convolved_scales;
+  std::vector<Image> convolved_psfs;
+  Image scratch(kWidth, kHeight);
+  BOOST_CHECK_THROW(ConvolvePsfs(convolved_psfs, psf, scratch, true,
+                                 convolved_scales, kBeamSize, kScaleBias, kGain,
+                                 Shape::kTaperedQuadraticShape, log),
+                    std::runtime_error);
+  MultiScaleTransforms transforms(kWidth, kHeight,
+                                  Shape::kTaperedQuadraticShape);
+  BOOST_CHECK_THROW(InitializeScaleInfos(psf, transforms, direct_scales,
+                                         kBeamSize, kScaleBias, kGain, log),
+                    std::runtime_error);
 }
 
-BOOST_FIXTURE_TEST_CASE(subtract_few_components, SubMinorLoopFixture) {
+BOOST_AUTO_TEST_CASE(subtract_few_components) {
   // Up to 32 components are subtracted directly.
-  const std::unique_ptr<SubMinorLoop> loop = RunLoop(10);
-  const size_t n_components = CountComponents(*loop);
-  BOOST_REQUIRE_GT(n_components, 0u);
-  BOOST_REQUIRE_LE(n_components, 32u);
-  Image subtracted = residual;
-  loop->SubtractComponents(0, subtracted.Data(), psf.Data());
-  CheckClose(TruncatedSubtraction(residual, psf, *loop), subtracted);
+  for (const auto& [width, height] : kSubMinorLoopSizes) {
+    SubMinorLoopSetup setup(width, height);
+    const std::unique_ptr<SubMinorLoop> loop = setup.RunLoop(10);
+    const size_t n_components = CountComponents(*loop);
+    BOOST_REQUIRE_GT(n_components, 0u);
+    BOOST_REQUIRE_LE(n_components, 32u);
+    Image subtracted = setup.residual;
+    loop->SubtractComponents(0, subtracted.Data(), setup.psf.Data());
+    CheckClose(TruncatedSubtraction(setup.residual, setup.psf, *loop),
+               subtracted);
+  }
 }
 
-BOOST_FIXTURE_TEST_CASE(subtract_many_components, SubMinorLoopFixture) {
+BOOST_AUTO_TEST_CASE(subtract_many_components) {
   // More than 32 components are subtracted with a padded FFT, which must not
   // wrap the psf around the image.
-  const std::unique_ptr<SubMinorLoop> loop = RunLoop(1000);
-  BOOST_REQUIRE_GT(CountComponents(*loop), 32u);
-  Image subtracted = residual;
-  loop->SubtractComponents(0, subtracted.Data(), psf.Data());
-  CheckClose(TruncatedSubtraction(residual, psf, *loop), subtracted);
+  for (const auto& [width, height] : kSubMinorLoopSizes) {
+    SubMinorLoopSetup setup(width, height);
+    const std::unique_ptr<SubMinorLoop> loop = setup.RunLoop(1000);
+    BOOST_REQUIRE_GT(CountComponents(*loop), 32u);
+    Image subtracted = setup.residual;
+    loop->SubtractComponents(0, subtracted.Data(), setup.psf.Data());
+    CheckClose(TruncatedSubtraction(setup.residual, setup.psf, *loop),
+               subtracted);
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
