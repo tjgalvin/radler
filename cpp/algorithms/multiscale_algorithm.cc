@@ -31,9 +31,12 @@ namespace {
  * Adds the components of one image that were found by the sub-minor loop,
  * convolved with the kernel of the given scale, to the model image. When there
  * are few components, the kernels are added directly at the component
- * positions, otherwise the model is convolved with an FFT. Both give the same
- * result, because components are never closer to the border than half the
- * scale, so that the circular FFT convolution does not wrap them around.
+ * positions, otherwise the model is convolved with an FFT. For tapered
+ * quadratic kernels, both give the same result, because components are never
+ * closer to the border than half the scale, so that the circular FFT
+ * convolution does not wrap them around. Gaussian kernels are wider: near the
+ * border, the direct addition clips them, as AddShapeComponent() does in the
+ * non-optimized minor loop, whereas the FFT wraps them around.
  */
 void AddComponentsToModel(const SubMinorLoop& sub_loop, size_t image_index,
                           float scale,
