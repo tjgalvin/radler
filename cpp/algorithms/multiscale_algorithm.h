@@ -82,12 +82,15 @@ class MultiScaleAlgorithm final : public DeconvolutionAlgorithm,
   /**
    * Finds the maximum peak values for each scale in the integrated image,
    * and modifies the maximum values in the scale_infos_ accordingly.
+   * @param empty_scales Scales that no (user or auto-) mask allows anywhere in
+   * the image. They are not convolved and get no peak.
    */
   void FindActiveScaleConvolvedMaxima(
       const ImageSet& image_set, aocommon::Image& integrated_scratch,
       aocommon::Image& scratch, bool report_rms,
       ThreadedDeconvolutionTools& tools,
-      multiscale::MultiScaleTransforms& ms_transforms);
+      multiscale::MultiScaleTransforms& ms_transforms,
+      const std::vector<bool>& empty_scales);
 
   /**
    * Same as @ref FindActiveScaleConvolvedMaxima(), but will convolve the data
@@ -148,6 +151,9 @@ void ConvolvePsfs(std::vector<aocommon::Image>& convolved_psfs,
 /**
  * Like the other overload, but uses the provided transforms object, so that
  * the kernel spectra it caches can be shared over several calls.
+ * @param skip_scales If not nullptr, the psf is not convolved with the scales
+ * for which it is true, and their convolved psfs are left empty. Can not be
+ * combined with @p is_integrated.
  */
 void ConvolvePsfs(std::vector<aocommon::Image>& convolved_psfs,
                   const aocommon::Image& psf,
@@ -156,7 +162,22 @@ void ConvolvePsfs(std::vector<aocommon::Image>& convolved_psfs,
                   std::vector<MultiScaleAlgorithm::ScaleInfo>& scales,
                   double beam_size_in_pixels, double scale_bias,
                   double minor_loop_gain, aocommon::LogReceiver& log,
-                  math::FftConvolver::Spectrum* psf_spectrum = nullptr);
+                  math::FftConvolver::Spectrum* psf_spectrum = nullptr,
+                  const std::vector<bool>* skip_scales = nullptr);
+
+/**
+ * Fills in the scale info list with the same information as @ref
+ * ConvolvePsfs() with is_integrated = true, but without convolving the psf.
+ * The peak of the psf convolved with a scale kernel is calculated directly,
+ * which only requires a sum over the kernel.
+ * @param scales should have been previously initialized with @ref
+ * InitializeScales().
+ */
+void InitializeScaleInfos(const aocommon::Image& integrated_psf,
+                          multiscale::MultiScaleTransforms& ms_transforms,
+                          std::vector<MultiScaleAlgorithm::ScaleInfo>& scales,
+                          double beam_size_in_pixels, double scale_bias,
+                          double minor_loop_gain, aocommon::LogReceiver& log);
 
 /**
  * Finds the most dominating scale in the list of scales.
