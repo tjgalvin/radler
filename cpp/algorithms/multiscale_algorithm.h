@@ -151,9 +151,6 @@ void ConvolvePsfs(std::vector<aocommon::Image>& convolved_psfs,
 /**
  * Like the other overload, but uses the provided transforms object, so that
  * the kernel spectra it caches can be shared over several calls.
- * @param skip_scales If not nullptr, the psf is not convolved with the scales
- * for which it is true, and their convolved psfs are left empty. Can not be
- * combined with @p is_integrated.
  */
 void ConvolvePsfs(std::vector<aocommon::Image>& convolved_psfs,
                   const aocommon::Image& psf,
@@ -161,9 +158,7 @@ void ConvolvePsfs(std::vector<aocommon::Image>& convolved_psfs,
                   bool is_integrated,
                   std::vector<MultiScaleAlgorithm::ScaleInfo>& scales,
                   double beam_size_in_pixels, double scale_bias,
-                  double minor_loop_gain, aocommon::LogReceiver& log,
-                  math::FftConvolver::Spectrum* psf_spectrum = nullptr,
-                  const std::vector<bool>* skip_scales = nullptr);
+                  double minor_loop_gain, aocommon::LogReceiver& log);
 
 /**
  * Fills in the scale info list with the same information as @ref
